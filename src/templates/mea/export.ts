@@ -198,7 +198,7 @@ ${buttonsHTML}
         left: 50%;
         transform: translateX(-50%);
         padding: 0 0.5rem;
-        font-family: inherit;
+        font-family: "Alphakind";
         text-transform: uppercase;
         font-size: 1.3125rem;
         text-align: center;
@@ -295,10 +295,11 @@ ${buttonsHTML}
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preload" href="/fonts/Alphakind.ttf" as="font" type="font/ttf" crossorigin />
 <style>
     @font-face {
         font-family: "Alphakind";
-        src: url("https://fr.shop-orchestra.com/on/demandware.static/-/Library-Sites-OrchestraSharedLibrary/default/dw198cf08a/fonts/Alphakind.ttf") format("truetype");
+        src: url("/fonts/Alphakind.ttf") format("truetype");
         font-weight: normal;
         font-style: normal;
     }
@@ -457,7 +458,7 @@ ${buttonsHTML}
         left: 50%;
         transform: translateX(-50%);
         padding: 0 8px;
-        font-family: inherit;
+        font-family: "Alphakind";
         text-transform: uppercase;
         font-size: 21px;
         text-align: center;

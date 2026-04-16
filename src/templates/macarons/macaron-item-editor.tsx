@@ -183,18 +183,21 @@ export function MacaronItemEditor({
             )}
           </div>
 
-          <Textarea
-            placeholder="commentaire..."
-            value={item.comment ?? ""}
-            onChange={(e) => onUpdate({ comment: e.target.value })}
-            rows={2}
-            className={cn(
-              "min-h-10 resize-none text-sm",
-              (item.comment ?? "").trim()
-                ? "border-l-[3px] border-l-red-500 focus-visible:ring-2 focus-visible:ring-red-500/40"
-                : "",
-            )}
-          />
+          <div className="space-y-1">
+            <span className="text-[11px] text-muted-foreground">commentaire</span>
+            <Textarea
+              placeholder="commentaire..."
+              value={item.comment ?? ""}
+              onChange={(e) => onUpdate({ comment: e.target.value })}
+              rows={2}
+              className={cn(
+                "min-h-10 resize-none text-sm",
+                (item.comment ?? "").trim()
+                  ? "border-red-500 border-l-[3px]! border-l-red-500! focus-visible:ring-2 focus-visible:ring-red-500/40"
+                  : "",
+              )}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col items-center gap-1.5 pt-1">
