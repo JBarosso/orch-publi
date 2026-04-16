@@ -26,13 +26,23 @@ export async function GET() {
       .groupBy(assets.week)
       .orderBy(asc(assets.week));
 
+    const typesRows = await db
+      .select({ type: assets.type })
+      .from(assets)
+      .where(isNotNull(assets.type))
+      .groupBy(assets.type)
+      .orderBy(asc(assets.type));
+
     return NextResponse.json({
       years: yearsRows.map((r) => r.year).filter((y): y is number => y != null),
       weeks: weeksRows.map((r) => r.week).filter((w): w is number => w != null),
+      types: typesRows
+        .map((r) => r.type)
+        .filter((t): t is string => typeof t === "string" && t.length > 0),
     });
   } catch (err) {
     if (hasMissingColumnError(err)) {
-      return NextResponse.json({ years: [], weeks: [] });
+      return NextResponse.json({ years: [], weeks: [], types: [] });
     }
     throw err;
   }

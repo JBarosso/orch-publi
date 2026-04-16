@@ -11,25 +11,29 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Upload, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Asset } from "@/types";
+import type { Asset, AssetType } from "@/types";
 
 interface MediaLibraryDialogProps {
   onSelect: (url: string) => void;
   onClose: () => void;
-  onUploadNew: (file?: File) => void;
+  onUploadNew: (file?: File, type?: AssetType) => void;
+  initialType?: AssetType;
 }
 
 export function MediaLibraryDialog({
   onSelect,
   onClose,
   onUploadNew,
+  initialType = "other",
 }: MediaLibraryDialogProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [search, setSearch] = useState("");
   const [filterWeek, setFilterWeek] = useState("");
   const [filterYear, setFilterYear] = useState("");
+  const [filterType, setFilterType] = useState<AssetType | "">(initialType);
   const [yearOptions, setYearOptions] = useState<number[]>([]);
   const [weekOptions, setWeekOptions] = useState<number[]>([]);
+  const [typeOptions, setTypeOptions] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
@@ -41,6 +45,7 @@ export function MediaLibraryDialog({
       if (search) params.set("search", search);
       if (filterWeek) params.set("week", filterWeek);
       if (filterYear) params.set("year", filterYear);
+      if (filterType) params.set("type", filterType);
       const res = await fetch(`/api/assets?${params}`);
       if (!res.ok) {
         setLoading(false);
@@ -54,7 +59,7 @@ export function MediaLibraryDialog({
 
     const timer = setTimeout(fetchAssets, 300);
     return () => clearTimeout(timer);
-  }, [search, filterWeek, filterYear]);
+  }, [search, filterWeek, filterYear, filterType]);
 
   useEffect(() => {
     const fetchFilterOptions = async () => {
@@ -63,6 +68,7 @@ export function MediaLibraryDialog({
       const data = await res.json();
       setYearOptions(data.years ?? []);
       setWeekOptions(data.weeks ?? []);
+      setTypeOptions(data.types ?? []);
     };
     fetchFilterOptions();
   }, []);
@@ -93,7 +99,7 @@ export function MediaLibraryDialog({
       setDragCounter(0);
       const file = e.dataTransfer.files?.[0];
       if (file && file.type.startsWith("image/")) {
-        onUploadNew(file);
+        onUploadNew(file, filterType || initialType);
       }
     },
     [onUploadNew],
@@ -122,12 +128,24 @@ export function MediaLibraryDialog({
               className="pl-9"
             />
           </div>
-          <Button variant="outline" onClick={() => onUploadNew()}>
+          <Button variant="outline" onClick={() => onUploadNew(undefined, filterType || initialType)}>
             <Upload className="mr-1 h-4 w-4" />
             Upload
           </Button>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as AssetType | "")}
+            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none"
+          >
+            <option value="">Tous les types</option>
+            {typeOptions.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
           <select
             value={filterYear}
             onChange={(e) => setFilterYear(e.target.value)}
@@ -154,7 +172,7 @@ export function MediaLibraryDialog({
           </select>
         </div>
 
-        <div className="relative max-h-80 overflow-y-auto">
+        <div className="relative max-h-150 overflow-y-auto">
           {dragging && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/5 backdrop-blur-sm">
               <Upload className="mb-2 h-8 w-8 text-primary" />
@@ -176,7 +194,7 @@ export function MediaLibraryDialog({
               <Button
                 variant="link"
                 className="mt-2"
-                onClick={() => onUploadNew()}
+                onClick={() => onUploadNew(undefined, filterType || initialType)}
               >
                 Uploader une image
               </Button>

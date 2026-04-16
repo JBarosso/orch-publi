@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { generateMacaronsHTML } from "@/templates/macarons/export";
-import type { MacaronsContent } from "@/types";
+import { generateMeaHTML } from "@/templates/mea/export";
+import type { MacaronsContent, MeaContent } from "@/types";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -44,6 +45,13 @@ export async function GET(request: NextRequest) {
   if (section.type === "macarons") {
     const content = section.content as MacaronsContent;
     html = generateMacaronsHTML(content?.items ?? [], {
+      year: brief.year,
+      week: brief.week,
+      locale: brief.locale,
+    });
+  } else if (section.type === "mea") {
+    const content = section.content as MeaContent;
+    html = generateMeaHTML(content?.items ?? [], {
       year: brief.year,
       week: brief.week,
       locale: brief.locale,

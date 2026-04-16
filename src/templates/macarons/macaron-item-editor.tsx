@@ -98,6 +98,38 @@ export function MacaronItemEditor({
         </button>
 
         <div className="flex-1 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground/70 shrink-0">
+              Semaine
+            </span>
+            <Input
+              type="number"
+              placeholder="Semaine"
+              value={item.imageWeek ?? briefWeek}
+              onChange={(e) =>
+                onUpdate({
+                  imageWeek: e.target.value
+                    ? Number(e.target.value)
+                    : null,
+                })
+              }
+              min={1}
+              max={53}
+              className="h-8 w-28 text-sm"
+            />
+            {item.imageWeek != null && item.imageWeek !== briefWeek && (
+              <span title="La semaine est différente de celle du brief">
+                <TriangleAlert className="h-4 w-4 shrink-0 text-amber-500" />
+              </span>
+            )}
+            <span
+              className="text-[10px] text-muted-foreground/50 truncate"
+              title={item.imageId}
+            >
+              ID: {item.imageId}
+            </span>
+          </div>
+
           <div className="flex items-start gap-2">
             <Textarea
               placeholder="Label (minuscules, Enter = saut de ligne)"
@@ -151,29 +183,18 @@ export function MacaronItemEditor({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              placeholder="Semaine du macaron"
-              value={item.imageWeek ?? briefWeek}
-              onChange={(e) =>
-                onUpdate({
-                  imageWeek: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-              min={1}
-              max={53}
-              className="h-8 w-56 text-sm"
-            />
-            {item.imageWeek != null && item.imageWeek !== briefWeek && (
-              <span title="La semaine est différente de celle du brief">
-                <TriangleAlert className="h-4 w-4 shrink-0 text-amber-500" />
-              </span>
+          <Textarea
+            placeholder="commentaire..."
+            value={item.comment ?? ""}
+            onChange={(e) => onUpdate({ comment: e.target.value })}
+            rows={2}
+            className={cn(
+              "min-h-10 resize-none text-sm",
+              (item.comment ?? "").trim()
+                ? "border-l-[3px] border-l-red-500 focus-visible:ring-2 focus-visible:ring-red-500/40"
+                : "",
             )}
-            <span className="text-[10px] text-muted-foreground/50 truncate" title={item.imageId}>
-              ID: {item.imageId}
-            </span>
-          </div>
+          />
         </div>
 
         <div className="flex flex-col items-center gap-1.5 pt-1">

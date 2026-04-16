@@ -56,12 +56,20 @@ export async function POST(request: NextRequest) {
       .values({ slug, year, week, locale, index: nextIndex })
       .returning();
 
-    await db.insert(briefSections).values({
-      briefId: newBrief.id,
-      type: "macarons",
-      order: 0,
-      content: { items: [] },
-    });
+    await db.insert(briefSections).values([
+      {
+        briefId: newBrief.id,
+        type: "macarons",
+        order: 0,
+        content: { items: [] },
+      },
+      {
+        briefId: newBrief.id,
+        type: "mea",
+        order: 1,
+        content: { items: [] },
+      }
+    ]);
 
     return NextResponse.json(newBrief, { status: 201 });
   } catch (err) {

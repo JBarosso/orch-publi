@@ -43,11 +43,12 @@ export async function POST() {
       .select({
         id: assets.id,
         url: assets.url,
+        type: assets.type,
         year: assets.year,
         week: assets.week,
       })
       .from(assets)
-      .where(or(isNull(assets.year), isNull(assets.week)));
+      .where(or(isNull(assets.year), isNull(assets.week), isNull(assets.type), eq(assets.type, "macarons")));
 
     let updated = 0;
     for (const row of rows) {
@@ -55,7 +56,7 @@ export async function POST() {
       if (!meta) continue;
       await db
         .update(assets)
-        .set({ year: meta.year, week: meta.week })
+        .set({ year: meta.year, week: meta.week, type: "macaron" })
         .where(eq(assets.id, row.id));
       updated += 1;
     }

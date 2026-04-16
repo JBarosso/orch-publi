@@ -13,6 +13,7 @@ export function createEmptyMacaron(id: string): MacaronItem {
   return {
     id,
     label: "",
+    comment: "",
     linkType: "cgid",
     cgid: "",
     cid: "",

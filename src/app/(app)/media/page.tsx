@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Upload, Trash2, ImageOff } from "lucide-react";
 import { toast } from "sonner";
-import type { Asset } from "@/types";
+import type { Asset, AssetType } from "@/types";
 import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
 
 export default function MediaPage() {
@@ -13,8 +13,10 @@ export default function MediaPage() {
   const [search, setSearch] = useState("");
   const [filterWeek, setFilterWeek] = useState("");
   const [filterYear, setFilterYear] = useState("");
+  const [filterType, setFilterType] = useState<AssetType | "">("");
   const [yearOptions, setYearOptions] = useState<number[]>([]);
   const [weekOptions, setWeekOptions] = useState<number[]>([]);
+  const [typeOptions, setTypeOptions] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [backfilling, setBackfilling] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
@@ -25,6 +27,7 @@ export default function MediaPage() {
     if (search) params.set("search", search);
     if (filterWeek) params.set("week", filterWeek);
     if (filterYear) params.set("year", filterYear);
+    if (filterType) params.set("type", filterType);
     const res = await fetch(`/api/assets?${params}`);
     if (!res.ok) {
       setLoading(false);
@@ -42,13 +45,14 @@ export default function MediaPage() {
     const data = await res.json();
     setYearOptions(data.years ?? []);
     setWeekOptions(data.weeks ?? []);
+    setTypeOptions(data.types ?? []);
   };
 
   useEffect(() => {
     const timer = setTimeout(fetchAssets, 300);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filterWeek, filterYear]);
+  }, [search, filterWeek, filterYear, filterType]);
 
   useEffect(() => {
     fetchFilterOptions();
@@ -98,7 +102,7 @@ export default function MediaPage() {
         </div>
       </div>
 
-      <div className="mb-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+      <div className="mb-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_180px]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
           <Input
@@ -108,6 +112,18 @@ export default function MediaPage() {
             className="h-10 pl-9"
           />
         </div>
+        <select
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value as AssetType | "")}
+          className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none"
+        >
+          <option value="">Tous les types</option>
+          {typeOptions.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
         <select
           value={filterYear}
           onChange={(e) => setFilterYear(e.target.value)}
@@ -168,6 +184,9 @@ export default function MediaPage() {
                   {asset.label || "Sans label"}
                 </p>
                 <p className="text-[10px] text-muted-foreground/60">
+                  Type: {asset.type ?? "other"}
+                </p>
+                <p className="text-[10px] text-muted-foreground/60">
                   {new Date(asset.createdAt).toLocaleDateString("fr-FR")}
                 </p>
                 {(asset.year || asset.week) && (
@@ -200,6 +219,7 @@ export default function MediaPage() {
 
       {showUpload && (
         <ImageUploadDialog
+          assetType={filterType || "other"}
           onUploaded={() => {
             setShowUpload(false);
             fetchAssets();

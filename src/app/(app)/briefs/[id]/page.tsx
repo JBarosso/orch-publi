@@ -17,10 +17,14 @@ import type { Brief, BriefSection, MacaronItem, MacaronsContent } from "@/types"
 import type { BriefStatus } from "@/types";
 import { MacaronsEditor } from "@/templates/macarons/editor";
 import { MacaronsPreview } from "@/templates/macarons/preview";
+import { MeaEditor } from "@/templates/mea/editor";
+import { MeaPreview } from "@/templates/mea/preview";
+import type { MeaItem, MeaContent } from "@/types";
 import { StatusActions } from "@/components/editor/status-actions";
 import { StatusBadge } from "@/components/briefs/status-badge";
 import { MediaLibraryDialog } from "@/components/media/media-library-dialog";
 import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
+import type { AssetType } from "@/types";
 
 interface BriefWithSections extends Brief {
   sections: BriefSection[];
@@ -38,14 +42,20 @@ export default function BriefEditorPage({
   const [saving, setSaving] = useState(false);
   const [macaronItems, setMacaronItems] = useState<MacaronItem[]>([]);
   const [macaronSectionId, setMacaronSectionId] = useState<string | null>(null);
+  const [meaItems, setMeaItems] = useState<MeaItem[]>([]);
+  const [meaSectionId, setMeaSectionId] = useState<string | null>(null);
   const [mediaTarget, setMediaTarget] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | undefined>(undefined);
+  const [uploadAssetType, setUploadAssetType] = useState<AssetType>("other");
   const [dirty, setDirty] = useState(false);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
   const savedItemsRef = useRef<string>("");
+  const savedMeaItemsRef = useRef<string>("");
   const [macaronsOpen, setMacaronsOpen] = useState(true);
   const [macaronsPreview, setMacaronsPreview] = useState(true);
+  const [meaOpen, setMeaOpen] = useState(true);
+  const [meaPreview, setMeaPreview] = useState(true);
 
   const fetchBrief = useCallback(async () => {
     setLoading(true);
@@ -65,8 +75,18 @@ export default function BriefEditorPage({
       const items = content?.items ?? [];
       setMacaronItems(items);
       savedItemsRef.current = JSON.stringify(items);
-      setDirty(false);
     }
+
+    const meaSection = data.sections.find((s) => s.type === "mea");
+    if (meaSection) {
+      setMeaSectionId(meaSection.id);
+      const content = meaSection.content as MeaContent;
+      const items = content?.items ?? [];
+      setMeaItems(items);
+      savedMeaItemsRef.current = JSON.stringify(items);
+    }
+
+    setDirty(false);
     setLoading(false);
   }, [id, router]);
 
@@ -77,24 +97,57 @@ export default function BriefEditorPage({
   const handleMacaronChange = useCallback(
     (items: MacaronItem[]) => {
       setMacaronItems(items);
-      setDirty(JSON.stringify(items) !== savedItemsRef.current);
+      setDirty(
+        JSON.stringify(items) !== savedItemsRef.current ||
+        JSON.stringify(meaItems) !== savedMeaItemsRef.current
+      );
     },
-    [],
+    [meaItems],
+  );
+
+  const handleMeaChange = useCallback(
+    (items: MeaItem[]) => {
+      setMeaItems(items);
+      setDirty(
+        JSON.stringify(macaronItems) !== savedItemsRef.current ||
+        JSON.stringify(items) !== savedMeaItemsRef.current
+      );
+    },
+    [macaronItems],
   );
 
   const handleSave = useCallback(async () => {
-    if (!macaronSectionId) return;
     setSaving(true);
     try {
-      await fetch("/api/sections", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: macaronSectionId,
-          content: { items: macaronItems },
-        }),
-      });
+      const promises = [];
+      if (macaronSectionId) {
+        promises.push(
+          fetch("/api/sections", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: macaronSectionId,
+              content: { items: macaronItems },
+            }),
+          })
+        );
+      }
+      if (meaSectionId) {
+        promises.push(
+          fetch("/api/sections", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: meaSectionId,
+              content: { items: meaItems },
+            }),
+          })
+        );
+      }
+
+      await Promise.all(promises);
       savedItemsRef.current = JSON.stringify(macaronItems);
+      savedMeaItemsRef.current = JSON.stringify(meaItems);
       setDirty(false);
       toast.success("Sauvegardé");
     } catch {
@@ -102,7 +155,7 @@ export default function BriefEditorPage({
     } finally {
       setSaving(false);
     }
-  }, [macaronSectionId, macaronItems]);
+  }, [macaronSectionId, macaronItems, meaSectionId, meaItems]);
 
   // Ctrl+S shortcut
   useEffect(() => {
@@ -167,13 +220,27 @@ export default function BriefEditorPage({
 
   const handleImageSelected = (url: string) => {
     if (!mediaTarget) return;
-    setMacaronItems((prev) => {
-      const next = prev.map((item) =>
-        item.id === mediaTarget ? { ...item, imageUrl: url } : item,
-      );
-      setDirty(JSON.stringify(next) !== savedItemsRef.current);
-      return next;
-    });
+
+    // Determine if it was a macaron item or mea item
+    const isMacaron = macaronItems.some(i => i.id === mediaTarget);
+    if (isMacaron) {
+      setMacaronItems((prev) => {
+        const next = prev.map((item) =>
+          item.id === mediaTarget ? { ...item, imageUrl: url } : item,
+        );
+        setDirty(JSON.stringify(next) !== savedItemsRef.current || JSON.stringify(meaItems) !== savedMeaItemsRef.current);
+        return next;
+      });
+    } else {
+      setMeaItems((prev) => {
+        const next = prev.map((item) =>
+          item.id === mediaTarget ? { ...item, imageUrl: url } : item,
+        );
+        setDirty(JSON.stringify(macaronItems) !== savedItemsRef.current || JSON.stringify(next) !== savedMeaItemsRef.current);
+        return next;
+      });
+    }
+
     setMediaTarget(null);
   };
 
@@ -260,46 +327,91 @@ export default function BriefEditorPage({
               Éditeur
             </h2>
             <div className="space-y-3">
-              <div className="rounded-lg border border-border/60 bg-card shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setMacaronsOpen((v) => !v)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/50"
-                >
-                  <span>Macarons</span>
-                  <div className="flex items-center gap-1">
-                    <span
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMacaronsPreview((v) => !v);
-                      }}
-                      className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      title={macaronsPreview ? "Masquer l'aperçu" : "Afficher l'aperçu"}
-                    >
-                      {macaronsPreview ? (
-                        <Eye className="h-3.5 w-3.5" />
-                      ) : (
-                        <EyeOff className="h-3.5 w-3.5" />
-                      )}
-                    </span>
-                    <ChevronDown
-                      className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${macaronsOpen ? "rotate-0" : "-rotate-90"}`}
-                    />
-                  </div>
-                </button>
-                {macaronsOpen && (
-                  <div className="border-t border-border/60 px-4 py-4">
-                    <MacaronsEditor
-                      items={macaronItems}
-                      briefWeek={brief.week}
-                      briefYear={brief.year}
-                      briefLocale={brief.locale}
-                      onChange={handleMacaronChange}
-                      onOpenMediaLibrary={(itemId) => setMediaTarget(itemId)}
-                    />
-                  </div>
-                )}
-              </div>
+              {macaronSectionId && (
+                <div className="rounded-lg border border-border/60 bg-card shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setMacaronsOpen((v) => !v)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/50"
+                  >
+                    <span>Macarons</span>
+                    <div className="flex items-center gap-1">
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMacaronsPreview((v) => !v);
+                        }}
+                        className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        title={macaronsPreview ? "Masquer l'aperçu" : "Afficher l'aperçu"}
+                      >
+                        {macaronsPreview ? (
+                          <Eye className="h-3.5 w-3.5" />
+                        ) : (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        )}
+                      </span>
+                      <ChevronDown
+                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${macaronsOpen ? "rotate-0" : "-rotate-90"}`}
+                      />
+                    </div>
+                  </button>
+                  {macaronsOpen && (
+                    <div className="border-t border-border/60 px-4 py-4">
+                      <MacaronsEditor
+                        items={macaronItems}
+                        briefWeek={brief.week}
+                        briefYear={brief.year}
+                        briefLocale={brief.locale}
+                        onChange={handleMacaronChange}
+                        onOpenMediaLibrary={(itemId) => setMediaTarget(itemId)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {meaSectionId && (
+                <div className="rounded-lg border border-border/60 bg-card shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setMeaOpen((v) => !v)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/50"
+                  >
+                    <span>Mises en Avant (MEA)</span>
+                    <div className="flex items-center gap-1">
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMeaPreview((v) => !v);
+                        }}
+                        className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        title={meaPreview ? "Masquer l'aperçu" : "Afficher l'aperçu"}
+                      >
+                        {meaPreview ? (
+                          <Eye className="h-3.5 w-3.5" />
+                        ) : (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        )}
+                      </span>
+                      <ChevronDown
+                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${meaOpen ? "rotate-0" : "-rotate-90"}`}
+                      />
+                    </div>
+                  </button>
+                  {meaOpen && (
+                    <div className="border-t border-border/60 px-4 py-4">
+                      <MeaEditor
+                        items={meaItems}
+                        briefWeek={brief.week}
+                        briefYear={brief.year}
+                        briefLocale={brief.locale}
+                        onChange={handleMeaChange}
+                        onOpenMediaLibrary={(itemId) => setMediaTarget(itemId)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </Panel>
@@ -314,7 +426,8 @@ export default function BriefEditorPage({
               Aperçu
             </h2>
             <div className="space-y-3">
-              {macaronsPreview && <MacaronsPreview items={macaronItems} />}
+              {macaronSectionId && macaronsPreview && <MacaronsPreview items={macaronItems} />}
+              {meaSectionId && meaPreview && <MeaPreview items={meaItems} />}
             </div>
           </div>
         </Panel>
@@ -324,30 +437,43 @@ export default function BriefEditorPage({
         <MediaLibraryDialog
           onSelect={handleImageSelected}
           onClose={() => setMediaTarget(null)}
-          onUploadNew={(file) => {
+          initialType={meaItems.some((i) => i.id === mediaTarget) ? "mea" : "macaron"}
+          onUploadNew={(file, type) => {
             setDroppedFile(file);
+            setUploadAssetType(type ?? (meaItems.some((i) => i.id === mediaTarget) ? "mea" : "macaron"));
             setShowUpload(true);
           }}
         />
       )}
 
-      {showUpload && (
-        <ImageUploadDialog
-          defaultLabel={macaronItems.find((i) => i.id === mediaTarget)?.label.replace(/\n/g, " ")}
-          defaultWeek={brief.week}
-          defaultYear={brief.year}
-          initialFile={droppedFile}
-          onUploaded={(url) => {
-            handleImageSelected(url);
-            setShowUpload(false);
-            setDroppedFile(undefined);
-          }}
-          onClose={() => {
-            setShowUpload(false);
-            setDroppedFile(undefined);
-          }}
-        />
-      )}
+      {showUpload && (() => {
+        const isMeaTarget = meaItems.some((i) => i.id === mediaTarget);
+        return (
+          <ImageUploadDialog
+            defaultLabel={
+              macaronItems.find((i) => i.id === mediaTarget)?.label.replace(/\n/g, " ") ??
+              meaItems.find((i) => i.id === mediaTarget)?.title.replace(/\n/g, " ")
+            }
+            defaultWeek={brief.week}
+            defaultYear={brief.year}
+            initialFile={droppedFile}
+            cropShape={isMeaTarget ? "rect" : "round"}
+            cropAspect={isMeaTarget ? 3 / 2 : 1}
+            targetWidth={isMeaTarget ? 600 : undefined}
+            targetHeight={isMeaTarget ? 400 : undefined}
+            assetType={uploadAssetType}
+            onUploaded={(url) => {
+              handleImageSelected(url);
+              setShowUpload(false);
+              setDroppedFile(undefined);
+            }}
+            onClose={() => {
+              setShowUpload(false);
+              setDroppedFile(undefined);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

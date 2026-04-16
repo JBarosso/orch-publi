@@ -54,6 +54,7 @@ export const briefSections = pgTable("brief_sections", {
 export const assets = pgTable("assets", {
   id: uuid("id").defaultRandom().primaryKey(),
   url: text("url").notNull(),
+  type: varchar("type", { length: 32 }).notNull().default("other"),
   label: varchar("label", { length: 255 }).notNull().default(""),
   mimeType: varchar("mime_type", { length: 64 }).notNull().default("image/png"),
   year: integer("year"),

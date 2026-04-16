@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search");
   const week = searchParams.get("week");
   const year = searchParams.get("year");
+  const type = searchParams.get("type");
 
   const conditions = [];
   if (search) {
@@ -29,6 +30,9 @@ export async function GET(request: NextRequest) {
   }
   if (year) {
     conditions.push(eq(assets.year, Number(year)));
+  }
+  if (type) {
+    conditions.push(eq(assets.type, type));
   }
 
   let result;
@@ -61,6 +65,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(
     result.map((asset) => ({
       ...asset,
+      type: "type" in asset ? asset.type ?? "other" : "other",
       year: "year" in asset ? asset.year : null,
       week: "week" in asset ? asset.week : null,
     })),
@@ -69,7 +74,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { image, crop, label, week, year } = body;
+  const { image, crop, label, week, year, type, targetWidth, targetHeight } = body;
 
   if (!image) {
     return NextResponse.json({ error: "Image requise" }, { status: 400 });
@@ -90,7 +95,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    processed = processed.resize(200, 200, { fit: "cover" });
+    // Use provided target dimensions or default to 200x200 (macarons)
+    const w = targetWidth || 200;
+    const h = targetHeight || 200;
+    processed = processed.resize(w, h, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } });
+    // Flatten alpha channel to white background
+    processed = processed.flatten({ background: { r: 255, g: 255, b: 255 } });
     const outputBuffer = await processed.png({ quality: 85 }).toBuffer();
 
     const filename = `${uuidv4()}.png`;
@@ -105,6 +115,7 @@ export async function POST(request: NextRequest) {
         .insert(assets)
         .values({
           url,
+          type: typeof type === "string" ? type : "other",
           label: label || "",
           mimeType: "image/png",
           week: Number.isInteger(week) ? week : null,
@@ -150,7 +161,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const filepath = join(process.cwd(), "public", asset.url);
-    await unlink(filepath).catch(() => {});
+    await unlink(filepath).catch(() => { });
   } catch {
     // ignore file deletion errors
   }

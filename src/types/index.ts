@@ -1,6 +1,7 @@
 export type BriefStatus = "draft" | "published" | "treated";
 
 export type SectionType = "macarons" | "mea";
+export type AssetType = "macaron" | "mea" | "other";
 
 export type Locale = "fr" | "es" | "it" | "de" | "pt" | "en";
 
@@ -48,6 +49,7 @@ export interface BriefSection {
 export interface Asset {
   id: string;
   url: string;
+  type: AssetType;
   label: string;
   mimeType: string;
   year: number | null;
@@ -58,6 +60,7 @@ export interface Asset {
 export interface MacaronItem {
   id: string;
   label: string;
+  comment: string;
   linkType: "cgid" | "url" | "cid";
   cgid: string;
   cid: string;
@@ -70,4 +73,60 @@ export interface MacaronItem {
 
 export interface MacaronsContent {
   items: MacaronItem[];
+}
+
+export type MeaOverlayType = "none" | "label" | "text";
+
+export type MeaPricingMode = "standard" | "strikethrough" | "custom";
+
+export interface MeaItem {
+  id: string;
+  visible: boolean;
+  comment: string;
+
+  // Image
+  imageUrl: string;
+  imageId: string;
+  imageWeek: number | null;
+  imageOpacity: number; // e.g. 1 or 0.9
+  imagePosition: number; // 0-100, horizontal position %
+
+  // Brand Logo
+  showBrandLogo: boolean;
+  brandLogoPath: string; // path segment between logo-puericulture/ and ?$staticlink$
+
+  // Overlay
+  overlayType: MeaOverlayType;
+  overlayText: string;
+
+  // Information
+  title: string;
+
+  // Pricing
+  pricingMode: MeaPricingMode;
+  showPrePrice: boolean;
+  prePriceText: string;
+  initialPrice: string;
+  customPriceText: string;
+
+  // Club Pricing
+  clubPrice: string;
+  showClubLabel: boolean;
+  clubLabelText: string;
+  showClubIcon: boolean;
+
+  // Buttons & Link
+  buttons: MeaButton[];
+}
+
+export interface MeaButton {
+  text: string;
+  linkType: "cgid" | "url" | "cid";
+  cgid: string;
+  cid: string;
+  link: string;
+}
+
+export interface MeaContent {
+  items: MeaItem[];
 }

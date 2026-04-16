@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## orch-publi
 
-## Getting Started
+Outil interne pour préparer et exporter des contenus marketing **MEA** et **macarons** (HTML + images) pour le site Orchestra.
 
-First, run the development server:
+L’application permet de :
+
+- **Éditer des briefs** avec plusieurs sections (MEA, macarons, etc.)
+- **Prévisualiser** les rendus dans une iframe sandboxée (sans clics accidentels)
+- **Gérer une médiathèque d’images** (upload, drag & drop, filtres par semaine / année / type)
+- **Exporter** le HTML final et un ZIP d’images (macarons en `70x70` en `.jpg` + `.webp`)
+- Ajouter des **commentaires développeur** (non exportés) sur chaque MEA / macaron
+
+---
+
+## Stack technique
+
+- **Next.js 14** (App Router)
+- **TypeScript**
+- **Tailwind CSS**
+- **Drizzle ORM** + **Neon Postgres**
+- **shadcn/ui** (Radix UI)
+
+---
+
+## Démarrage du projet
+
+### Prérequis
+
+- Node.js (version LTS recommandée)
+- Un compte **Neon** configuré (voir variables d’environnement)
+
+### Installation
+
+```bash
+npm install
+```
+
+### Développement
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+L’application est accessible sur `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Lint
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Variables d’environnement
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Créer un fichier `.env.local` à la racine du projet, par exemple :
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+DATABASE_URL="postgresql://..."
+NEON_DATABASE_URL="postgresql://..."
+```
 
-## Deploy on Vercel
+Les noms exacts peuvent varier selon ta configuration actuelle (voir `.env.local` existant).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Fonctionnalités clés
+
+- **Briefs**
+  - Liste triable des briefs
+  - Protection contre les **modifications non sauvegardées** (popin + raccourci `Ctrl+S`)
+
+- **Macarons**
+  - Éditeur sous forme d’**accordéon**
+  - Image en **70x70** dans l’éditeur
+  - Champ **semaine + ID d’image** en premier
+  - Champ **commentaire...** en dernier, avec bordure rouge si rempli
+  - Export HTML + **export ZIP images (.jpg + .webp)** au bon chemin CMS
+
+- **MEA**
+  - Éditeur complet (titre, prix, club, boutons…)
+  - Champ **semaine + ID d’image** en premier
+  - Champ **commentaire...** en dernier, avec bordure rouge si rempli
+  - Icône warning dans l’aperçu si commentaire présent
+
+- **Médiathèque**
+  - Upload par bouton + **drag & drop**
+  - Métadonnées : **label, week, year, type (macaron/mea/other)**
+  - Filtres dynamiques sur **année**, **semaine** et **type**
+  - Pré-filtrage par type en fonction de l’éditeur ouvrant la médiathèque
+
+---
+
+## Export
+
+- **HTML** : export des sections MEA / macarons dans le format attendu par le CMS Orchestra.
+- **Images** : route API `GET /api/export/images` qui génère un ZIP :
+  - Dossiers `homepage/{year}/wk{week}/{locale}/`
+  - Fichiers `quickaccess-{imageId}.jpg` et `quickaccess-{imageId}.webp`
+
+Les champs **commentaires** ne sont jamais inclus dans l’export final, ils ne servent qu’aux développeurs.

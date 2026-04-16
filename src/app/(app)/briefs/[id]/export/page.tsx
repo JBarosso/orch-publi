@@ -91,6 +91,32 @@ export default function ExportPage({
     }
   };
 
+  const handleDownloadAllImages = async () => {
+    setDownloadingImages("all");
+    try {
+      const res = await fetch(`/api/export/images?briefId=${id}`);
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "Erreur lors du téléchargement");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const disposition = res.headers.get("Content-Disposition");
+      const match = disposition?.match(/filename="(.+)"/);
+      a.download = match?.[1] ?? "all-images.zip";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Toutes les images téléchargées");
+    } catch {
+      toast.error("Erreur lors du téléchargement");
+    } finally {
+      setDownloadingImages(null);
+    }
+  };
+
   if (loading || !brief) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -111,6 +137,19 @@ export default function ExportPage({
           <h1 className="text-lg font-semibold">Export — {brief.slug}</h1>
           <StatusBadge status={brief.status as BriefStatus} />
         </div>
+        <div className="ml-auto">
+          <Button
+            onClick={handleDownloadAllImages}
+            disabled={downloadingImages === "all" || exports.length === 0}
+          >
+            {downloadingImages === "all" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <ImageDown className="mr-2 h-4 w-4" />
+            )}
+            Exporter toutes les images
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -122,7 +161,7 @@ export default function ExportPage({
             <div className="flex items-center justify-between border-b border-border/60 px-5 py-3">
               <h3 className="text-sm font-semibold capitalize">{exp.type}</h3>
               <div className="flex items-center gap-2">
-                {exp.type === "macarons" && (
+                {(exp.type === "macarons" || exp.type === "mea") && (
                   <Button
                     variant="outline"
                     size="sm"
