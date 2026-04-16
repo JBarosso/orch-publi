@@ -198,7 +198,7 @@ export function MeaItemEditor({
               value={item.overlayType}
               onValueChange={(v) => onUpdate({ overlayType: v as MeaOverlayType })}
             >
-              <SelectTrigger className="h-8 flex-1 text-xs">
+              <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs">
                 <SelectValue placeholder="Overlay" />
               </SelectTrigger>
               <SelectContent>
@@ -213,7 +213,7 @@ export function MeaItemEditor({
                 placeholder="Texte Overlay"
                 value={item.overlayText}
                 onChange={(e) => onUpdate({ overlayText: e.target.value })}
-                className="h-8 w-32 text-xs"
+                className="h-8 min-w-[180px] flex-1 text-xs"
               />
             )}
           </div>
