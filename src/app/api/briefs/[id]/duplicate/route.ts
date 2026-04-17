@@ -68,6 +68,7 @@ export async function POST(
       originalSections.map((s) => ({
         briefId: newBrief.id,
         type: s.type,
+        title: s.title,
         order: s.order,
         content: s.content,
         visible: s.visible,

@@ -60,12 +60,14 @@ export async function POST(request: NextRequest) {
       {
         briefId: newBrief.id,
         type: "macarons",
+        title: "macaron (1)",
         order: 0,
         content: { items: [] },
       },
       {
         briefId: newBrief.id,
         type: "mea",
+        title: "mea (1)",
         order: 1,
         content: { items: [] },
       }

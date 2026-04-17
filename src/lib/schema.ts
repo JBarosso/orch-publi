@@ -39,6 +39,7 @@ export const briefSections = pgTable("brief_sections", {
     .notNull()
     .references(() => briefs.id, { onDelete: "cascade" }),
   type: varchar("type", { length: 32 }).notNull(),
+  title: varchar("title", { length: 128 }).notNull().default(""),
   order: integer("order").notNull().default(0),
   content: jsonb("content").notNull().default({}),
   visible: boolean("visible").notNull().default(true),

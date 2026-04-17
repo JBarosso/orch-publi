@@ -23,7 +23,7 @@ export default function ExportPage({
   const [brief, setBrief] = useState<BriefWithSections | null>(null);
   const [loading, setLoading] = useState(true);
   const [exports, setExports] = useState<
-    { type: string; html: string; sectionId: string }[]
+    { type: string; title: string; html: string; sectionId: string }[]
   >([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [downloadingImages, setDownloadingImages] = useState<string | null>(null);
@@ -47,6 +47,7 @@ export default function ExportPage({
           const exportData = await exportRes.json();
           return {
             type: exportData.type,
+            title: section.title || exportData.type,
             html: exportData.html,
             sectionId: section.id,
           };
@@ -159,7 +160,7 @@ export default function ExportPage({
             className="overflow-hidden rounded-lg border border-border/60 bg-card shadow-sm"
           >
             <div className="flex items-center justify-between border-b border-border/60 px-5 py-3">
-              <h3 className="text-sm font-semibold capitalize">{exp.type}</h3>
+              <h3 className="text-sm font-semibold">{exp.title}</h3>
               <div className="flex items-center gap-2">
                 {(exp.type === "macarons" || exp.type === "mea") && (
                   <Button

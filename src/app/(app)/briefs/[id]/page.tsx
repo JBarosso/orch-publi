@@ -2,15 +2,24 @@
 
 import { useEffect, useState, useCallback, useRef, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import type { Brief, BriefSection, MacaronItem, MacaronsContent } from "@/types";
@@ -38,24 +47,38 @@ export default function BriefEditorPage({
   const { id } = use(params);
   const router = useRouter();
   const [brief, setBrief] = useState<BriefWithSections | null>(null);
+  const [sections, setSections] = useState<BriefSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [macaronItems, setMacaronItems] = useState<MacaronItem[]>([]);
-  const [macaronSectionId, setMacaronSectionId] = useState<string | null>(null);
-  const [meaItems, setMeaItems] = useState<MeaItem[]>([]);
-  const [meaSectionId, setMeaSectionId] = useState<string | null>(null);
-  const [mediaTarget, setMediaTarget] = useState<string | null>(null);
+  const [mediaTarget, setMediaTarget] = useState<{
+    sectionId: string;
+    itemId: string;
+    type: AssetType;
+  } | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | undefined>(undefined);
   const [uploadAssetType, setUploadAssetType] = useState<AssetType>("other");
   const [dirty, setDirty] = useState(false);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
-  const savedItemsRef = useRef<string>("");
-  const savedMeaItemsRef = useRef<string>("");
-  const [macaronsOpen, setMacaronsOpen] = useState(true);
-  const [macaronsPreview, setMacaronsPreview] = useState(true);
-  const [meaOpen, setMeaOpen] = useState(true);
-  const [meaPreview, setMeaPreview] = useState(true);
+  const savedSectionsRef = useRef<string>("");
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [previewSections, setPreviewSections] = useState<Record<string, boolean>>({});
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newSectionType, setNewSectionType] = useState<"macarons" | "mea">("macarons");
+  const [pendingDeleteSectionId, setPendingDeleteSectionId] = useState<string | null>(null);
+
+  const serializeSections = useCallback((list: BriefSection[]) => {
+    return JSON.stringify(
+      list.map((s) => ({
+        id: s.id,
+        type: s.type,
+        title: s.title,
+        order: s.order,
+        visible: s.visible,
+        content: s.content,
+      })),
+    );
+  }, []);
 
   const fetchBrief = useCallback(async () => {
     setLoading(true);
@@ -67,87 +90,70 @@ export default function BriefEditorPage({
     }
     const data: BriefWithSections = await res.json();
     setBrief(data);
-
-    const macaronSection = data.sections.find((s) => s.type === "macarons");
-    if (macaronSection) {
-      setMacaronSectionId(macaronSection.id);
-      const content = macaronSection.content as MacaronsContent;
-      const items = content?.items ?? [];
-      setMacaronItems(items);
-      savedItemsRef.current = JSON.stringify(items);
-    }
-
-    const meaSection = data.sections.find((s) => s.type === "mea");
-    if (meaSection) {
-      setMeaSectionId(meaSection.id);
-      const content = meaSection.content as MeaContent;
-      const items = content?.items ?? [];
-      setMeaItems(items);
-      savedMeaItemsRef.current = JSON.stringify(items);
-    }
+    setSections(data.sections);
+    savedSectionsRef.current = serializeSections(data.sections);
+    setOpenSections((prev) => {
+      const next = { ...prev };
+      for (const section of data.sections) {
+        if (next[section.id] === undefined) next[section.id] = true;
+      }
+      return next;
+    });
+    setPreviewSections((prev) => {
+      const next = { ...prev };
+      for (const section of data.sections) {
+        if (next[section.id] === undefined) next[section.id] = true;
+      }
+      return next;
+    });
 
     setDirty(false);
     setLoading(false);
-  }, [id, router]);
+  }, [id, router, serializeSections]);
 
   useEffect(() => {
     fetchBrief();
   }, [fetchBrief]);
 
-  const handleMacaronChange = useCallback(
-    (items: MacaronItem[]) => {
-      setMacaronItems(items);
-      setDirty(
-        JSON.stringify(items) !== savedItemsRef.current ||
-        JSON.stringify(meaItems) !== savedMeaItemsRef.current
-      );
+  const updateSection = useCallback(
+    (sectionId: string, updates: Partial<BriefSection>) => {
+      setSections((prev) => {
+        const next = prev.map((section) =>
+          section.id === sectionId ? { ...section, ...updates } : section,
+        );
+        setDirty(serializeSections(next) !== savedSectionsRef.current);
+        return next;
+      });
     },
-    [meaItems],
+    [serializeSections],
   );
 
-  const handleMeaChange = useCallback(
-    (items: MeaItem[]) => {
-      setMeaItems(items);
-      setDirty(
-        JSON.stringify(macaronItems) !== savedItemsRef.current ||
-        JSON.stringify(items) !== savedMeaItemsRef.current
-      );
+  const updateSectionItems = useCallback(
+    (sectionId: string, items: MacaronItem[] | MeaItem[]) => {
+      updateSection(sectionId, { content: { items } });
     },
-    [macaronItems],
+    [updateSection],
   );
 
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const promises = [];
-      if (macaronSectionId) {
-        promises.push(
+      await Promise.all(
+        sections.map((section) =>
           fetch("/api/sections", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              id: macaronSectionId,
-              content: { items: macaronItems },
+              id: section.id,
+              content: section.content,
+              title: section.title,
+              visible: section.visible,
+              order: section.order,
             }),
-          })
-        );
-      }
-      if (meaSectionId) {
-        promises.push(
-          fetch("/api/sections", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: meaSectionId,
-              content: { items: meaItems },
-            }),
-          })
-        );
-      }
-
-      await Promise.all(promises);
-      savedItemsRef.current = JSON.stringify(macaronItems);
-      savedMeaItemsRef.current = JSON.stringify(meaItems);
+          }),
+        ),
+      );
+      savedSectionsRef.current = serializeSections(sections);
       setDirty(false);
       toast.success("Sauvegardé");
     } catch {
@@ -155,7 +161,7 @@ export default function BriefEditorPage({
     } finally {
       setSaving(false);
     }
-  }, [macaronSectionId, macaronItems, meaSectionId, meaItems]);
+  }, [sections, serializeSections]);
 
   // Ctrl+S shortcut
   useEffect(() => {
@@ -218,30 +224,82 @@ export default function BriefEditorPage({
     toast.success("Statut mis à jour");
   };
 
-  const handleImageSelected = (url: string) => {
+  const handleImageSelected = useCallback((url: string) => {
     if (!mediaTarget) return;
 
-    // Determine if it was a macaron item or mea item
-    const isMacaron = macaronItems.some(i => i.id === mediaTarget);
-    if (isMacaron) {
-      setMacaronItems((prev) => {
-        const next = prev.map((item) =>
-          item.id === mediaTarget ? { ...item, imageUrl: url } : item,
+    const target = mediaTarget;
+    setSections((prev) => {
+      const next = prev.map((section) => {
+        if (section.id !== target.sectionId) return section;
+        const content = section.content as { items?: (MacaronItem | MeaItem)[] };
+        const items = (content.items ?? []).map((item) =>
+          item.id === target.itemId ? { ...item, imageUrl: url } : item,
         );
-        setDirty(JSON.stringify(next) !== savedItemsRef.current || JSON.stringify(meaItems) !== savedMeaItemsRef.current);
-        return next;
+        return { ...section, content: { items } };
       });
-    } else {
-      setMeaItems((prev) => {
-        const next = prev.map((item) =>
-          item.id === mediaTarget ? { ...item, imageUrl: url } : item,
-        );
-        setDirty(JSON.stringify(macaronItems) !== savedItemsRef.current || JSON.stringify(next) !== savedMeaItemsRef.current);
-        return next;
-      });
-    }
+      setDirty(serializeSections(next) !== savedSectionsRef.current);
+      return next;
+    });
 
     setMediaTarget(null);
+  }, [mediaTarget, serializeSections]);
+
+  const createSection = async () => {
+    if (!brief) return;
+    if (dirty) {
+      toast.error("Sauvegardez d'abord vos modifications avant de créer une section");
+      return;
+    }
+    const res = await fetch("/api/sections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ briefId: brief.id, type: newSectionType }),
+    });
+    if (!res.ok) {
+      toast.error("Impossible de créer la section");
+      return;
+    }
+    setCreateOpen(false);
+    await fetchBrief();
+    toast.success("Section créée");
+  };
+
+  const duplicateSection = async (sectionId: string) => {
+    if (dirty) {
+      toast.error("Sauvegardez d'abord vos modifications avant de dupliquer une section");
+      return;
+    }
+    const res = await fetch("/api/sections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceSectionId: sectionId }),
+    });
+    if (!res.ok) {
+      toast.error("Impossible de dupliquer la section");
+      return;
+    }
+    await fetchBrief();
+    toast.success("Section dupliquée");
+  };
+
+  const deleteSection = async () => {
+    if (!pendingDeleteSectionId) return;
+    if (dirty) {
+      toast.error("Sauvegardez d'abord vos modifications avant de supprimer une section");
+      return;
+    }
+    const res = await fetch("/api/sections", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: pendingDeleteSectionId }),
+    });
+    if (!res.ok) {
+      toast.error("Impossible de supprimer la section");
+      return;
+    }
+    setPendingDeleteSectionId(null);
+    await fetchBrief();
+    toast.success("Section supprimée");
   };
 
   if (loading || !brief) {
@@ -273,6 +331,52 @@ export default function BriefEditorPage({
             <Button onClick={saveAndContinue} disabled={saving}>
               {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               Sauvegarder et continuer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Créer une section</DialogTitle>
+            <DialogDescription>
+              Choisissez le type de section à ajouter.
+            </DialogDescription>
+          </DialogHeader>
+          <Select
+            value={newSectionType}
+            onValueChange={(v) => setNewSectionType(v as "macarons" | "mea")}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="macarons">Macaron</SelectItem>
+              <SelectItem value="mea">MEA</SelectItem>
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={createSection}>Créer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!pendingDeleteSectionId} onOpenChange={() => setPendingDeleteSectionId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Supprimer cette section ?</DialogTitle>
+            <DialogDescription>
+              Cette action est irreversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDeleteSectionId(null)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={deleteSection}>
+              Supprimer
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -323,95 +427,127 @@ export default function BriefEditorPage({
       <PanelGroup orientation="horizontal" className="flex-1">
         <Panel defaultSize={50} minSize={25}>
           <div className="h-full overflow-y-auto p-6">
-            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-              Éditeur
-            </h2>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                Éditeur
+              </h2>
+              <Button
+                size="sm"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Créer une section
+              </Button>
+            </div>
             <div className="space-y-3">
-              {macaronSectionId && (
-                <div className="rounded-lg border border-border/60 bg-card shadow-sm">
+              {sections.map((section) => (
+                <div
+                  key={section.id}
+                  className="rounded-lg border border-border/60 bg-card shadow-sm"
+                >
                   <button
                     type="button"
-                    onClick={() => setMacaronsOpen((v) => !v)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/50"
+                    onClick={() =>
+                      setOpenSections((prev) => ({
+                        ...prev,
+                        [section.id]: !prev[section.id],
+                      }))
+                    }
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/50"
                   >
-                    <span>Macarons</span>
+                    <Input
+                      value={section.title || section.type}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) =>
+                        updateSection(section.id, { title: e.target.value })
+                      }
+                      className="h-8 w-full max-w-[320px]"
+                    />
                     <div className="flex items-center gap-1">
                       <span
                         onClick={(e) => {
                           e.stopPropagation();
-                          setMacaronsPreview((v) => !v);
+                          duplicateSection(section.id);
                         }}
                         className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        title={macaronsPreview ? "Masquer l'aperçu" : "Afficher l'aperçu"}
+                        title="Dupliquer la section"
                       >
-                        {macaronsPreview ? (
+                        <Copy className="h-3.5 w-3.5" />
+                      </span>
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPendingDeleteSectionId(section.id);
+                        }}
+                        className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                        title="Supprimer la section"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </span>
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPreviewSections((prev) => ({
+                            ...prev,
+                            [section.id]: !prev[section.id],
+                          }));
+                        }}
+                        className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        title={previewSections[section.id] ? "Masquer l'aperçu" : "Afficher l'aperçu"}
+                      >
+                        {previewSections[section.id] ? (
                           <Eye className="h-3.5 w-3.5" />
                         ) : (
                           <EyeOff className="h-3.5 w-3.5" />
                         )}
                       </span>
                       <ChevronDown
-                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${macaronsOpen ? "rotate-0" : "-rotate-90"}`}
+                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${openSections[section.id] ? "rotate-0" : "-rotate-90"}`}
                       />
                     </div>
                   </button>
-                  {macaronsOpen && (
+                  {openSections[section.id] && (
                     <div className="border-t border-border/60 px-4 py-4">
-                      <MacaronsEditor
-                        items={macaronItems}
-                        briefWeek={brief.week}
-                        briefYear={brief.year}
-                        briefLocale={brief.locale}
-                        onChange={handleMacaronChange}
-                        onOpenMediaLibrary={(itemId) => setMediaTarget(itemId)}
-                      />
+                      {section.type === "macarons" ? (
+                        <MacaronsEditor
+                          items={((section.content as MacaronsContent)?.items ?? [])}
+                          briefWeek={brief.week}
+                          briefYear={brief.year}
+                          briefLocale={brief.locale}
+                          onChange={(items) => updateSectionItems(section.id, items)}
+                          onOpenMediaLibrary={(itemId) =>
+                            setMediaTarget({
+                              sectionId: section.id,
+                              itemId,
+                              type: "macaron",
+                            })
+                          }
+                        />
+                      ) : section.type === "mea" ? (
+                        <MeaEditor
+                          items={((section.content as MeaContent)?.items ?? [])}
+                          briefWeek={brief.week}
+                          briefYear={brief.year}
+                          briefLocale={brief.locale}
+                          onChange={(items) => updateSectionItems(section.id, items)}
+                          onOpenMediaLibrary={(itemId) =>
+                            setMediaTarget({
+                              sectionId: section.id,
+                              itemId,
+                              type: "mea",
+                            })
+                          }
+                        />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Template "{section.type}" non pris en charge dans l'éditeur pour le moment.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-
-              {meaSectionId && (
-                <div className="rounded-lg border border-border/60 bg-card shadow-sm">
-                  <button
-                    type="button"
-                    onClick={() => setMeaOpen((v) => !v)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/50"
-                  >
-                    <span>Mises en Avant (MEA)</span>
-                    <div className="flex items-center gap-1">
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMeaPreview((v) => !v);
-                        }}
-                        className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        title={meaPreview ? "Masquer l'aperçu" : "Afficher l'aperçu"}
-                      >
-                        {meaPreview ? (
-                          <Eye className="h-3.5 w-3.5" />
-                        ) : (
-                          <EyeOff className="h-3.5 w-3.5" />
-                        )}
-                      </span>
-                      <ChevronDown
-                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${meaOpen ? "rotate-0" : "-rotate-90"}`}
-                      />
-                    </div>
-                  </button>
-                  {meaOpen && (
-                    <div className="border-t border-border/60 px-4 py-4">
-                      <MeaEditor
-                        items={meaItems}
-                        briefWeek={brief.week}
-                        briefYear={brief.year}
-                        briefLocale={brief.locale}
-                        onChange={handleMeaChange}
-                        onOpenMediaLibrary={(itemId) => setMediaTarget(itemId)}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+              ))}
             </div>
           </div>
         </Panel>
@@ -426,8 +562,34 @@ export default function BriefEditorPage({
               Aperçu
             </h2>
             <div className="space-y-3">
-              {macaronSectionId && macaronsPreview && <MacaronsPreview items={macaronItems} />}
-              {meaSectionId && meaPreview && <MeaPreview items={meaItems} />}
+              {sections.map((section) => {
+                if (!previewSections[section.id]) return null;
+                if (section.type === "macarons") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <MacaronsPreview
+                        items={((section.content as MacaronsContent)?.items ?? [])}
+                      />
+                    </div>
+                  );
+                }
+                if (section.type === "mea") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <MeaPreview
+                        items={((section.content as MeaContent)?.items ?? [])}
+                      />
+                    </div>
+                  );
+                }
+                return null;
+              })}
             </div>
           </div>
         </Panel>
@@ -437,22 +599,29 @@ export default function BriefEditorPage({
         <MediaLibraryDialog
           onSelect={handleImageSelected}
           onClose={() => setMediaTarget(null)}
-          initialType={meaItems.some((i) => i.id === mediaTarget) ? "mea" : "macaron"}
+          initialType={mediaTarget.type}
           onUploadNew={(file, type) => {
             setDroppedFile(file);
-            setUploadAssetType(type ?? (meaItems.some((i) => i.id === mediaTarget) ? "mea" : "macaron"));
+            setUploadAssetType(type ?? mediaTarget.type);
             setShowUpload(true);
           }}
         />
       )}
 
       {showUpload && (() => {
-        const isMeaTarget = meaItems.some((i) => i.id === mediaTarget);
+        if (!mediaTarget) return null;
+        const section = sections.find((s) => s.id === mediaTarget.sectionId);
+        const items = ((section?.content as { items?: (MacaronItem | MeaItem)[] })?.items ?? []);
+        const targetItem = items.find((i) => i.id === mediaTarget.itemId) as
+          | MacaronItem
+          | MeaItem
+          | undefined;
+        const isMeaTarget = mediaTarget.type === "mea";
         return (
           <ImageUploadDialog
             defaultLabel={
-              macaronItems.find((i) => i.id === mediaTarget)?.label.replace(/\n/g, " ") ??
-              meaItems.find((i) => i.id === mediaTarget)?.title.replace(/\n/g, " ")
+              ("label" in (targetItem ?? {}) ? targetItem?.label : undefined)?.replace(/\n/g, " ") ??
+              ("title" in (targetItem ?? {}) ? targetItem?.title : undefined)?.replace(/\n/g, " ")
             }
             defaultWeek={brief.week}
             defaultYear={brief.year}

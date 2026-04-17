@@ -39,6 +39,7 @@ export interface BriefSection {
   id: string;
   briefId: string;
   type: SectionType;
+  title: string;
   order: number;
   content: unknown;
   visible: boolean;
