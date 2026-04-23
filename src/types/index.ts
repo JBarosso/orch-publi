@@ -3,15 +3,14 @@ export type BriefStatus = "draft" | "published" | "treated";
 export type SectionType = "macarons" | "mea";
 export type AssetType = "macaron" | "mea" | "other";
 
-export type Locale = "fr" | "es" | "it" | "de" | "pt" | "en";
+export type Locale = "FR" | "BEFR" | "BENL" | "GR" | "ES";
 
 export const LOCALES: { value: Locale; label: string }[] = [
-  { value: "fr", label: "Français" },
-  { value: "es", label: "Español" },
-  { value: "it", label: "Italiano" },
-  { value: "de", label: "Deutsch" },
-  { value: "pt", label: "Português" },
-  { value: "en", label: "English" },
+  { value: "FR", label: "FR" },
+  { value: "BEFR", label: "BEFR" },
+  { value: "BENL", label: "BENL" },
+  { value: "GR", label: "GR" },
+  { value: "ES", label: "ES" },
 ];
 
 export const STATUS_CONFIG: Record<

@@ -9,6 +9,25 @@ interface ExportContext {
    locale: string;
 }
 
+const cssStyle = `
+   .quickaccess-list {
+      padding: 0px 20px 0px 20px;
+   }
+   .quickaccess-list a:hover {
+      text-decoration: none;
+   }
+   .quickaccess-item {
+      max-width: 70px;
+   }
+   .quickaccess-item>span,
+   .quickaccess-item>h1,
+   .quickaccess-item>h2 {
+      font-size: 12px;
+      line-height: 12px;
+      padding-top: 5px;
+   }
+`;
+
 export function generateMacaronsHTML(
    items: MacaronItem[],
    ctx: ExportContext,
@@ -44,25 +63,7 @@ export function generateMacaronsHTML(
       .join("\n\n");
 
    return `<style>
-   .quickaccess-list {
-      padding: 0px 20px 0px 20px;
-   }
-
-   .quickaccess-list a:hover {
-      text-decoration: none;
-   }
-
-   .quickaccess-item {
-      max-width: 70px;
-   }
-
-   .quickaccess-item>span,
-   .quickaccess-item>h1,
-   .quickaccess-item>h2 {
-      font-size: 12px;
-      line-height: 12px;
-      padding-top: 5px;
-   }
+   ${cssStyle}
 </style>
 <div class="d-flex justify-content-md-center">
    <div class="quickaccess-list d-flex flex-row flex-nowrap overflow-auto py-3 ml-3">
@@ -115,13 +116,8 @@ export function generatePreviewHTML(
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="${CMS_CSS_URL}" />
 <style>
+   ${cssStyle}
    body { margin: 0; background: #fff; cursor: default; }
-   .quickaccess-list {
-      padding: 0px 20px 0px 20px;
-   }
-   .quickaccess-list a:hover {
-      text-decoration: none;
-   }
    .quickaccess-item {
       position: relative;
       max-width: 70px;
@@ -153,13 +149,6 @@ export function generatePreviewHTML(
       line-height: 1;
       padding-top: 0;
       box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-   }
-   .quickaccess-item>span,
-   .quickaccess-item>h1,
-   .quickaccess-item>h2 {
-      font-size: 12px;
-      line-height: 12px;
-      padding-top: 5px;
    }
 </style>
 </head>

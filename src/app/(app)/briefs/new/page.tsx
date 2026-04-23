@@ -25,7 +25,7 @@ export default function NewBriefPage() {
 
   const [year, setYear] = useState(currentYear);
   const [week, setWeek] = useState(currentWeek);
-  const [locale, setLocale] = useState<Locale>("fr");
+  const [locale, setLocale] = useState<Locale>("FR");
   const [loading, setLoading] = useState(false);
 
   const handleCreate = async () => {
