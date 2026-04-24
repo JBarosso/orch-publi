@@ -6,7 +6,7 @@ import { BriefsList } from "@/components/briefs/briefs-list";
 export default function DashboardPage() {
   return (
     <div className="p-6 lg:p-8">
-      <div className="mb-8 flex items-end justify-between">
+      <div className="mb-8 flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Dashboard

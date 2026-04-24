@@ -60,7 +60,7 @@ export default function MediaPage() {
 
   return (
     <div className="p-6 lg:p-8">
-      <div className="mb-8 flex items-end justify-between">
+      <div className="mb-8 flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Médiathèque
@@ -69,7 +69,7 @@ export default function MediaPage() {
             Gérez vos images et assets
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             disabled={backfilling}
@@ -167,7 +167,7 @@ export default function MediaPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(clamp(100% / (8 + 1) + 0.1%, 160px, 100%), 1fr))" }}>
           {assets.map((asset) => (
             <div
               key={asset.id}

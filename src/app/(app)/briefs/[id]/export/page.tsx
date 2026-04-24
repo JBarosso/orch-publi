@@ -128,17 +128,19 @@ export default function ExportPage({
 
   return (
     <div className="p-6 lg:p-8">
-      <div className="mb-8 flex items-center gap-3">
-        <Link href={`/briefs/${id}`}>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
+      <div className="mb-8 flex items-center gap-3 flex-wrap justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold">Export — {brief.slug}</h1>
-          <StatusBadge status={brief.status as BriefStatus} />
+          <Link href={`/briefs/${id}`}>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-lg font-semibold">Export — {brief.slug}</h1>
+            <StatusBadge status={brief.status as BriefStatus} />
+          </div>
         </div>
-        <div className="ml-auto">
+        <div>
           <Button
             onClick={handleDownloadAllImages}
             disabled={downloadingImages === "all" || exports.length === 0}
