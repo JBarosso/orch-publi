@@ -452,7 +452,7 @@ export default function BriefEditorPage({
       </header>
 
       <div ref={panelGroupContainerRef} className="flex-1">
-      <PanelGroup groupRef={previewGroupRef} orientation="horizontal" className="h-full">
+      <PanelGroup groupRef={previewGroupRef} orientation="horizontal" className="h-[95svh!important]">
         <Panel id="editor" defaultSize={50} minSize={25}>
           <div className="h-full overflow-y-auto p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -586,7 +586,7 @@ export default function BriefEditorPage({
 
         <Panel id="preview" defaultSize={50} minSize={25}>
           <div className="h-full overflow-auto p-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mb-4 flex items-center justify-between gap-3 sticky top-0">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
                 Aperçu
               </h2>

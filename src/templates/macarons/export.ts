@@ -1,4 +1,5 @@
 import type { MacaronItem } from "@/types";
+import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 
 export const CMS_CSS_URL =
    "https://fr.staging-orchestra.fr/on/demandware.static/Sites-FR-Site/-/fr_FR/v1776150212293/css/global.css";
@@ -88,16 +89,10 @@ export function generatePreviewHTML(
          const imgSrc = item.imageUrl || "";
          const comment = (item.comment ?? "").trim();
          const hasComment = !!comment;
-         const outlineHtml = hasComment
-            ? '<span class="quickaccess-comment-outline" aria-hidden="true"></span>'
-            : "";
-         const commentHtml = comment
-            ? `<span class="quickaccess-comment" title="${esc(comment)}" aria-label="Commentaire">i</span>`
-            : "";
+         const commentHtml = getPreviewCommentHtml(item.comment);
 
          return `      <a href="#"
-         class="quickaccess-item${hasComment ? " quickaccess-item--has-comment" : ""} d-flex flex-column align-items-center text-nowrap mr-4 mr-md-5" aria-label="${plainLabel}">
-         ${outlineHtml}
+         class="quickaccess-item${hasComment ? " preview-has-comment" : ""} d-flex flex-column align-items-center text-nowrap mr-4 mr-md-5" aria-label="${plainLabel}">
          <picture>
             <img src="${esc(imgSrc)}" alt="${plainLabel}"
                class="bg-light rounded-circle" width="70" height="70" aria-hidden="true"
@@ -117,38 +112,11 @@ export function generatePreviewHTML(
 <link rel="stylesheet" href="${CMS_CSS_URL}" />
 <style>
    ${cssStyle}
+   ${previewCommentStyles}
    body { margin: 0; background: #fff; cursor: default; }
    .quickaccess-item {
       position: relative;
       max-width: 70px;
-   }
-   .quickaccess-comment-outline {
-      position: absolute;
-      inset: 0;
-      z-index: 999;
-      border: 2px solid #dc2626;
-      border-radius: 4px;
-      pointer-events: none;
-   }
-   .quickaccess-comment {
-      position: absolute;
-      top: 0;
-      right: 0;
-      z-index: 999;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      background: #dc2626;
-      border-radius: 4px;
-      width: 20px;
-      height: 20px;
-      font-size: 13px;
-      font-weight: 700;
-      font-family: Arial, sans-serif;
-      line-height: 1;
-      padding-top: 0;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
    }
 </style>
 </head>

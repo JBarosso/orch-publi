@@ -1,4 +1,5 @@
 import type { MeaItem, MeaButton } from "@/types";
+import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 
 export const CMS_CSS_URL =
   "https://fr.shop-orchestra.com/on/demandware.static/Sites-FR-Site/-/fr_FR/v1776150212293/css/global.css";
@@ -291,12 +292,7 @@ export function generatePreviewHTML(items: MeaItem[]): string {
       const imgSrc = item.imageUrl || "";
       const comment = (item.comment ?? "").trim();
       const hasComment = !!comment;
-      const outlineHtml = hasComment
-        ? '<span class="mea__comment-outline" aria-hidden="true"></span>'
-        : "";
-      const commentHtml = comment
-        ? `<span class="mea__comment-icon" title="${esc(comment)}" aria-label="Commentaire">i</span>`
-        : "";
+      const commentHtml = getPreviewCommentHtml(item.comment);
       const buttons = item.buttons ?? [
         {
           text: "Découvrir",
@@ -317,8 +313,7 @@ export function generatePreviewHTML(items: MeaItem[]): string {
         )
         .join("\n");
 
-      return `        <div class="mea mea--${index + 1}${hasComment ? " mea--has-comment" : ""}">
-${outlineHtml}
+      return `        <div class="mea mea--${index + 1}${hasComment ? " preview-has-comment" : ""}">
 ${commentHtml}
             <div class="mea__visuel">
 ${overlayHTML}${brandLogoHTML}                <a href="#" aria-label="${plainTitle}" class="mea__imgLink">
@@ -345,6 +340,7 @@ ${buttonsHTML}
 <link rel="preload" href="/fonts/Alphakind.ttf" as="font" type="font/ttf" crossorigin />
 <style>
     ${cssStyle}
+    ${previewCommentStyles}
     @font-face {
         font-family: "Alphakind";
         src: url("/fonts/Alphakind.ttf") format("truetype");
@@ -352,37 +348,6 @@ ${buttonsHTML}
         font-style: normal;
     }
     body { margin: 0; background: #fff; cursor: default; }
-    .mea__comment-icon {
-        position: absolute;
-        top: 0;
-        right: 0;
-        z-index: 999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        width: 22px;
-        height: 22px;
-        background-color: #dc2626;
-        border-radius: 4px;
-        font-size: 13px;
-        font-weight: 700;
-        font-family: Arial, sans-serif;
-        line-height: 1;
-        padding-top: 0;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-    }
-    .mea--has-comment {
-        position: relative;
-    }
-    .mea__comment-outline {
-        position: absolute;
-        inset: 0;
-        z-index: 999;
-        border: 2px solid #dc2626;
-        border-radius: 4px;
-        pointer-events: none;
-    }
     .mea__club--no-slash::before {
         content: none;
     }
