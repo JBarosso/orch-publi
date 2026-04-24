@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, Trash2, Monitor, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,7 +21,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
+import {
+  Panel,
+  Group as PanelGroup,
+  Separator as PanelResizeHandle,
+  useGroupRef,
+} from "react-resizable-panels";
 import type { Brief, BriefSection, MacaronItem, MacaronsContent } from "@/types";
 import type { BriefStatus } from "@/types";
 import { MacaronsEditor } from "@/templates/macarons/editor";
@@ -37,6 +42,14 @@ import type { AssetType } from "@/types";
 
 interface BriefWithSections extends Brief {
   sections: BriefSection[];
+}
+
+function isMacaronItem(item: MacaronItem | MeaItem): item is MacaronItem {
+  return "label" in item;
+}
+
+function isMeaItem(item: MacaronItem | MeaItem): item is MeaItem {
+  return "title" in item;
 }
 
 export default function BriefEditorPage({
@@ -66,6 +79,8 @@ export default function BriefEditorPage({
   const [createOpen, setCreateOpen] = useState(false);
   const [newSectionType, setNewSectionType] = useState<"macarons" | "mea">("macarons");
   const [pendingDeleteSectionId, setPendingDeleteSectionId] = useState<string | null>(null);
+  const panelGroupContainerRef = useRef<HTMLDivElement | null>(null);
+  const previewGroupRef = useGroupRef();
 
   const serializeSections = useCallback((list: BriefSection[]) => {
     return JSON.stringify(
@@ -302,6 +317,18 @@ export default function BriefEditorPage({
     toast.success("Section supprimée");
   };
 
+  const setPreviewPanelWidth = useCallback((targetPx: number) => {
+    const containerWidth = panelGroupContainerRef.current?.clientWidth;
+    if (!containerWidth || !previewGroupRef.current) return;
+    const rightPercent = (targetPx / containerWidth) * 100;
+    const clampedRight = Math.max(25, Math.min(100, rightPercent));
+    const leftPercent = 100 - clampedRight;
+    previewGroupRef.current.setLayout({
+      editor: leftPercent,
+      preview: clampedRight,
+    });
+  }, []);
+
   if (loading || !brief) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -424,8 +451,9 @@ export default function BriefEditorPage({
         </div>
       </header>
 
-      <PanelGroup orientation="horizontal" className="flex-1">
-        <Panel defaultSize={50} minSize={25}>
+      <div ref={panelGroupContainerRef} className="flex-1">
+      <PanelGroup groupRef={previewGroupRef} orientation="horizontal" className="h-full">
+        <Panel id="editor" defaultSize={50} minSize={25}>
           <div className="h-full overflow-y-auto p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
@@ -556,11 +584,35 @@ export default function BriefEditorPage({
           <div className="h-8 w-1 rounded-full bg-border/60 transition-colors group-hover:bg-primary/40 group-data-resize-handle-active:bg-primary/60" />
         </PanelResizeHandle>
 
-        <Panel defaultSize={50} minSize={25}>
-          <div className="h-full overflow-y-auto p-6">
-            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-              Aperçu
-            </h2>
+        <Panel id="preview" defaultSize={50} minSize={25}>
+          <div className="h-full overflow-auto p-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                Aperçu
+              </h2>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setPreviewPanelWidth(1488)}
+                >
+                  <Monitor className="mr-1.5 h-3.5 w-3.5" />
+                  Desktop
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setPreviewPanelWidth(423)}
+                >
+                  <Smartphone className="mr-1.5 h-3.5 w-3.5" />
+                  Mobile
+                </Button>
+              </div>
+            </div>
             <div className="space-y-3">
               {sections.map((section) => {
                 if (!previewSections[section.id]) return null;
@@ -594,6 +646,7 @@ export default function BriefEditorPage({
           </div>
         </Panel>
       </PanelGroup>
+      </div>
 
       {mediaTarget && (
         <MediaLibraryDialog
@@ -620,8 +673,12 @@ export default function BriefEditorPage({
         return (
           <ImageUploadDialog
             defaultLabel={
-              ("label" in (targetItem ?? {}) ? targetItem?.label : undefined)?.replace(/\n/g, " ") ??
-              ("title" in (targetItem ?? {}) ? targetItem?.title : undefined)?.replace(/\n/g, " ")
+              (targetItem && isMacaronItem(targetItem)
+                ? targetItem.label
+                : undefined)?.replace(/\n/g, " ") ??
+              (targetItem && isMeaItem(targetItem)
+                ? targetItem.title
+                : undefined)?.replace(/\n/g, " ")
             }
             defaultWeek={brief.week}
             defaultYear={brief.year}

@@ -99,53 +99,53 @@ export function MeaItemEditor({
           <GripVertical className="h-4 w-4" />
         </button>
 
-        {/* Left column: image + opacity + position */}
-        <div className="flex flex-col items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={onOpenMediaLibrary}
-            className="flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5"
-            style={{ width: 150, height: 100 }}
-          >
-            {item.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={item.imageUrl}
-                alt={item.title}
-                className="h-full w-full object-contain"
-                style={{ opacity: item.imageOpacity }}
-              />
-            ) : (
-              <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
-            )}
-          </button>
+        {/* Middle columns: image + form fields */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+          <div className="flex w-[150px] shrink-0 flex-col items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onOpenMediaLibrary}
+              className="flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5"
+              style={{ width: 150, height: 100 }}
+            >
+              {item.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.imageUrl}
+                  alt={item.title}
+                  className="h-full w-full object-contain"
+                  style={{ opacity: item.imageOpacity }}
+                />
+              ) : (
+                <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+              )}
+            </button>
 
-          <div className="flex items-center gap-2 w-full mt-1 justify-center">
-            <div className="flex items-center gap-1 border rounded-md px-1.5 h-7">
-              <span className="text-[9px] text-muted-foreground/60">Opacité</span>
-              <Input
-                type="number"
-                min="0" max="1" step="0.1"
-                value={item.imageOpacity}
-                onChange={(e) => onUpdate({ imageOpacity: parseFloat(e.target.value) || 1 })}
-                className="h-5 w-10 text-[10px] px-0.5 text-center border-0 rounded-none focus-visible:ring-0 shadow-none"
-              />
-            </div>
-            <div className="flex items-center gap-1 border rounded-md px-1.5 h-7">
-              <span className="text-[9px] text-muted-foreground/60">Position</span>
-              <Input
-                type="number"
-                min="0" max="100" step="5"
-                value={item.imagePosition ?? 50}
-                onChange={(e) => onUpdate({ imagePosition: parseInt(e.target.value) || 50 })}
-                className="h-5 w-10 text-[10px] px-0.5 text-center border-0 rounded-none focus-visible:ring-0 shadow-none"
-              />
+            <div className="mt-1 flex w-full items-center justify-center gap-2">
+              <div className="flex h-7 items-center gap-1 rounded-md border px-1.5">
+                <span className="text-[9px] text-muted-foreground/60">Opacité</span>
+                <Input
+                  type="number"
+                  min="0" max="1" step="0.1"
+                  value={item.imageOpacity}
+                  onChange={(e) => onUpdate({ imageOpacity: parseFloat(e.target.value) || 1 })}
+                  className="h-5 w-10 rounded-none border-0 px-0.5 text-center text-[10px] shadow-none focus-visible:ring-0"
+                />
+              </div>
+              <div className="flex h-7 items-center gap-1 rounded-md border px-1.5">
+                <span className="text-[9px] text-muted-foreground/60">Position</span>
+                <Input
+                  type="number"
+                  min="0" max="100" step="5"
+                  value={item.imagePosition ?? 50}
+                  onChange={(e) => onUpdate({ imagePosition: parseInt(e.target.value) || 50 })}
+                  className="h-5 w-10 rounded-none border-0 px-0.5 text-center text-[10px] shadow-none focus-visible:ring-0"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Right column: form fields */}
-        <div className="flex-1 space-y-2">
+          <div className="min-w-[320px] flex-1 space-y-2">
           {/* Row 1: Semaine + ID */}
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-muted-foreground/70 shrink-0">
@@ -420,6 +420,7 @@ export function MeaItemEditor({
               )}
             />
           </div>
+        </div>
         </div>
 
         {/* Far right: visibility + week warning + delete */}
