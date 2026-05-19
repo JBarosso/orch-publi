@@ -83,6 +83,7 @@ const cssStyle = ` .site-container {
     .mea__imgLink {
         z-index: 1;
         display: block;
+        height: 100%;
     }
   
     .mea__visuel picture {
