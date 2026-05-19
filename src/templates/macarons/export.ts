@@ -1,8 +1,8 @@
 import type { MacaronItem } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
+import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF } from "@/lib/cms-css";
 
-export const CMS_CSS_URL =
-   "https://fr.staging-orchestra.fr/on/demandware.static/Sites-FR-Site/-/fr_FR/v1776150212293/css/global.css";
+export { CMS_CSS_URL };
 
 interface ExportContext {
    year: number;
@@ -109,15 +109,11 @@ export function generatePreviewHTML(
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="stylesheet" href="${CMS_CSS_URL}" />
+<link rel="stylesheet" href="${PREVIEW_CMS_CSS_HREF}" />
 <style>
    ${cssStyle}
    ${previewCommentStyles}
    body { margin: 0; background: #fff; cursor: default; }
-   .quickaccess-item {
-      position: relative;
-      max-width: 70px;
-   }
 </style>
 </head>
 <body>

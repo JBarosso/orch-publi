@@ -1,8 +1,9 @@
 import type { MeaItem, MeaButton } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 
-export const CMS_CSS_URL =
-  "https://fr.shop-orchestra.com/on/demandware.static/Sites-FR-Site/-/fr_FR/v1776150212293/css/global.css";
+import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF } from "@/lib/cms-css";
+
+export { CMS_CSS_URL };
 
 const BRAND_LOGO_STAGING_BASE =
   "https://fr.shop-orchestra.com/on/demandware.static/-/Library-Sites-OrchestraSharedLibrary/default/dw5f0e0dfb/logo-puericulture/";
@@ -337,6 +338,7 @@ ${buttonsHTML}
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="${PREVIEW_CMS_CSS_HREF}" />
 <link rel="preload" href="/fonts/Alphakind.ttf" as="font" type="font/ttf" crossorigin />
 <style>
     ${cssStyle}
