@@ -125,7 +125,7 @@ export default function SettingsPage() {
           Durée de conservation
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Les briefs <strong>traités</strong> plus anciens que cette durée, et
+          Les briefs <strong>traités </strong> plus anciens que cette durée, et
           les images de la médiathèque anciennes et non utilisées par un brief
           restant, deviennent éligibles à la purge. Aucune suppression n&apos;est
           automatique : la purge est déclenchée manuellement ci-dessous.
