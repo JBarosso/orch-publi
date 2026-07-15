@@ -18,12 +18,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import type { Brief, Locale } from "@/types";
 import { LOCALES } from "@/types";
 
 interface DuplicateDialogProps {
   brief: Brief;
-  onDuplicate: (locale: Locale, week: number) => void;
+  onDuplicate: (locale: Locale, week: number, translate: boolean) => void;
   onClose: () => void;
 }
 
@@ -32,8 +33,15 @@ export function DuplicateDialog({
   onDuplicate,
   onClose,
 }: DuplicateDialogProps) {
-  const [targetLocale, setTargetLocale] = useState<Locale>(brief.locale);
+  // Normalisation : les briefs historiques stockent la locale en minuscules ("fr")
+  const [targetLocale, setTargetLocale] = useState<Locale>(
+    brief.locale.toUpperCase() as Locale,
+  );
   const [targetWeek, setTargetWeek] = useState<number>(brief.week);
+  const [translate, setTranslate] = useState(false);
+
+  const localeChanged =
+    targetLocale.toUpperCase() !== brief.locale.toUpperCase();
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -75,12 +83,33 @@ export function DuplicateDialog({
             />
           </div>
         </div>
+        {localeChanged && (
+          <div className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 p-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="translate-switch" className="cursor-pointer">
+                Traduire vers la langue de destination
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Les textes reconnus dans le glossaire ({brief.locale} →{" "}
+                {targetLocale}) seront remplacés. Les autres resteront en{" "}
+                {brief.locale} et seront marqués à vérifier.
+              </p>
+            </div>
+            <Switch
+              id="translate-switch"
+              checked={translate}
+              onCheckedChange={setTranslate}
+            />
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Annuler
           </Button>
           <Button
-            onClick={() => onDuplicate(targetLocale, targetWeek)}
+            onClick={() =>
+              onDuplicate(targetLocale, targetWeek, localeChanged && translate)
+            }
           >
             Dupliquer
           </Button>

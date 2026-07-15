@@ -220,9 +220,11 @@ export default function MediaPage() {
       {showUpload && (
         <ImageUploadDialog
           assetType={filterType || "other"}
+          allowTypeSelect
           onUploaded={() => {
             setShowUpload(false);
             fetchAssets();
+            fetchFilterOptions();
           }}
           onClose={() => setShowUpload(false)}
         />

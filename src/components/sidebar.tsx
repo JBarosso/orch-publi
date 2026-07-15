@@ -6,16 +6,20 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Image,
+  Languages,
   LogOut,
   Layers,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/media", label: "Médiathèque", icon: Image },
+  { href: "/translations", label: "Traduction", icon: Languages },
+  { href: "/settings", label: "Paramétrage", icon: Settings },
 ];
 
 const STORAGE_KEY = "sidebar-collapsed";

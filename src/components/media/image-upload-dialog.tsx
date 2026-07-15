@@ -16,12 +16,24 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import type { AssetType } from "@/types";
+import {
+  ACCEPTED_FORMATS_LABEL,
+  ACCEPTED_MIME_ATTR,
+  ASSET_SPECS,
+  MAX_SOURCE_BYTES,
+  formatBytes,
+  normalizeAssetLabel,
+  validateSourceDimensions,
+  validateSourceFile,
+} from "@/lib/upload-specs";
 
 interface ImageUploadDialogProps {
   defaultLabel?: string;
   defaultWeek?: number;
   defaultYear?: number;
   assetType?: AssetType;
+  /** Affiche un sélecteur de type (upload depuis la médiathèque) */
+  allowTypeSelect?: boolean;
   initialFile?: File;
   cropShape?: "round" | "rect";
   cropAspect?: number;
@@ -86,34 +98,72 @@ export function ImageUploadDialog({
   defaultWeek,
   defaultYear,
   assetType = "other",
+  allowTypeSelect = false,
   initialFile,
-  cropShape = "round",
-  cropAspect = 1,
+  cropShape,
+  cropAspect,
   targetWidth,
   targetHeight,
   onUploaded,
   onClose,
 }: ImageUploadDialogProps) {
+  const [selectedType, setSelectedType] = useState<AssetType>(assetType);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [sourceDims, setSourceDims] = useState<{ width: number; height: number } | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [label, setLabel] = useState(defaultLabel ?? "");
+  const [week, setWeek] = useState(defaultWeek != null ? String(defaultWeek) : "");
+  const [year, setYear] = useState(defaultYear != null ? String(defaultYear) : "");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialFileProcessed = useRef(false);
 
+  const spec = ASSET_SPECS[selectedType];
+  // Les props explicites (éditeur de brief) priment sur la spec du type
+  const effCropShape = cropShape ?? spec.cropShape;
+  const effCropAspect = cropAspect ?? spec.cropAspect;
+  const effTargetWidth = targetWidth ?? spec.targetWidth;
+  const effTargetHeight = targetHeight ?? spec.targetHeight;
+
   // Allow zoom out so image can be smaller than container
   const minZoom = 0.3;
+
+  const loadFile = useCallback(
+    (file: File) => {
+      const fileError = validateSourceFile(file);
+      if (fileError) {
+        toast.error(fileError);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const src = reader.result as string;
+        const img = new Image();
+        img.onload = () => {
+          const dimError = validateSourceDimensions(img.width, img.height, spec);
+          if (dimError) {
+            toast.error(dimError);
+            return;
+          }
+          setSourceDims({ width: img.width, height: img.height });
+          setImageSrc(src);
+        };
+        img.onerror = () => toast.error("Impossible de lire cette image.");
+        img.src = src;
+      };
+      reader.readAsDataURL(file);
+    },
+    [spec]
+  );
 
   useEffect(() => {
     if (initialFile && !initialFileProcessed.current) {
       initialFileProcessed.current = true;
-      const reader = new FileReader();
-      reader.onload = () => setImageSrc(reader.result as string);
-      reader.readAsDataURL(initialFile);
+      loadFile(initialFile);
     }
-  }, [initialFile]);
+  }, [initialFile, loadFile]);
 
   const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels);
@@ -122,13 +172,25 @@ export function ImageUploadDialog({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setImageSrc(reader.result as string);
-    reader.readAsDataURL(file);
+    loadFile(file);
   };
 
   const handleUpload = async () => {
     if (!imageSrc || !croppedAreaPixels) return;
+
+    const cleanLabel = normalizeAssetLabel(label);
+    if (spec.requireLabel && !cleanLabel) {
+      toast.error(`Label requis pour une image ${spec.displayName}`);
+      return;
+    }
+    if (sourceDims) {
+      const dimError = validateSourceDimensions(sourceDims.width, sourceDims.height, spec);
+      if (dimError) {
+        toast.error(dimError);
+        return;
+      }
+    }
+
     setUploading(true);
 
     try {
@@ -136,8 +198,8 @@ export function ImageUploadDialog({
       const finalBase64 = await getCroppedImg(
         imageSrc,
         croppedAreaPixels,
-        targetWidth,
-        targetHeight
+        effTargetWidth,
+        effTargetHeight
       );
 
       const res = await fetch("/api/assets", {
@@ -145,17 +207,16 @@ export function ImageUploadDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           image: finalBase64,
-          label: label.trim(),
-          week: defaultWeek,
-          year: defaultYear,
-          type: assetType,
-          targetWidth,
-          targetHeight,
+          label: cleanLabel,
+          week: week ? Number(week) : null,
+          year: year ? Number(year) : null,
+          type: selectedType,
         }),
       });
 
       if (!res.ok) {
-        toast.error("Erreur lors de l'upload");
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ?? "Erreur lors de l'upload");
         return;
       }
 
@@ -169,14 +230,15 @@ export function ImageUploadDialog({
     }
   };
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = () => setImageSrc(reader.result as string);
-    reader.readAsDataURL(file);
-  }, []);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files?.[0];
+      if (!file) return;
+      loadFile(file);
+    },
+    [loadFile]
+  );
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -184,6 +246,24 @@ export function ImageUploadDialog({
         <DialogHeader>
           <DialogTitle>Uploader une image</DialogTitle>
         </DialogHeader>
+
+        {allowTypeSelect && !imageSrc && (
+          <div className="space-y-1.5">
+            <Label htmlFor="asset-type">Type d&apos;image</Label>
+            <select
+              id="asset-type"
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value as AssetType)}
+              className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none"
+            >
+              {(Object.keys(ASSET_SPECS) as AssetType[]).map((type) => (
+                <option key={type} value={type}>
+                  {ASSET_SPECS[type].displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {!imageSrc ? (
           <div
@@ -196,10 +276,16 @@ export function ImageUploadDialog({
             <p className="text-sm text-muted-foreground text-center">
               Glissez une image ou cliquez pour sélectionner
             </p>
+            <p className="mt-1.5 text-xs text-muted-foreground/60 text-center">
+              {ACCEPTED_FORMATS_LABEL} · max {formatBytes(MAX_SOURCE_BYTES)}
+              {effTargetWidth && effTargetHeight
+                ? ` · min ${effTargetWidth}×${effTargetHeight} px`
+                : ""}
+            </p>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={ACCEPTED_MIME_ATTR}
               className="hidden"
               onChange={handleFileChange}
             />
@@ -212,14 +298,14 @@ export function ImageUploadDialog({
                 crop={crop}
                 zoom={zoom}
                 minZoom={minZoom}
-                cropShape={cropShape}
-                aspect={cropAspect}
+                cropShape={effCropShape}
+                aspect={effCropAspect}
                 objectFit="contain"
                 style={{
                   containerStyle: { background: "#eee" },
                   mediaStyle: {},
                   cropAreaStyle:
-                    cropShape === "rect"
+                    effCropShape === "rect"
                       ? { border: "2px solid rgba(59, 130, 246, 0.8)", boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.4)" }
                       : {},
                 }}
@@ -228,6 +314,13 @@ export function ImageUploadDialog({
                 onCropComplete={onCropComplete}
               />
             </div>
+
+            <p className="text-xs text-muted-foreground/60">
+              Sortie : {effTargetWidth && effTargetHeight
+                ? `${effTargetWidth}×${effTargetHeight} px`
+                : "dimensions libres"}{" "}
+              · {spec.outputFormat === "jpeg" ? "JPEG" : "PNG"}
+            </p>
 
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted-foreground w-12">Zoom</Label>
@@ -244,13 +337,42 @@ export function ImageUploadDialog({
 
             {!defaultLabel && (
               <div className="space-y-1.5">
-                <Label htmlFor="asset-label">Label</Label>
+                <Label htmlFor="asset-label">
+                  Label{spec.requireLabel ? " *" : ""}
+                </Label>
                 <Input
                   id="asset-label"
                   placeholder="Ex: promo été, logo marque..."
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                 />
+              </div>
+            )}
+
+            {defaultWeek == null && defaultYear == null && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="asset-year">Année</Label>
+                  <Input
+                    id="asset-year"
+                    type="number"
+                    placeholder="Ex: 2026"
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="asset-week">Semaine</Label>
+                  <Input
+                    id="asset-week"
+                    type="number"
+                    min={1}
+                    max={53}
+                    placeholder="Ex: 17"
+                    value={week}
+                    onChange={(e) => setWeek(e.target.value)}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -261,7 +383,10 @@ export function ImageUploadDialog({
             Annuler
           </Button>
           {imageSrc && (
-            <Button onClick={handleUpload} disabled={uploading}>
+            <Button
+              onClick={handleUpload}
+              disabled={uploading || (spec.requireLabel && !normalizeAssetLabel(label))}
+            >
               {uploading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
               Uploader
             </Button>

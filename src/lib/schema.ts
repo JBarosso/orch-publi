@@ -52,6 +52,30 @@ export const briefSections = pgTable("brief_sections", {
     .$onUpdate(() => new Date()),
 });
 
+// Paramètres applicatifs clé/valeur (ex: durée de rétention)
+export const settings = pgTable("settings", {
+  key: varchar("key", { length: 64 }).primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+// Glossaire de traduction global : une clé, une valeur par langue (jsonb)
+export const translations = pgTable("translations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  key: varchar("key", { length: 128 }).notNull().unique(),
+  values: jsonb("values").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 export const assets = pgTable("assets", {
   id: uuid("id").defaultRandom().primaryKey(),
   url: text("url").notNull(),

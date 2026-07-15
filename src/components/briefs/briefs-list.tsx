@@ -109,14 +109,35 @@ export function BriefsList() {
     fetchBriefs();
   };
 
-  const handleDuplicate = async (id: string, targetLocale: Locale, targetWeek: number) => {
+  const handleDuplicate = async (
+    id: string,
+    targetLocale: Locale,
+    targetWeek: number,
+    translate: boolean,
+  ) => {
     const res = await fetch(`/api/briefs/${id}/duplicate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetLocale, targetWeek }),
+      body: JSON.stringify({ targetLocale, targetWeek, translate }),
     });
     if (res.ok) {
-      toast.success("Brief dupliqué");
+      const data = await res.json();
+      const stats = data.translation;
+      if (stats) {
+        const toReview = stats.missing + stats.ambiguous;
+        if (toReview > 0) {
+          toast.warning(
+            `Brief dupliqué — ${stats.translated} texte(s) traduit(s), ${toReview} à vérifier (marqués en rouge dans l'éditeur)`,
+            { duration: 8000 },
+          );
+        } else {
+          toast.success(
+            `Brief dupliqué — ${stats.translated} texte(s) traduit(s)`,
+          );
+        }
+      } else {
+        toast.success("Brief dupliqué");
+      }
       fetchBriefs();
     } else {
       const err = await res.json();
@@ -255,7 +276,9 @@ export function BriefsList() {
       {duplicating && (
         <DuplicateDialog
           brief={duplicating}
-          onDuplicate={(locale, week) => handleDuplicate(duplicating.id, locale, week)}
+          onDuplicate={(locale, week, translate) =>
+            handleDuplicate(duplicating.id, locale, week, translate)
+          }
           onClose={() => setDuplicating(null)}
         />
       )}

@@ -57,6 +57,15 @@ export interface Asset {
   createdAt: Date;
 }
 
+export interface TranslationEntry {
+  id: string;
+  key: string;
+  // Valeur par code langue (aligné sur les locales des briefs)
+  values: Partial<Record<Locale, string>>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface MacaronItem {
   id: string;
   label: string;
