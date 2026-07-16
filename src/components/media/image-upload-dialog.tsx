@@ -126,6 +126,9 @@ export function ImageUploadDialog({
   const effCropAspect = cropAspect ?? spec.cropAspect;
   const effTargetWidth = targetWidth ?? spec.targetWidth;
   const effTargetHeight = targetHeight ?? spec.targetHeight;
+  // Pas de recadrage imposé : l'image est envoyée telle quelle,
+  // dimensions et format d'origine conservés (poids optimisé côté serveur)
+  const isFreeUpload = !effCropShape;
 
   // Allow zoom out so image can be smaller than container
   const minZoom = 0.3;
@@ -176,7 +179,8 @@ export function ImageUploadDialog({
   };
 
   const handleUpload = async () => {
-    if (!imageSrc || !croppedAreaPixels) return;
+    if (!imageSrc) return;
+    if (!isFreeUpload && !croppedAreaPixels) return;
 
     const cleanLabel = normalizeAssetLabel(label);
     if (spec.requireLabel && !cleanLabel) {
@@ -194,13 +198,15 @@ export function ImageUploadDialog({
     setUploading(true);
 
     try {
-      // Do the crop client-side to guarantee WYSIWYG
-      const finalBase64 = await getCroppedImg(
-        imageSrc,
-        croppedAreaPixels,
-        effTargetWidth,
-        effTargetHeight
-      );
+      // Upload libre : image d'origine telle quelle. Sinon crop client-side (WYSIWYG)
+      const finalBase64 = isFreeUpload
+        ? imageSrc
+        : await getCroppedImg(
+            imageSrc,
+            croppedAreaPixels as Area,
+            effTargetWidth,
+            effTargetHeight
+          );
 
       const res = await fetch("/api/assets", {
         method: "POST",
@@ -292,48 +298,64 @@ export function ImageUploadDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="relative h-80 w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
-              <Cropper
-                image={imageSrc}
-                crop={crop}
-                zoom={zoom}
-                minZoom={minZoom}
-                cropShape={effCropShape}
-                aspect={effCropAspect}
-                objectFit="contain"
-                style={{
-                  containerStyle: { background: "#eee" },
-                  mediaStyle: {},
-                  cropAreaStyle:
-                    effCropShape === "rect"
-                      ? { border: "2px solid rgba(59, 130, 246, 0.8)", boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.4)" }
-                      : {},
-                }}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-              />
-            </div>
+            {isFreeUpload ? (
+              <div className="relative max-h-80 w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageSrc}
+                  alt="Aperçu"
+                  className="max-h-80 w-auto max-w-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="relative h-80 w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+                <Cropper
+                  image={imageSrc}
+                  crop={crop}
+                  zoom={zoom}
+                  minZoom={minZoom}
+                  cropShape={effCropShape}
+                  aspect={effCropAspect}
+                  objectFit="contain"
+                  style={{
+                    containerStyle: { background: "#eee" },
+                    mediaStyle: {},
+                    cropAreaStyle:
+                      effCropShape === "rect"
+                        ? { border: "2px solid rgba(59, 130, 246, 0.8)", boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.4)" }
+                        : {},
+                  }}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                />
+              </div>
+            )}
 
             <p className="text-xs text-muted-foreground/60">
-              Sortie : {effTargetWidth && effTargetHeight
-                ? `${effTargetWidth}×${effTargetHeight} px`
-                : "dimensions libres"}{" "}
-              · {spec.outputFormat === "jpeg" ? "JPEG" : "PNG"}
+              {isFreeUpload
+                ? `Sortie : image d'origine conservée${sourceDims ? ` (${sourceDims.width}×${sourceDims.height} px)` : ""} · format d'origine, poids optimisé`
+                : `Sortie : ${
+                    effTargetWidth && effTargetHeight
+                      ? `${effTargetWidth}×${effTargetHeight} px`
+                      : "dimensions libres"
+                  } · ${spec.outputFormat === "jpeg" ? "JPEG" : "PNG"}`}
             </p>
 
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground w-12">Zoom</Label>
-              <input
-                type="range"
-                min={minZoom}
-                max={3}
-                step={0.01}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="flex-1"
-              />
-            </div>
+            {!isFreeUpload && (
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground w-12">Zoom</Label>
+                <input
+                  type="range"
+                  min={minZoom}
+                  max={3}
+                  step={0.01}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="flex-1"
+                />
+              </div>
+            )}
 
             {!defaultLabel && (
               <div className="space-y-1.5">

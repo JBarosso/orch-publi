@@ -119,7 +119,8 @@ async function exportAllImages(briefId: string) {
     .where(eq(briefSections.briefId, briefId));
 
   const allImages: ImageEntry[] = [];
-  for (const section of sections) {
+  // Les sections marquées non exportables (toggle "Export" off) sont ignorées
+  for (const section of sections.filter((s) => s.visible !== false)) {
     if (section.type === "macarons") {
       allImages.push(...getMacaronImages(section.content as MacaronsContent, brief.week));
     } else if (section.type === "mea") {

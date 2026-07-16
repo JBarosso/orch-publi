@@ -137,7 +137,7 @@ export default function TemplatesPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl">
+    <div className="p-6 lg:p-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">

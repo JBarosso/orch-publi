@@ -12,17 +12,16 @@ export const ACCEPTED_FORMATS_LABEL = "JPEG, PNG ou WebP";
 // Formats tels que rapportés par sharp().metadata().format
 export const ACCEPTED_SHARP_FORMATS = ["jpeg", "png", "webp"];
 
-// Borne des images "other" (dimensions libres, jamais agrandies)
-export const OTHER_MAX_DIMENSION = 1600;
-
 export interface AssetSpec {
   displayName: string;
   // Dimensions de sortie imposées. Absentes pour "other" (dimensions libres).
   targetWidth?: number;
   targetHeight?: number;
-  cropShape: "round" | "rect";
-  cropAspect: number;
-  outputFormat: "png" | "jpeg";
+  // Recadrage imposé. Absent = upload libre : pas de crop, dimensions conservées
+  cropShape?: "round" | "rect";
+  cropAspect?: number;
+  // "source" = format d'origine conservé, poids optimisé (sans redimensionnement)
+  outputFormat: "png" | "jpeg" | "source";
   requireLabel: boolean;
 }
 
@@ -47,9 +46,8 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
   },
   other: {
     displayName: "Autre",
-    cropShape: "rect",
-    cropAspect: 3 / 2,
-    outputFormat: "png",
+    // Upload libre : image envoyée telle quelle, dimensions et format conservés
+    outputFormat: "source",
     requireLabel: false,
   },
 };

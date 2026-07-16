@@ -149,7 +149,14 @@ export function BriefsList() {
   return (
     <>
       <div className="mb-5 flex gap-3">
-        <Select value={filterLocale} onValueChange={(v) => setFilterLocale(v ?? "all")}>
+        <Select
+          value={filterLocale}
+          items={{
+            all: "Toutes les langues",
+            ...Object.fromEntries(LOCALES.map((l) => [l.value, l.label])),
+          }}
+          onValueChange={(v) => setFilterLocale(v ?? "all")}
+        >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Langue" />
           </SelectTrigger>
@@ -163,7 +170,16 @@ export function BriefsList() {
           </SelectContent>
         </Select>
 
-        <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v ?? "all")}>
+        <Select
+          value={filterStatus}
+          items={{
+            all: "Tous les statuts",
+            draft: "Brouillon",
+            published: "Publié",
+            treated: "Traité",
+          }}
+          onValueChange={(v) => setFilterStatus(v ?? "all")}
+        >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Statut" />
           </SelectTrigger>

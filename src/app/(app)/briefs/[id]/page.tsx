@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -427,12 +428,21 @@ export default function BriefEditorPage({
           </DialogHeader>
           <Select
             value={newSectionType}
+            items={[
+              { value: "macarons", label: "Macaron" },
+              { value: "mea", label: "MEA" },
+              { value: "custom", label: "Section personnalisée (vierge)" },
+              ...publishedTemplates.map((template) => ({
+                value: `tpl:${template.id}`,
+                label: `Template : ${template.name}`,
+              })),
+            ]}
             onValueChange={(v) => v && setNewSectionType(v)}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="w-fit min-w-(--anchor-width)">
               <SelectItem value="macarons">Macaron</SelectItem>
               <SelectItem value="mea">MEA</SelectItem>
               <SelectItem value="custom">Section personnalisée (vierge)</SelectItem>
@@ -533,7 +543,7 @@ export default function BriefEditorPage({
               {sections.map((section) => (
                 <div
                   key={section.id}
-                  className="rounded-lg border border-border/60 bg-card shadow-sm"
+                  className={`rounded-lg border border-border/60 bg-card shadow-sm ${section.visible ? "" : "opacity-70"}`}
                 >
                   <button
                     type="button"
@@ -554,6 +564,26 @@ export default function BriefEditorPage({
                       className="h-8 w-full max-w-[320px]"
                     />
                     <div className="flex items-center gap-1">
+                      <span
+                        onClick={(e) => e.stopPropagation()}
+                        className="mr-1 flex items-center gap-1"
+                        title={
+                          section.visible
+                            ? "Section incluse dans l'export"
+                            : "Section informative — exclue de l'export"
+                        }
+                      >
+                        <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                          Export
+                        </span>
+                        <Switch
+                          checked={section.visible}
+                          onCheckedChange={(checked) =>
+                            updateSection(section.id, { visible: checked })
+                          }
+                          className="scale-75"
+                        />
+                      </span>
                       {section.type === "custom" && (
                         <span
                           onClick={(e) => {

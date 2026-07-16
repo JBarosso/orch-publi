@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useId, useRef, useState, useMemo } from "react";
 import type { MacaronItem } from "@/types";
 import { generatePreviewHTML } from "./export";
 
@@ -9,6 +9,7 @@ interface MacaronsPreviewProps {
 }
 
 export function MacaronsPreview({ items }: MacaronsPreviewProps) {
+  const frameId = useId();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(120);
 
@@ -16,18 +17,22 @@ export function MacaronsPreview({ items }: MacaronsPreviewProps) {
 
   const srcDoc = useMemo(() => {
     if (visibleItems.length === 0) return "";
-    return generatePreviewHTML(items);
-  }, [items, visibleItems.length]);
+    return generatePreviewHTML(items, frameId);
+  }, [items, frameId, visibleItems.length]);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === "resize" && typeof e.data.height === "number") {
+      if (
+        e.data?.type === "resize" &&
+        e.data.frameId === frameId &&
+        typeof e.data.height === "number"
+      ) {
         setIframeHeight(e.data.height + 4);
       }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, []);
+  }, [frameId]);
 
   if (visibleItems.length === 0) {
     return (

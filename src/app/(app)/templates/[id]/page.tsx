@@ -185,6 +185,9 @@ export default function TemplateEditorPage({
         <div className="flex items-center gap-2">
           <Select
             value={status}
+            items={Object.fromEntries(
+              STATUS_OPTIONS.map((s) => [s, TEMPLATE_STATUS_CONFIG[s].label]),
+            )}
             onValueChange={(v) => v && setStatus(v as CustomTemplateStatus)}
           >
             <SelectTrigger

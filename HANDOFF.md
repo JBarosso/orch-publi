@@ -221,6 +221,13 @@ Cadrage validé par Jordan : templates **à champs libres** (blocs génériques)
 - **Traduction à la duplication** : blocs titre/texte/bouton passés au glossaire ; notes `[Traduction] À vérifier` regroupées dans le commentaire de la section (les blocs image ne sont pas traduits)
 - Tests e2e passés (25 vérifications : CRUD, snapshot, export HTML/zip, conversion, duplication traduite FR→ES)
 
+**Retours Jordan intégrés (16 juil. 2026)** :
+- **Upload type « Autre » libre** : plus de recadrage ni de resize — l'image est envoyée telle quelle (dialog sans cropper), le serveur conserve dimensions, format d'origine et transparence PNG, et optimise seulement le poids (jpeg/webp q85, png lossless). Les types macaron/MEA gardent leur normalisation. `OTHER_MAX_DIMENSION` supprimé, `outputFormat: "source"` dans `upload-specs.ts`
+- **Toggle « Export » par section** (tous types, défaut ON) : réutilise le champ `visible` de `brief_sections` (existait en DB, inutilisé). Switch dans le header de chaque section (carte grisée si OFF) ; les sections OFF sont des sections informatives : exclues de la page export et du zip « toutes les images »
+- **Hauteurs d'aperçu corrigées** : les iframes macarons et custom postaient toutes `{type:"resize"}` sans identifiant → chaque preview prenait la hauteur de la dernière qui parlait (sections custom écrasées). Chaque preview a maintenant un `frameId` (useId) filtré côté listener
+- **Dropdown « Créer une section »** : `SelectContent` en `w-fit min-w-(--anchor-width)` (le popup se calait sur la largeur du trigger et tronquait les noms de templates)
+- **Selects : valeur brute affichée dans le trigger** (ex. « stack » au lieu de « Empilé... ») : le Select Base UI n'affiche le label que si `items` est passé au Root. Prop `items` ajoutée à tous les selects où label ≠ valeur : layout custom, linkType (macaron/mea/custom), overlay et mode prix MEA (préexistant), filtres langue/statut du dashboard, dialogue « Créer une section », statut du template. ⚠ Convention pour tout nouveau Select : toujours passer `items` si les labels diffèrent des valeurs
+
 ### P2 — modules métier
 - Global header, Carousel, Bloc Edito, HP CAT Pueri, Info sup (lien PowerPoint)
 

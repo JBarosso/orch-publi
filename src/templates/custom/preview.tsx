@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { CustomContent } from "@/types";
 import { generatePreviewHTML } from "./export";
 
@@ -9,6 +9,7 @@ interface CustomPreviewProps {
 }
 
 export function CustomPreview({ content }: CustomPreviewProps) {
+  const frameId = useId();
   const [iframeHeight, setIframeHeight] = useState(120);
 
   const renderableBlocks = (content.blocks ?? []).filter((b) =>
@@ -17,18 +18,22 @@ export function CustomPreview({ content }: CustomPreviewProps) {
 
   const srcDoc = useMemo(() => {
     if (renderableBlocks.length === 0) return "";
-    return generatePreviewHTML(content);
-  }, [content, renderableBlocks.length]);
+    return generatePreviewHTML(content, frameId);
+  }, [content, frameId, renderableBlocks.length]);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === "resize" && typeof e.data.height === "number") {
+      if (
+        e.data?.type === "resize" &&
+        e.data.frameId === frameId &&
+        typeof e.data.height === "number"
+      ) {
         setIframeHeight(e.data.height + 4);
       }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, []);
+  }, [frameId]);
 
   if (renderableBlocks.length === 0) {
     return (

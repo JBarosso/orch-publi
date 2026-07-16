@@ -11,7 +11,6 @@ import {
   ACCEPTED_SHARP_FORMATS,
   ASSET_SPECS,
   MAX_SOURCE_BYTES,
-  OTHER_MAX_DIMENSION,
   formatBytes,
   normalizeAssetLabel,
   resolveAssetType,
@@ -137,30 +136,40 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Dimensions imposées par le type d'asset — le client ne peut pas les contourner
+    // Dimensions imposées par le type d'asset — le client ne peut pas les contourner.
+    // Sans dimensions cibles (type "other"), l'image garde ses dimensions d'origine.
     if (spec.targetWidth && spec.targetHeight) {
-      processed = processed.resize(spec.targetWidth, spec.targetHeight, {
-        fit: "contain",
-        background: { r: 255, g: 255, b: 255, alpha: 1 },
-      });
-    } else {
-      processed = processed.resize(OTHER_MAX_DIMENSION, OTHER_MAX_DIMENSION, {
-        fit: "inside",
-        withoutEnlargement: true,
-      });
+      processed = processed
+        .resize(spec.targetWidth, spec.targetHeight, {
+          fit: "contain",
+          background: { r: 255, g: 255, b: 255, alpha: 1 },
+        })
+        .flatten({ background: { r: 255, g: 255, b: 255 } });
     }
-    // Flatten alpha channel to white background
-    processed = processed.flatten({ background: { r: 255, g: 255, b: 255 } });
+
+    // "source" : format d'origine conservé, ré-encodé pour optimiser le poids
+    const outputFormat =
+      spec.outputFormat === "source"
+        ? (metadata.format as "jpeg" | "png" | "webp")
+        : spec.outputFormat;
 
     let outputBuffer: Buffer;
     let extension: string;
     let mimeType: string;
-    if (spec.outputFormat === "jpeg") {
-      outputBuffer = await processed.jpeg({ quality: 85 }).toBuffer();
+    if (outputFormat === "jpeg") {
+      outputBuffer = await processed
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        .jpeg({ quality: 85 })
+        .toBuffer();
       extension = "jpg";
       mimeType = "image/jpeg";
+    } else if (outputFormat === "webp") {
+      outputBuffer = await processed.webp({ quality: 85 }).toBuffer();
+      extension = "webp";
+      mimeType = "image/webp";
     } else {
-      outputBuffer = await processed.png({ quality: 85 }).toBuffer();
+      // PNG : compression sans perte (la transparence est conservée en upload libre)
+      outputBuffer = await processed.png({ compressionLevel: 9 }).toBuffer();
       extension = "png";
       mimeType = "image/png";
     }

@@ -190,8 +190,10 @@ ${renderSection(content, ctx)}`;
 /**
  * HTML preview : vraies URLs d'images, liens neutralisés,
  * commentaire dev affiché en overlay (jamais exporté).
+ * frameId : identifie l'iframe dans les messages resize (plusieurs previews
+ * écoutent le même window parent — sans id elles s'écrasent mutuellement).
  */
-export function generatePreviewHTML(content: CustomContent): string {
+export function generatePreviewHTML(content: CustomContent, frameId = ""): string {
    const comment = (content.comment ?? "").trim();
    const commentHtml = getPreviewCommentHtml(content.comment);
    const sectionHTML = renderSection(content, null);
@@ -222,7 +224,7 @@ ${wrapped}
   });
 
   new ResizeObserver(() => {
-    window.parent.postMessage({ type: "resize", height: document.body.scrollHeight }, "*");
+    window.parent.postMessage({ type: "resize", frameId: ${JSON.stringify(frameId)}, height: document.body.scrollHeight }, "*");
   }).observe(document.body);
 </script>
 </body>

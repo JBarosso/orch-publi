@@ -76,9 +76,12 @@ ${itemsHTML}
 /**
  * Generates preview-ready HTML using real imageUrl values instead of CMS paths.
  * Used by the iframe preview so uploaded images display correctly.
+ * frameId identifies this iframe in resize messages (several previews listen
+ * on the same parent window — without it they overwrite each other's height).
  */
 export function generatePreviewHTML(
    items: MacaronItem[],
+   frameId = "",
 ): string {
    const visibleItems = items.filter((item) => item.visible);
 
@@ -131,7 +134,7 @@ ${itemsHTML}
   });
 
   new ResizeObserver(() => {
-    window.parent.postMessage({ type: "resize", height: document.body.scrollHeight }, "*");
+    window.parent.postMessage({ type: "resize", frameId: ${JSON.stringify(frameId)}, height: document.body.scrollHeight }, "*");
   }).observe(document.body);
 </script>
 </body>

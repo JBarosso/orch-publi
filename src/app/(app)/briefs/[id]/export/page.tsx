@@ -27,6 +27,7 @@ export default function ExportPage({
   >([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [downloadingImages, setDownloadingImages] = useState<string | null>(null);
+  const [skippedCount, setSkippedCount] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -39,8 +40,12 @@ export default function ExportPage({
       const data: BriefWithSections = await res.json();
       setBrief(data);
 
+      // Les sections avec le toggle "Export" désactivé sont informatives : ignorées
+      const exportableSections = data.sections.filter((s) => s.visible !== false);
+      setSkippedCount(data.sections.length - exportableSections.length);
+
       const results = await Promise.all(
-        data.sections.map(async (section) => {
+        exportableSections.map(async (section) => {
           const exportRes = await fetch(
             `/api/export?sectionId=${section.id}`,
           );
@@ -209,6 +214,13 @@ export default function ExportPage({
         {exports.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
             Aucune section à exporter.
+          </p>
+        )}
+
+        {skippedCount > 0 && (
+          <p className="text-center text-xs text-muted-foreground">
+            {skippedCount} section(s) non exportée(s) (toggle « Export »
+            désactivé dans l&apos;éditeur).
           </p>
         )}
       </div>

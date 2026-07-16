@@ -196,6 +196,7 @@ export function MeaItemEditor({
 
             <Select
               value={item.overlayType}
+              items={{ none: "Sans texte", label: "Badge Rond", text: "Texte" }}
               onValueChange={(v) => onUpdate({ overlayType: v as MeaOverlayType })}
             >
               <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs">
@@ -230,6 +231,7 @@ export function MeaItemEditor({
           <div className="flex items-center gap-2 bg-muted/40 p-1.5 rounded-md flex-wrap">
             <Select
               value={pricingMode}
+              items={{ standard: "Standard", strikethrough: "Prix barré", custom: "Custom" }}
               onValueChange={(v) => onUpdate({ pricingMode: v as MeaPricingMode })}
             >
               <SelectTrigger className="h-7 flex-1 text-xs">
@@ -346,6 +348,7 @@ export function MeaItemEditor({
                 />
                 <Select
                   value={btn.linkType}
+                  items={{ cgid: "cgid", cid: "cid", url: "URL" }}
                   onValueChange={(v) =>
                     v && updateButton(idx, { linkType: v as "cgid" | "url" | "cid" })
                   }

@@ -146,6 +146,7 @@ export function MacaronItemEditor({
           <div className="flex items-center gap-2">
             <Select
               value={item.linkType}
+              items={{ cgid: "cgid", cid: "cid", url: "URL" }}
               onValueChange={(v) =>
                 v && onUpdate({ linkType: v as "cgid" | "url" | "cid" })
               }

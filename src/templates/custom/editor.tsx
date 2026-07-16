@@ -110,6 +110,7 @@ export function CustomEditor({
           <span className="text-[11px] text-muted-foreground shrink-0">Layout</span>
           <Select
             value={content.layout}
+            items={CUSTOM_LAYOUTS}
             onValueChange={(v) =>
               v && onChange({ ...content, layout: v as CustomLayout })
             }
@@ -341,6 +342,7 @@ function CustomBlockEditor({
             <div className="flex items-center gap-2">
               <Select
                 value={block.linkType}
+                items={{ cgid: "cgid", cid: "cid", url: "URL" }}
                 onValueChange={(v) =>
                   v && onUpdate({ linkType: v as "cgid" | "url" | "cid" })
                 }
