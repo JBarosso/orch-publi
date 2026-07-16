@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, Trash2, Monitor, Smartphone } from "lucide-react";
+import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, LayoutTemplate, Trash2, Monitor, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,7 +33,10 @@ import { MacaronsEditor } from "@/templates/macarons/editor";
 import { MacaronsPreview } from "@/templates/macarons/preview";
 import { MeaEditor } from "@/templates/mea/editor";
 import { MeaPreview } from "@/templates/mea/preview";
-import type { MeaItem, MeaContent } from "@/types";
+import { CustomEditor } from "@/templates/custom/editor";
+import { CustomPreview } from "@/templates/custom/preview";
+import { normalizeCustomContent } from "@/templates/custom/schema";
+import type { MeaItem, MeaContent, CustomTemplate } from "@/types";
 import { StatusActions } from "@/components/editor/status-actions";
 import { StatusBadge } from "@/components/briefs/status-badge";
 import { MediaLibraryDialog } from "@/components/media/media-library-dialog";
@@ -77,7 +80,9 @@ export default function BriefEditorPage({
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [previewSections, setPreviewSections] = useState<Record<string, boolean>>({});
   const [createOpen, setCreateOpen] = useState(false);
-  const [newSectionType, setNewSectionType] = useState<"macarons" | "mea">("macarons");
+  // "macarons" | "mea" | "custom" (vierge) | "tpl:<id>" (depuis un template publié)
+  const [newSectionType, setNewSectionType] = useState<string>("macarons");
+  const [publishedTemplates, setPublishedTemplates] = useState<CustomTemplate[]>([]);
   const [pendingDeleteSectionId, setPendingDeleteSectionId] = useState<string | null>(null);
   const panelGroupContainerRef = useRef<HTMLDivElement | null>(null);
   const previewGroupRef = useGroupRef();
@@ -246,6 +251,18 @@ export default function BriefEditorPage({
     setSections((prev) => {
       const next = prev.map((section) => {
         if (section.id !== target.sectionId) return section;
+        if (section.type === "custom") {
+          const content = normalizeCustomContent(section.content);
+          return {
+            ...section,
+            content: {
+              ...content,
+              blocks: content.blocks.map((block) =>
+                block.id === target.itemId ? { ...block, imageUrl: url } : block,
+              ),
+            },
+          };
+        }
         const content = section.content as { items?: (MacaronItem | MeaItem)[] };
         const items = (content.items ?? []).map((item) =>
           item.id === target.itemId ? { ...item, imageUrl: url } : item,
@@ -259,16 +276,32 @@ export default function BriefEditorPage({
     setMediaTarget(null);
   }, [mediaTarget, serializeSections]);
 
+  // Templates publiés proposés dans le dialogue de création de section
+  useEffect(() => {
+    if (!createOpen) return;
+    (async () => {
+      const res = await fetch("/api/templates?status=published");
+      if (res.ok) setPublishedTemplates(await res.json());
+    })();
+  }, [createOpen]);
+
   const createSection = async () => {
     if (!brief) return;
     if (dirty) {
       toast.error("Sauvegardez d'abord vos modifications avant de créer une section");
       return;
     }
+    const payload: Record<string, unknown> = { briefId: brief.id };
+    if (newSectionType.startsWith("tpl:")) {
+      payload.type = "custom";
+      payload.templateId = newSectionType.slice(4);
+    } else {
+      payload.type = newSectionType;
+    }
     const res = await fetch("/api/sections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ briefId: brief.id, type: newSectionType }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       toast.error("Impossible de créer la section");
@@ -277,6 +310,28 @@ export default function BriefEditorPage({
     setCreateOpen(false);
     await fetchBrief();
     toast.success("Section créée");
+  };
+
+  const convertToTemplate = async (sectionId: string) => {
+    if (dirty) {
+      toast.error("Sauvegardez d'abord vos modifications avant de convertir en template");
+      return;
+    }
+    const res = await fetch("/api/templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fromSectionId: sectionId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error ?? "Impossible de convertir en template");
+      return;
+    }
+    const template = await res.json();
+    toast.success(
+      `Template « ${template.name} » créé en brouillon — publiez-le depuis l'onglet Templates`,
+      { duration: 6000 },
+    );
   };
 
   const duplicateSection = async (sectionId: string) => {
@@ -372,7 +427,7 @@ export default function BriefEditorPage({
           </DialogHeader>
           <Select
             value={newSectionType}
-            onValueChange={(v) => setNewSectionType(v as "macarons" | "mea")}
+            onValueChange={(v) => v && setNewSectionType(v)}
           >
             <SelectTrigger>
               <SelectValue />
@@ -380,6 +435,12 @@ export default function BriefEditorPage({
             <SelectContent>
               <SelectItem value="macarons">Macaron</SelectItem>
               <SelectItem value="mea">MEA</SelectItem>
+              <SelectItem value="custom">Section personnalisée (vierge)</SelectItem>
+              {publishedTemplates.map((template) => (
+                <SelectItem key={template.id} value={`tpl:${template.id}`}>
+                  Template : {template.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <DialogFooter>
@@ -493,6 +554,18 @@ export default function BriefEditorPage({
                       className="h-8 w-full max-w-[320px]"
                     />
                     <div className="flex items-center gap-1">
+                      {section.type === "custom" && (
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            convertToTemplate(section.id);
+                          }}
+                          className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          title="Convertir en template (snapshot indépendant)"
+                        >
+                          <LayoutTemplate className="h-3.5 w-3.5" />
+                        </span>
+                      )}
                       <span
                         onClick={(e) => {
                           e.stopPropagation();
@@ -564,6 +637,19 @@ export default function BriefEditorPage({
                               sectionId: section.id,
                               itemId,
                               type: "mea",
+                            })
+                          }
+                        />
+                      ) : section.type === "custom" ? (
+                        <CustomEditor
+                          content={normalizeCustomContent(section.content)}
+                          briefWeek={brief.week}
+                          onChange={(content) => updateSection(section.id, { content })}
+                          onOpenMediaLibrary={(blockId) =>
+                            setMediaTarget({
+                              sectionId: section.id,
+                              itemId: blockId,
+                              type: "other",
                             })
                           }
                         />
@@ -640,6 +726,18 @@ export default function BriefEditorPage({
                     </div>
                   );
                 }
+                if (section.type === "custom") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <CustomPreview
+                        content={normalizeCustomContent(section.content)}
+                      />
+                    </div>
+                  );
+                }
                 return null;
               })}
             </div>
@@ -670,6 +768,8 @@ export default function BriefEditorPage({
           | MeaItem
           | undefined;
         const isMeaTarget = mediaTarget.type === "mea";
+        // Type libre (sections personnalisées) : specs du type "other"
+        const isOtherTarget = mediaTarget.type === "other";
         return (
           <ImageUploadDialog
             defaultLabel={
@@ -683,8 +783,8 @@ export default function BriefEditorPage({
             defaultWeek={brief.week}
             defaultYear={brief.year}
             initialFile={droppedFile}
-            cropShape={isMeaTarget ? "rect" : "round"}
-            cropAspect={isMeaTarget ? 3 / 2 : 1}
+            cropShape={isOtherTarget ? undefined : isMeaTarget ? "rect" : "round"}
+            cropAspect={isOtherTarget ? undefined : isMeaTarget ? 3 / 2 : 1}
             targetWidth={isMeaTarget ? 600 : undefined}
             targetHeight={isMeaTarget ? 400 : undefined}
             assetType={uploadAssetType}

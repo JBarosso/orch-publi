@@ -76,6 +76,23 @@ export const translations = pgTable("translations", {
     .$onUpdate(() => new Date()),
 });
 
+// Templates personnalisés : sections à champs libres réutilisables dans les
+// briefs (snapshot indépendant à l'instanciation). Statuts : draft | published | archived
+export const customTemplates = pgTable("custom_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  status: varchar("status", { length: 16 }).notNull().default("draft"),
+  layout: varchar("layout", { length: 32 }).notNull().default("stack"),
+  blocks: jsonb("blocks").notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 export const assets = pgTable("assets", {
   id: uuid("id").defaultRandom().primaryKey(),
   url: text("url").notNull(),

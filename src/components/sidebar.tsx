@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Image,
   Languages,
+  LayoutTemplate,
   LogOut,
   Layers,
   PanelLeftClose,
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/media", label: "Médiathèque", icon: Image },
   { href: "/translations", label: "Traduction", icon: Languages },
+  { href: "/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/settings", label: "Paramétrage", icon: Settings },
 ];
 

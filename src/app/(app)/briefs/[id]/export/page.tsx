@@ -164,7 +164,7 @@ export default function ExportPage({
             <div className="flex items-center justify-between border-b border-border/60 px-5 py-3">
               <h3 className="text-sm font-semibold">{exp.title}</h3>
               <div className="flex items-center gap-2">
-                {(exp.type === "macarons" || exp.type === "mea") && (
+                {(exp.type === "macarons" || exp.type === "mea" || exp.type === "custom") && (
                   <Button
                     variant="outline"
                     size="sm"

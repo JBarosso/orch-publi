@@ -4,6 +4,8 @@ import { briefs, briefSections } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { generateMacaronsHTML } from "@/templates/macarons/export";
 import { generateMeaHTML } from "@/templates/mea/export";
+import { generateCustomHTML } from "@/templates/custom/export";
+import { normalizeCustomContent } from "@/templates/custom/schema";
 import type { MacaronsContent, MeaContent } from "@/types";
 
 export async function GET(request: NextRequest) {
@@ -52,6 +54,12 @@ export async function GET(request: NextRequest) {
   } else if (section.type === "mea") {
     const content = section.content as MeaContent;
     html = generateMeaHTML(content?.items ?? [], {
+      year: brief.year,
+      week: brief.week,
+      locale: brief.locale,
+    });
+  } else if (section.type === "custom") {
+    html = generateCustomHTML(normalizeCustomContent(section.content), {
       year: brief.year,
       week: brief.week,
       locale: brief.locale,

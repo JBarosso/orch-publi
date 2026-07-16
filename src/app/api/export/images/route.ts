@@ -7,14 +7,15 @@ import { readFile } from "fs/promises";
 import sharp from "sharp";
 import archiver from "archiver";
 import { PassThrough } from "stream";
-import type { MacaronsContent, MeaContent } from "@/types";
+import type { CustomContent, MacaronsContent, MeaContent } from "@/types";
 
 interface ImageEntry {
   imageUrl: string;
   imageWeek: number | null;
   baseName: string;
-  width: number;
-  height: number;
+  // null = dimensions libres (sections personnalisées) : pas de resize forcé
+  width: number | null;
+  height: number | null;
 }
 
 function getMacaronImages(content: MacaronsContent, briefWeek: number): ImageEntry[] {
@@ -38,6 +39,18 @@ function getMeaImages(content: MeaContent, briefWeek: number): ImageEntry[] {
       baseName: `mea-${index + 1}`,
       width: 600,
       height: 400,
+    }));
+}
+
+function getCustomImages(content: CustomContent): ImageEntry[] {
+  return (content?.blocks ?? [])
+    .filter((b) => b.type === "image" && b.imageUrl)
+    .map((block) => ({
+      imageUrl: block.imageUrl,
+      imageWeek: block.imageWeek,
+      baseName: `custom-${block.imageId}`,
+      width: null,
+      height: null,
     }));
 }
 
@@ -79,6 +92,8 @@ export async function GET(request: NextRequest) {
     images = getMacaronImages(section.content as MacaronsContent, brief.week);
   } else if (section.type === "mea") {
     images = getMeaImages(section.content as MeaContent, brief.week);
+  } else if (section.type === "custom") {
+    images = getCustomImages(section.content as CustomContent);
   }
 
   if (images.length === 0) {
@@ -109,6 +124,8 @@ async function exportAllImages(briefId: string) {
       allImages.push(...getMacaronImages(section.content as MacaronsContent, brief.week));
     } else if (section.type === "mea") {
       allImages.push(...getMeaImages(section.content as MeaContent, brief.week));
+    } else if (section.type === "custom") {
+      allImages.push(...getCustomImages(section.content as CustomContent));
     }
   }
 
@@ -135,14 +152,20 @@ async function buildZip(images: ImageEntry[], brief: { year: number; week: numbe
       const filePath = join(process.cwd(), "public", img.imageUrl);
       const buffer = await readFile(filePath);
 
-      const jpgBuffer = await sharp(buffer)
-        .resize(img.width, img.height, { fit: "cover" })
+      const jpgPipeline = sharp(buffer);
+      if (img.width && img.height) {
+        jpgPipeline.resize(img.width, img.height, { fit: "cover" });
+      }
+      const jpgBuffer = await jpgPipeline
         .flatten({ background: { r: 255, g: 255, b: 255 } })
         .jpeg({ quality: 85 })
         .toBuffer();
 
-      const webpBuffer = await sharp(buffer)
-        .resize(img.width, img.height, { fit: "cover" })
+      const webpPipeline = sharp(buffer);
+      if (img.width && img.height) {
+        webpPipeline.resize(img.width, img.height, { fit: "cover" });
+      }
+      const webpBuffer = await webpPipeline
         .flatten({ background: { r: 255, g: 255, b: 255 } })
         .webp({ quality: 85 })
         .toBuffer();

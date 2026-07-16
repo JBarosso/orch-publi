@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { briefSections } from "@/lib/schema";
+import { briefSections, customTemplates } from "@/lib/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
+import {
+  cloneBlocksWithNewIds,
+  createEmptyCustomContent,
+} from "@/templates/custom/schema";
+import type { CustomBlock, CustomLayout } from "@/types";
 
 function normalizeTypeLabel(type: string): string {
-  return type === "macarons" ? "macaron" : type;
+  if (type === "macarons") return "macaron";
+  if (type === "custom") return "section perso";
+  return type;
 }
 
 async function buildDefaultTitle(briefId: string, type: string): Promise<string> {
@@ -92,9 +99,33 @@ export async function POST(request: NextRequest) {
   }
 
   // Create a new section
-  const { briefId, type, title } = body;
+  const { briefId, type, title, templateId } = body;
   if (!briefId || !type) {
     return NextResponse.json({ error: "briefId et type sont requis" }, { status: 400 });
+  }
+
+  let content: unknown = { items: [] };
+  let templateName: string | null = null;
+
+  if (type === "custom") {
+    if (templateId) {
+      // Instanciation d'un template : snapshot figé (aucun lien conservé)
+      const [template] = await db
+        .select()
+        .from(customTemplates)
+        .where(eq(customTemplates.id, templateId));
+      if (!template) {
+        return NextResponse.json({ error: "Template introuvable" }, { status: 404 });
+      }
+      content = {
+        layout: template.layout as CustomLayout,
+        comment: "",
+        blocks: cloneBlocksWithNewIds(template.blocks as CustomBlock[]),
+      };
+      templateName = template.name;
+    } else {
+      content = createEmptyCustomContent();
+    }
   }
 
   const nextOrder = await getNextOrder(briefId);
@@ -103,9 +134,12 @@ export async function POST(request: NextRequest) {
     .values({
       briefId,
       type,
-      title: (title?.trim?.() || "") || (await buildDefaultTitle(briefId, type)),
+      title:
+        (title?.trim?.() || "") ||
+        templateName ||
+        (await buildDefaultTitle(briefId, type)),
       order: nextOrder,
-      content: { items: [] },
+      content,
       visible: true,
     })
     .returning();

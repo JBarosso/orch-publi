@@ -207,10 +207,19 @@ Les aperçus macarons/MEA génèrent du HTML complet injecté via `srcDoc` dans 
    - API : `GET/PUT /api/settings`, `GET /api/retention/purge` (dry-run), `POST` (purge réelle)
    - Logique : `src/lib/retention.ts` — suppression briefs en cascade (sections), unlink fichiers `public/uploads`, les images encore référencées ne sont jamais supprimées
 
-### P1 — templates avancés
-- Custom templates réutilisables
-- Sections libres à la volée
-- Conversion section → template
+### P1 — templates avancés ✅ **Fait (16 juil. 2026)** — en attente de validation Jordan
+
+Cadrage validé par Jordan : templates **à champs libres** (blocs génériques), conversion section → template **indépendante** (snapshot figé), gestion via **onglet « Templates » dédié** avec statuts.
+
+- **Modèle** : un template = nom + layout + liste ordonnée de blocs génériques (`title` | `text` | `image` | `button`). Layouts prédéfinis : `stack` (blocs dans l'ordre, centrés), `image-left`, `image-right` (zone image / zone contenu). Types + constantes dans `src/types/index.ts` (`CustomTemplate`, `CustomContent`, `CustomBlock`, `CUSTOM_LAYOUTS`, `TEMPLATE_STATUS_CONFIG`)
+- **DB** : table `custom_templates` (name, status `draft|published|archived`, layout, blocks jsonb) — db:push fait
+- **Onglet `/templates`** (sidebar) : liste, création, statuts (publier / archiver / brouillon via menu), suppression ; éditeur dédié `/templates/[id]` (nom, statut, blocs + aperçu, Ctrl+S). Seuls les templates **publiés** sont proposés dans l'éditeur de brief
+- **Sections custom dans un brief** : type de section `custom` — création vierge ou depuis un template publié (dialogue « Créer une section »). L'instanciation est un **snapshot** : ids de blocs et ids d'image régénérés, aucun lien conservé (modifier/supprimer le template n'affecte pas les sections)
+- **Conversion section → template** : icône dédiée dans le header des sections custom → crée un template **brouillon** indépendant (le commentaire dev n'est pas embarqué)
+- **Module** : `src/templates/custom/` (schema.ts, export.ts, editor.tsx, preview.tsx) — même structure que macarons/mea. Éditeur : layout + ajout/réordonnancement dnd des blocs + commentaire dev **au niveau section** (overlay rouge dans la preview, jamais exporté)
+- **Export** : HTML générique scopé `.custom-section` ; images en chemins CMS `custom-{imageId}.jpg/webp?$staticlink$` ; boutons cgid/cid/url comme les macarons ; ZIP images sans redimensionnement forcé (dimensions libres). API : `GET/POST/PUT/DELETE /api/templates`
+- **Traduction à la duplication** : blocs titre/texte/bouton passés au glossaire ; notes `[Traduction] À vérifier` regroupées dans le commentaire de la section (les blocs image ne sont pas traduits)
+- Tests e2e passés (25 vérifications : CRUD, snapshot, export HTML/zip, conversion, duplication traduite FR→ES)
 
 ### P2 — modules métier
 - Global header, Carousel, Bloc Edito, HP CAT Pueri, Info sup (lien PowerPoint)
@@ -229,8 +238,8 @@ Voir `roadmap.md` pour le détail. Questions non tranchées :
 1. Spécificité pays = override ou contenu distinct ?
 2. Import/export traduction : niveau brief, section ou global ?
 3. Info sup PowerPoint : URL libre ou upload hébergé ?
-4. Rétention : quelles tables, hard delete ou soft delete ?
-5. Conversion section→template : sync ou indépendance ?
+4. ~~Rétention : quelles tables, hard delete ou soft delete ?~~ → tranché (hard delete, briefs traités + assets orphelins)
+5. ~~Conversion section→template : sync ou indépendance ?~~ → tranché (**indépendance**, snapshot figé)
 6. HP CAT / Pueri : un ou deux modules ?
 
 ---

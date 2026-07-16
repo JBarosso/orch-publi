@@ -1,4 +1,5 @@
 import type {
+  CustomContent,
   Locale,
   MacaronsContent,
   MeaContent,
@@ -166,6 +167,36 @@ function translateMeaContent(
   };
 }
 
+const CUSTOM_FIELD_LABELS: Record<string, string> = {
+  title: "titre",
+  text: "texte",
+  button: "bouton",
+};
+
+// Sections personnalisées : le commentaire est au niveau de la section,
+// les notes de traduction y sont donc regroupées. Les blocs image (texte
+// alternatif rarement dans le glossaire) ne sont pas traduits.
+function translateCustomContent(
+  content: CustomContent,
+  lookup: Lookup,
+  stats: TranslateStats,
+): CustomContent {
+  const notes: string[] = [];
+  const blocks = (content.blocks ?? []).map((block, i) => {
+    if (block.type === "image" || !block.text.trim()) return block;
+    const label = `bloc ${i + 1} (${CUSTOM_FIELD_LABELS[block.type] ?? block.type})`;
+    return {
+      ...block,
+      text: applyField(block.text, label, lookup, stats, notes),
+    };
+  });
+  return {
+    ...content,
+    blocks,
+    comment: appendNote(content.comment ?? "", notes),
+  };
+}
+
 export function translateSectionContent(
   type: string,
   content: unknown,
@@ -177,6 +208,9 @@ export function translateSectionContent(
   }
   if (type === "mea") {
     return translateMeaContent(content as MeaContent, lookup, stats);
+  }
+  if (type === "custom") {
+    return translateCustomContent(content as CustomContent, lookup, stats);
   }
   return content;
 }

@@ -1,6 +1,6 @@
 export type BriefStatus = "draft" | "published" | "treated";
 
-export type SectionType = "macarons" | "mea";
+export type SectionType = "macarons" | "mea" | "custom";
 export type AssetType = "macaron" | "mea" | "other";
 
 export type Locale = "FR" | "BEFR" | "BENL" | "GR" | "ES";
@@ -138,4 +138,66 @@ export interface MeaButton {
 
 export interface MeaContent {
   items: MeaItem[];
+}
+
+// --- Templates personnalisés (sections à champs libres) ---
+
+export type CustomTemplateStatus = "draft" | "published" | "archived";
+
+export const TEMPLATE_STATUS_CONFIG: Record<
+  CustomTemplateStatus,
+  { label: string; color: string; dot: string }
+> = {
+  draft: { label: "Brouillon", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
+  published: { label: "Publié", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400" },
+  archived: { label: "Archivé", color: "bg-slate-100 text-slate-600 border-slate-200", dot: "bg-slate-400" },
+};
+
+export type CustomLayout = "stack" | "image-left" | "image-right";
+
+export const CUSTOM_LAYOUTS: { value: CustomLayout; label: string }[] = [
+  { value: "stack", label: "Empilé (blocs dans l'ordre)" },
+  { value: "image-left", label: "Image à gauche, contenu à droite" },
+  { value: "image-right", label: "Image à droite, contenu à gauche" },
+];
+
+export type CustomBlockType = "title" | "text" | "image" | "button";
+
+export const CUSTOM_BLOCK_LABELS: Record<CustomBlockType, string> = {
+  title: "Titre",
+  text: "Texte",
+  image: "Image",
+  button: "Bouton",
+};
+
+export interface CustomBlock {
+  id: string;
+  type: CustomBlockType;
+  // Titre, paragraphe, libellé du bouton ou texte alternatif de l'image
+  text: string;
+  // Image
+  imageUrl: string;
+  imageId: string;
+  imageWeek: number | null;
+  // Lien (bouton)
+  linkType: "cgid" | "url" | "cid";
+  cgid: string;
+  cid: string;
+  link: string;
+}
+
+export interface CustomContent {
+  layout: CustomLayout;
+  comment: string;
+  blocks: CustomBlock[];
+}
+
+export interface CustomTemplate {
+  id: string;
+  name: string;
+  status: CustomTemplateStatus;
+  layout: CustomLayout;
+  blocks: CustomBlock[];
+  createdAt: Date;
+  updatedAt: Date;
 }
