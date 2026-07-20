@@ -21,6 +21,7 @@ export function createEmptyMacaron(id: string): MacaronItem {
     imageUrl: "",
     imageId: uuidv4().slice(0, 8),
     imageWeek: null,
+    exportPosition: null,
     visible: true,
   };
 }

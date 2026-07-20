@@ -9,6 +9,7 @@ import {
   type GlossaryEntry,
   type TranslateStats,
 } from "@/lib/translate-content";
+import { freezeSectionContentWeek } from "@/lib/freeze-content-week";
 import type { Locale } from "@/types";
 
 export async function POST(
@@ -95,16 +96,28 @@ export async function POST(
       translateSectionContent(type, content, lookup, s);
   }
 
+  // La semaine change réellement : les items natifs de la semaine source
+  // doivent être figés (semaine + position) pour ne pas glisser vers la
+  // nouvelle semaine du brief dupliqué alors que le fichier n'a jamais été
+  // réuploadé. Pas de gel si on duplique sur la même semaine (ex: juste pour
+  // une autre langue) — rien n'a besoin d'être figé dans ce cas.
+  const shouldFreezeWeek = week !== original.week;
+
   if (originalSections.length > 0) {
     await db.insert(briefSections).values(
-      originalSections.map((s) => ({
-        briefId: newBrief.id,
-        type: s.type,
-        title: s.title,
-        order: s.order,
-        content: transformContent(s.type, s.content),
-        visible: s.visible,
-      })),
+      originalSections.map((s) => {
+        const content = shouldFreezeWeek
+          ? freezeSectionContentWeek(s.type, s.content, original.week)
+          : s.content;
+        return {
+          briefId: newBrief.id,
+          type: s.type,
+          title: s.title,
+          order: s.order,
+          content: transformContent(s.type, content),
+          visible: s.visible,
+        };
+      }),
     );
   }
 

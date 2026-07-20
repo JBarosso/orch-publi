@@ -8,6 +8,7 @@ export function createEmptyMea(id: string): MeaItem {
     imageUrl: "",
     imageId: uuidv4().slice(0, 8),
     imageWeek: null,
+    exportPosition: null,
     comment: "",
     imageOpacity: 1,
     imagePosition: 50,

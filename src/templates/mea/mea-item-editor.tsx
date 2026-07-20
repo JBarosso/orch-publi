@@ -165,7 +165,21 @@ export function MeaItemEditor({
               className="h-8 w-28 text-sm"
             />
             {item.imageWeek != null && item.imageWeek !== briefWeek && (
-              <TriangleAlert className="h-4 w-4 shrink-0 text-amber-500" />
+              <span
+                title={
+                  item.exportPosition != null
+                    ? `Semaine différente de celle du brief — position figée à ${item.exportPosition} (déplacer l'item ne la change plus ; réuploader une image la défige)`
+                    : "La semaine est différente de celle du brief"
+                }
+                className="flex items-center gap-0.5"
+              >
+                <TriangleAlert className="h-4 w-4 shrink-0 text-amber-500" />
+                {item.exportPosition != null && (
+                  <span className="text-[9px] font-medium text-amber-600">
+                    #{item.exportPosition} figé
+                  </span>
+                )}
+              </span>
             )}
             <span
               className="text-[10px] text-muted-foreground/50 truncate"

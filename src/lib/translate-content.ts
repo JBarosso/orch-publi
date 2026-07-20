@@ -4,6 +4,8 @@ import type {
   MacaronsContent,
   MeaContent,
   MeaItem,
+  MeaV2Content,
+  MeaV2Card,
 } from "@/types";
 
 // Traduction du contenu des sections lors d'une duplication inter-langues.
@@ -197,17 +199,70 @@ function translateCustomContent(
   };
 }
 
+// Traduit une carte MEA v2 (régulière ou focus) : titre + textes de boutons.
+// Les prix et l'URL image/vidéo ne sont jamais traduits. Générique sur T pour
+// préserver les champs propres à MeaV2FocusCard (mediaType, videoUrl...).
+function translateMeaV2Card<T extends MeaV2Card>(
+  card: T,
+  lookup: Lookup,
+  stats: TranslateStats,
+): T {
+  const notes: string[] = [];
+  const title = applyField(card.title, "titre", lookup, stats, notes);
+  const buttons = (card.buttons ?? []).map((button, i) => ({
+    ...button,
+    text: applyField(
+      button.text,
+      card.buttons.length > 1 ? `bouton ${i + 1}` : "bouton",
+      lookup,
+      stats,
+      notes,
+    ),
+  }));
+  return { ...card, title, buttons, comment: appendNote(card.comment, notes) } as T;
+}
+
+function translateMeaV2Content(
+  content: MeaV2Content,
+  lookup: Lookup,
+  stats: TranslateStats,
+): MeaV2Content {
+  const cards = (content.cards ?? []).map((card) => translateMeaV2Card(card, lookup, stats));
+
+  const focus = content.focus;
+  if (!focus) return { ...content, cards };
+
+  const translatedFocus = translateMeaV2Card(focus, lookup, stats);
+  const focusNotes: string[] = [];
+  const appelPrixTitle = focus.appelPrix?.enabled
+    ? applyField(focus.appelPrix.title, "titre badge prix", lookup, stats, focusNotes)
+    : focus.appelPrix?.title ?? "";
+
+  return {
+    ...content,
+    cards,
+    focus: {
+      ...translatedFocus,
+      comment: appendNote(translatedFocus.comment, focusNotes),
+      appelPrix: { ...focus.appelPrix, title: appelPrixTitle },
+    },
+  };
+}
+
 export function translateSectionContent(
   type: string,
   content: unknown,
   lookup: Lookup,
   stats: TranslateStats,
 ): unknown {
-  if (type === "macarons") {
+  if (type === "macarons" || type === "macarons_v2") {
     return translateMacaronsContent(content as MacaronsContent, lookup, stats);
   }
   if (type === "mea") {
     return translateMeaContent(content as MeaContent, lookup, stats);
+  }
+  if (type === "mea_v2") {
+    return translateMeaV2Content(content as MeaV2Content, lookup, stats);
   }
   if (type === "custom") {
     return translateCustomContent(content as CustomContent, lookup, stats);

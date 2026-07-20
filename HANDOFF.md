@@ -228,7 +228,39 @@ Cadrage validé par Jordan : templates **à champs libres** (blocs génériques)
 - **Dropdown « Créer une section »** : `SelectContent` en `w-fit min-w-(--anchor-width)` (le popup se calait sur la largeur du trigger et tronquait les noms de templates)
 - **Selects : valeur brute affichée dans le trigger** (ex. « stack » au lieu de « Empilé... ») : le Select Base UI n'affiche le label que si `items` est passé au Root. Prop `items` ajoutée à tous les selects où label ≠ valeur : layout custom, linkType (macaron/mea/custom), overlay et mode prix MEA (préexistant), filtres langue/statut du dashboard, dialogue « Créer une section », statut du template. ⚠ Convention pour tout nouveau Select : toujours passer `items` si les labels diffèrent des valeurs
 
-### P2 — modules métier
+### P2 — Templates v2 (Quickaccess v2 / MEA v2) 🚧 **en cours (20 juil. 2026)**
+
+Jordan a fourni un nouveau design system CMS dans `v2-html/` (5 HTML + `css.html`/`style.html`) pour faire évoluer les templates macarons (quickaccess) et MEA. Les templates v1 restent inchangés et coexistent — ce sont de **nouveaux types de section**, pas un remplacement.
+
+**Décisions actées (20 juil. 2026)** :
+- **Chemin export inchangé** : `homepage/{année}/wk{semaine}/{locale}/...` — les sections v2 restent des sections de brief hebdomadaire classiques, juste un nouveau design. Le chemin `landing-pages/bebe/v2/...` du sample fourni n'est qu'un exemple de démo Orchestra, pas la convention à suivre.
+- **CSS de référence : `v2-html/style.html`** (pas `css.html`, incomplet — il manque le badge prix de la carte vidéo `.hp-cat-header-mea__appelPrix`, l'overlay au survol des MEA, le dégradé du fil d'ariane). On ne reprend que les classes utiles à MEA v2 / Quickaccess v2 (`hp-cat-container`, `hp-cat-header*`, `quickaccess-v2*`) — on exclut `.brand-container`/swiper/Einstein (carrousel produits, hors périmètre).
+- **Périmètre de cette phase : MEA v2 + Quickaccess v2 + vidéo uniquement.** Edito et Fil d'ariane sont fournis dans `v2-html/` (`edito.html`, `ariane.html`) mais **différés** — comportement carousel à dots (edito) et rattachement au modèle de section (fil d'ariane) pas encore cadrés.
+
+**Nouvelles dimensions d'upload** :
+
+| Type | Dimensions | Crop |
+|------|-----------|------|
+| `macaron_v2` (quickaccess v2) | 200×300 | rect |
+| `mea_v2` (cartes 1-4) | 600×500 | rect |
+| `mea_v2_focus` (carte 5, vignette) | 600×700 | rect |
+| `mea_v2_video` (carte 5, vidéo) | libre | pas de crop, mp4 uniquement |
+
+**Gestion vidéo (nouveau, jamais fait avant)** : la carte focus MEA5 peut être une vidéo (`<video autoplay loop muted>` avec poster) au lieu d'une image statique. Upload mp4 direct (pas de passage par `sharp`, incompatible avec la vidéo). Vignette (poster) : capture de la **1ère frame côté navigateur** (`<video>` + `<canvas>`, zéro nouvelle dépendance) comme point de départ, puis recadrage éditable comme n'importe quel upload — pas d'extraction serveur (pas de ffmpeg).
+
+**Découpage des sous-tâches** (détail dans le plan de session, réutilisable si repris plus tard) :
+- [ ] Types (`SectionType`/`AssetType` + `MeaV2Card`/`MeaV2FocusCard`/`MeaV2Content` dans `src/types/index.ts`) — Quickaccess v2 réutilise `MacaronItem`/`MacaronsContent` tel quel
+- [ ] `upload-specs.ts` + `api/assets` : nouvelles specs image (macaron_v2, mea_v2, mea_v2_focus) + branche vidéo dédiée (mea_v2_video, sans sharp)
+- [ ] `src/lib/capture-video-frame.ts` : capture 1ère frame côté navigateur
+- [ ] `image-upload-dialog.tsx` + `media-library-dialog.tsx` : mode vidéo (pas de crop, preview `<video>`, grille médiathèque)
+- [ ] `src/templates/macarons-v2/` : `export.ts` (CSS scopé + HTML CMS + preview) — éditeur réutilisé depuis `src/templates/macarons/`
+- [ ] `src/templates/mea-v2/` : schema, éditeurs (4 cartes fixes + carte focus vidéo/appelPrix), preview, export
+- [ ] Câblage : `api/sections`, `api/export`, `api/export/images` (incl. export vidéo brute en zip), `translate-content.ts`, éditeur de brief (dropdown + mediaTarget), page export
+- [ ] Tests e2e (upload dims, preview iframe, export HTML/zip, traduction)
+
+**Simplifications assumées** : pas de toggle "visible" par carte MEA v2 (grille CSS dépend d'exactement 4 cartes — le toggle "Export" section reste le contrôle global) ; badge prix positionné fixe (`right`/`top`, non configurable, comme le HTML fourni) ; upload vidéo en base64 JSON comme les images (pas de multipart/streaming — à revoir si des vidéos dépassent ~40 Mo en pratique).
+
+### P3 — modules métier
 - Global header, Carousel, Bloc Edito, HP CAT Pueri, Info sup (lien PowerPoint)
 
 ---

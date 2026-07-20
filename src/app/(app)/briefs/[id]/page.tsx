@@ -32,16 +32,20 @@ import type { Brief, BriefSection, MacaronItem, MacaronsContent } from "@/types"
 import type { BriefStatus } from "@/types";
 import { MacaronsEditor } from "@/templates/macarons/editor";
 import { MacaronsPreview } from "@/templates/macarons/preview";
+import { MacaronsV2Preview } from "@/templates/macarons-v2/preview";
 import { MeaEditor } from "@/templates/mea/editor";
 import { MeaPreview } from "@/templates/mea/preview";
+import { MeaV2Editor } from "@/templates/mea-v2/editor";
+import { MeaV2Preview } from "@/templates/mea-v2/preview";
 import { CustomEditor } from "@/templates/custom/editor";
 import { CustomPreview } from "@/templates/custom/preview";
 import { normalizeCustomContent } from "@/templates/custom/schema";
-import type { MeaItem, MeaContent, CustomTemplate } from "@/types";
+import type { MeaItem, MeaContent, MeaV2Content, CustomTemplate } from "@/types";
 import { StatusActions } from "@/components/editor/status-actions";
 import { StatusBadge } from "@/components/briefs/status-badge";
 import { MediaLibraryDialog } from "@/components/media/media-library-dialog";
 import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
+import { captureVideoFirstFrame, dataUrlToFile } from "@/lib/capture-video-frame";
 import type { AssetType } from "@/types";
 
 interface BriefWithSections extends Brief {
@@ -75,6 +79,10 @@ export default function BriefEditorPage({
   const [showUpload, setShowUpload] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | undefined>(undefined);
   const [uploadAssetType, setUploadAssetType] = useState<AssetType>("other");
+  // Carte focus MEA v2 : upload vidéo dédié (pas de médiathèque, direct à l'upload),
+  // avec chaînage vers l'upload de la vignette pré-remplie par la 1ère frame capturée
+  const [videoUploadSectionId, setVideoUploadSectionId] = useState<string | null>(null);
+  const [capturedPosterFile, setCapturedPosterFile] = useState<File | null>(null);
   const [dirty, setDirty] = useState(false);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
   const savedSectionsRef = useRef<string>("");
@@ -258,15 +266,44 @@ export default function BriefEditorPage({
             ...section,
             content: {
               ...content,
+              // Nouvelle image = nouveau fichier pour la semaine courante :
+              // on redevient natif (imageWeek redevient dynamique).
               blocks: content.blocks.map((block) =>
-                block.id === target.itemId ? { ...block, imageUrl: url } : block,
+                block.id === target.itemId ? { ...block, imageUrl: url, imageWeek: null } : block,
               ),
             },
           };
         }
+        if (section.type === "mea_v2") {
+          const content = section.content as MeaV2Content;
+          if (target.itemId === "focus") {
+            return {
+              ...section,
+              content: { ...content, focus: { ...content.focus, imageUrl: url, imageWeek: null } },
+            };
+          }
+          const cardMatch = /^card-(\d+)$/.exec(target.itemId);
+          if (cardMatch) {
+            const idx = Number(cardMatch[1]);
+            return {
+              ...section,
+              content: {
+                ...content,
+                cards: content.cards.map((c, i) =>
+                  i === idx ? { ...c, imageUrl: url, imageWeek: null } : c,
+                ),
+              },
+            };
+          }
+          return section;
+        }
         const content = section.content as { items?: (MacaronItem | MeaItem)[] };
+        // Nouvelle image sélectionnée/uploadée : redevient native de la
+        // semaine courante (semaine + position figées repassent dynamiques).
         const items = (content.items ?? []).map((item) =>
-          item.id === target.itemId ? { ...item, imageUrl: url } : item,
+          item.id === target.itemId
+            ? { ...item, imageUrl: url, imageWeek: null, exportPosition: null }
+            : item,
         );
         return { ...section, content: { items } };
       });
@@ -431,6 +468,8 @@ export default function BriefEditorPage({
             items={[
               { value: "macarons", label: "Macaron" },
               { value: "mea", label: "MEA" },
+              { value: "macarons_v2", label: "Quickaccess v2" },
+              { value: "mea_v2", label: "MEA v2" },
               { value: "custom", label: "Section personnalisée (vierge)" },
               ...publishedTemplates.map((template) => ({
                 value: `tpl:${template.id}`,
@@ -445,6 +484,8 @@ export default function BriefEditorPage({
             <SelectContent className="w-fit min-w-(--anchor-width)">
               <SelectItem value="macarons">Macaron</SelectItem>
               <SelectItem value="mea">MEA</SelectItem>
+              <SelectItem value="macarons_v2">Quickaccess v2</SelectItem>
+              <SelectItem value="mea_v2">MEA v2</SelectItem>
               <SelectItem value="custom">Section personnalisée (vierge)</SelectItem>
               {publishedTemplates.map((template) => (
                 <SelectItem key={template.id} value={`tpl:${template.id}`}>
@@ -540,6 +581,11 @@ export default function BriefEditorPage({
               </Button>
             </div>
             <div className="space-y-3">
+              {sections.length === 0 && (
+                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  Aucune section. Cliquez sur « Créer une section » pour commencer.
+                </div>
+              )}
               {sections.map((section) => (
                 <div
                   key={section.id}
@@ -683,9 +729,40 @@ export default function BriefEditorPage({
                             })
                           }
                         />
+                      ) : section.type === "macarons_v2" ? (
+                        <MacaronsEditor
+                          items={((section.content as MacaronsContent)?.items ?? [])}
+                          briefWeek={brief.week}
+                          briefYear={brief.year}
+                          briefLocale={brief.locale}
+                          onChange={(items) => updateSectionItems(section.id, items)}
+                          onOpenMediaLibrary={(itemId) =>
+                            setMediaTarget({
+                              sectionId: section.id,
+                              itemId,
+                              type: "macaron_v2",
+                            })
+                          }
+                        />
+                      ) : section.type === "mea_v2" ? (
+                        <MeaV2Editor
+                          content={section.content as MeaV2Content}
+                          briefWeek={brief.week}
+                          briefYear={brief.year}
+                          briefLocale={brief.locale}
+                          onChange={(content) => updateSection(section.id, { content })}
+                          onOpenMediaLibrary={(target) =>
+                            setMediaTarget({
+                              sectionId: section.id,
+                              itemId: target,
+                              type: target === "focus" ? "mea_v2_focus" : "mea_v2",
+                            })
+                          }
+                          onOpenVideoUpload={() => setVideoUploadSectionId(section.id)}
+                        />
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          Template "{section.type}" non pris en charge dans l'éditeur pour le moment.
+                          Template « {section.type} » non pris en charge dans l&apos;éditeur pour le moment.
                         </p>
                       )}
                     </div>
@@ -768,6 +845,28 @@ export default function BriefEditorPage({
                     </div>
                   );
                 }
+                if (section.type === "macarons_v2") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <MacaronsV2Preview
+                        items={((section.content as MacaronsContent)?.items ?? [])}
+                      />
+                    </div>
+                  );
+                }
+                if (section.type === "mea_v2") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <MeaV2Preview content={section.content as MeaV2Content} />
+                    </div>
+                  );
+                }
                 return null;
               })}
             </div>
@@ -797,9 +896,9 @@ export default function BriefEditorPage({
           | MacaronItem
           | MeaItem
           | undefined;
-        const isMeaTarget = mediaTarget.type === "mea";
-        // Type libre (sections personnalisées) : specs du type "other"
-        const isOtherTarget = mediaTarget.type === "other";
+        // Recadrage/dimensions : délégués aux ASSET_SPECS via assetType (pas de
+        // surcharge en dur ici — évite de devoir dupliquer la config à chaque
+        // nouveau type d'asset ajouté).
         return (
           <ImageUploadDialog
             defaultLabel={
@@ -813,10 +912,6 @@ export default function BriefEditorPage({
             defaultWeek={brief.week}
             defaultYear={brief.year}
             initialFile={droppedFile}
-            cropShape={isOtherTarget ? undefined : isMeaTarget ? "rect" : "round"}
-            cropAspect={isOtherTarget ? undefined : isMeaTarget ? 3 / 2 : 1}
-            targetWidth={isMeaTarget ? 600 : undefined}
-            targetHeight={isMeaTarget ? 400 : undefined}
             assetType={uploadAssetType}
             onUploaded={(url) => {
               handleImageSelected(url);
@@ -830,6 +925,57 @@ export default function BriefEditorPage({
           />
         );
       })()}
+
+      {videoUploadSectionId && (
+        <ImageUploadDialog
+          assetType="mea_v2_video"
+          defaultWeek={brief.week}
+          defaultYear={brief.year}
+          onFileSelected={(file) => {
+            captureVideoFirstFrame(file)
+              .then((dataUrl) => dataUrlToFile(dataUrl, "vignette.jpg"))
+              .then(setCapturedPosterFile)
+              .catch(() => setCapturedPosterFile(null));
+          }}
+          onUploaded={(url) => {
+            const sectionId = videoUploadSectionId;
+            setSections((prev) => {
+              const next = prev.map((s) => {
+                if (s.id !== sectionId || s.type !== "mea_v2") return s;
+                const content = s.content as MeaV2Content;
+                return {
+                  ...s,
+                  content: {
+                    ...content,
+                    focus: { ...content.focus, mediaType: "video" as const, videoUrl: url },
+                  },
+                };
+              });
+              setDirty(serializeSections(next) !== savedSectionsRef.current);
+              return next;
+            });
+            // Enchaîne sur l'upload de la vignette, pré-remplie par la 1ère
+            // frame capturée côté navigateur (l'utilisateur ajuste le cadrage).
+            // Toast explicite pour que ce 2e popin ne soit pas pris pour le
+            // premier resté ouvert.
+            if (sectionId && capturedPosterFile) {
+              toast.success("Vidéo uploadée — ajustez le cadrage de la vignette suggérée", {
+                duration: 5000,
+              });
+              setMediaTarget({ sectionId, itemId: "focus", type: "mea_v2_focus" });
+              setDroppedFile(capturedPosterFile);
+              setUploadAssetType("mea_v2_focus");
+              setShowUpload(true);
+            }
+            setVideoUploadSectionId(null);
+            setCapturedPosterFile(null);
+          }}
+          onClose={() => {
+            setVideoUploadSectionId(null);
+            setCapturedPosterFile(null);
+          }}
+        />
+      )}
     </div>
   );
 }

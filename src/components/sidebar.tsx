@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -26,21 +26,27 @@ const NAV_ITEMS = [
 
 const STORAGE_KEY = "sidebar-collapsed";
 
+const collapsedListeners = new Set<() => void>();
+function subscribeCollapsed(cb: () => void) {
+  collapsedListeners.add(cb);
+  return () => collapsedListeners.delete(cb);
+}
+function getCollapsedSnapshot() {
+  return localStorage.getItem(STORAGE_KEY) === "true";
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "true") setCollapsed(true);
-  }, []);
+  const collapsed = useSyncExternalStore(
+    subscribeCollapsed,
+    getCollapsedSnapshot,
+    () => false,
+  );
 
   const toggle = () => {
-    setCollapsed((prev) => {
-      localStorage.setItem(STORAGE_KEY, String(!prev));
-      return !prev;
-    });
+    localStorage.setItem(STORAGE_KEY, String(!collapsed));
+    collapsedListeners.forEach((cb) => cb());
   };
 
   const handleLogout = async () => {

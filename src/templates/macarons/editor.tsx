@@ -66,7 +66,23 @@ export function MacaronsEditor({
 
   const updateItem = (id: string, updates: Partial<MacaronItem>) => {
     onChange(
-      items.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+      items.map((item) => {
+        if (item.id !== id) return item;
+        const next = { ...item, ...updates };
+        if ("imageWeek" in updates) {
+          if (next.imageWeek != null && next.imageWeek !== briefWeek) {
+            // Semaine différente de celle du brief saisie manuellement : fige
+            // la position actuelle (parmi les items visibles) pour que
+            // l'export ne se renumérote plus si l'item est déplacé.
+            const visibleIndex = items.filter((i) => i.visible).findIndex((i) => i.id === id);
+            next.exportPosition = visibleIndex >= 0 ? visibleIndex + 1 : null;
+          } else {
+            // Revenu natif (vide ou = semaine du brief) : défige
+            next.exportPosition = null;
+          }
+        }
+        return next;
+      }),
     );
   };
 

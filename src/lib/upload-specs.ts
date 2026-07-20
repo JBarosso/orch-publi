@@ -12,6 +12,20 @@ export const ACCEPTED_FORMATS_LABEL = "JPEG, PNG ou WebP";
 // Formats tels que rapportés par sharp().metadata().format
 export const ACCEPTED_SHARP_FORMATS = ["jpeg", "png", "webp"];
 
+// Vidéo (carte focus MEA v2) : pas de passage par sharp, pipeline dédiée.
+export const MAX_VIDEO_SOURCE_BYTES = 40 * 1024 * 1024; // 40 Mo
+export const ACCEPTED_VIDEO_MIME_TYPES = ["video/mp4"];
+// Windows ne reconnaît pas toujours le type MIME des .mp4 (file.type peut
+// être vide) : on ajoute l'extension pour que le sélecteur de fichier OS
+// n'exclue pas les .mp4 dans ce cas.
+export const ACCEPTED_VIDEO_MIME_ATTR = `${ACCEPTED_VIDEO_MIME_TYPES.join(",")},.mp4`;
+export const ACCEPTED_VIDEO_FORMATS_LABEL = "MP4";
+
+// Même souci que ci-dessus : ne pas se fier uniquement à file.type.
+export function looksLikeMp4(file: { type: string; name?: string }): boolean {
+  return file.type === "video/mp4" || /\.mp4$/i.test(file.name ?? "");
+}
+
 export interface AssetSpec {
   displayName: string;
   // Dimensions de sortie imposées. Absentes pour "other" (dimensions libres).
@@ -23,6 +37,8 @@ export interface AssetSpec {
   // "source" = format d'origine conservé, poids optimisé (sans redimensionnement)
   outputFormat: "png" | "jpeg" | "source";
   requireLabel: boolean;
+  // "video" = pipeline dédiée (pas de sharp, pas de crop/dimensions). Défaut "image".
+  kind?: "image" | "video";
 }
 
 export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
@@ -50,10 +66,54 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
     outputFormat: "source",
     requireLabel: false,
   },
+  macaron_v2: {
+    displayName: "Quickaccess v2",
+    targetWidth: 200,
+    targetHeight: 300,
+    cropShape: "rect",
+    cropAspect: 200 / 300,
+    outputFormat: "jpeg",
+    requireLabel: false,
+  },
+  mea_v2: {
+    displayName: "MEA v2",
+    targetWidth: 600,
+    targetHeight: 500,
+    cropShape: "rect",
+    cropAspect: 600 / 500,
+    outputFormat: "jpeg",
+    requireLabel: true,
+  },
+  mea_v2_focus: {
+    displayName: "MEA v2 - Carte focus",
+    targetWidth: 600,
+    targetHeight: 700,
+    cropShape: "rect",
+    cropAspect: 600 / 700,
+    outputFormat: "jpeg",
+    requireLabel: true,
+  },
+  mea_v2_video: {
+    displayName: "MEA v2 - Vidéo",
+    outputFormat: "source",
+    requireLabel: false,
+    kind: "video",
+  },
 };
 
+const KNOWN_ASSET_TYPES: AssetType[] = [
+  "macaron",
+  "mea",
+  "macaron_v2",
+  "mea_v2",
+  "mea_v2_focus",
+  "mea_v2_video",
+];
+
 export function resolveAssetType(type: unknown): AssetType {
-  return type === "macaron" || type === "mea" ? type : "other";
+  return KNOWN_ASSET_TYPES.includes(type as AssetType)
+    ? (type as AssetType)
+    : "other";
 }
 
 export function normalizeAssetLabel(label: string): string {
@@ -78,17 +138,17 @@ export function validateSourceFile(file: {
   return null;
 }
 
-export function validateSourceDimensions(
-  width: number,
-  height: number,
-  spec: AssetSpec,
-): string | null {
-  if (
-    spec.targetWidth &&
-    spec.targetHeight &&
-    (width < spec.targetWidth || height < spec.targetHeight)
-  ) {
-    return `Image trop petite (${width}×${height} px). Minimum requis : ${spec.targetWidth}×${spec.targetHeight} px.`;
+export function validateSourceVideoFile(file: {
+  type: string;
+  size: number;
+  name?: string;
+}): string | null {
+  if (!looksLikeMp4(file)) {
+    return `Format non supporté${file.type ? ` (${file.type})` : ""}. Formats acceptés : ${ACCEPTED_VIDEO_FORMATS_LABEL}.`;
+  }
+  if (file.size > MAX_VIDEO_SOURCE_BYTES) {
+    return `Fichier trop lourd (${formatBytes(file.size)}). Maximum : ${formatBytes(MAX_VIDEO_SOURCE_BYTES)}.`;
   }
   return null;
 }
+

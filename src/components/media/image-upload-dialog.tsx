@@ -19,12 +19,16 @@ import type { AssetType } from "@/types";
 import {
   ACCEPTED_FORMATS_LABEL,
   ACCEPTED_MIME_ATTR,
+  ACCEPTED_VIDEO_FORMATS_LABEL,
+  ACCEPTED_VIDEO_MIME_ATTR,
   ASSET_SPECS,
   MAX_SOURCE_BYTES,
+  MAX_VIDEO_SOURCE_BYTES,
   formatBytes,
+  looksLikeMp4,
   normalizeAssetLabel,
-  validateSourceDimensions,
   validateSourceFile,
+  validateSourceVideoFile,
 } from "@/lib/upload-specs";
 
 interface ImageUploadDialogProps {
@@ -39,6 +43,9 @@ interface ImageUploadDialogProps {
   cropAspect?: number;
   targetWidth?: number;
   targetHeight?: number;
+  /** Fichier brut dès sa sélection (mode vidéo) — utile pour un traitement
+   * client-side en parallèle de l'upload (ex: capture de la 1ère frame). */
+  onFileSelected?: (file: File) => void;
   onUploaded: (url: string) => void;
   onClose: () => void;
 }
@@ -104,6 +111,7 @@ export function ImageUploadDialog({
   cropAspect,
   targetWidth,
   targetHeight,
+  onFileSelected,
   onUploaded,
   onClose,
 }: ImageUploadDialogProps) {
@@ -129,12 +137,48 @@ export function ImageUploadDialog({
   // Pas de recadrage imposé : l'image est envoyée telle quelle,
   // dimensions et format d'origine conservés (poids optimisé côté serveur)
   const isFreeUpload = !effCropShape;
+  const isVideo = spec.kind === "video";
+  // Recadrage à sauter dans les deux cas : upload libre ou vidéo (jamais de crop vidéo)
+  const skipCrop = isFreeUpload || isVideo;
 
   // Allow zoom out so image can be smaller than container
   const minZoom = 0.3;
 
   const loadFile = useCallback(
     (file: File) => {
+      // Sélecteur de type générique (médiathèque) : si le fichier déposé est
+      // une vidéo, on bascule sur le type vidéo même si un autre type était
+      // sélectionné — évite d'avoir à choisir le type manuellement avant.
+      // Windows ne rapporte pas toujours file.type pour les .mp4 (souvent
+      // vide) : on se fie aussi à l'extension via looksLikeMp4.
+      const isVideoFile = file.type.startsWith("video/") || looksLikeMp4(file);
+      if (isVideoFile && allowTypeSelect && selectedType !== "mea_v2_video") {
+        setSelectedType("mea_v2_video");
+      }
+      const activeSpec = isVideoFile && allowTypeSelect ? ASSET_SPECS.mea_v2_video : spec;
+
+      if (activeSpec.kind === "video") {
+        const videoError = validateSourceVideoFile(file);
+        if (videoError) {
+          toast.error(videoError);
+          return;
+        }
+        onFileSelected?.(file);
+        const reader = new FileReader();
+        reader.onload = () => {
+          // file.type (donc le préfixe mime de reader.result) peut être vide
+          // ou erroné sur Windows — on force explicitement "video/mp4" plutôt
+          // que de faire confiance au navigateur (sinon le serveur rejette le
+          // préfixe mime au moment du décodage base64).
+          const result = reader.result as string;
+          const base64 = result.slice(result.indexOf(",") + 1);
+          setSourceDims(null);
+          setImageSrc(`data:video/mp4;base64,${base64}`);
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
       const fileError = validateSourceFile(file);
       if (fileError) {
         toast.error(fileError);
@@ -145,11 +189,9 @@ export function ImageUploadDialog({
         const src = reader.result as string;
         const img = new Image();
         img.onload = () => {
-          const dimError = validateSourceDimensions(img.width, img.height, spec);
-          if (dimError) {
-            toast.error(dimError);
-            return;
-          }
+          // Pas de blocage sur une image plus petite que la taille conseillée :
+          // le crop (fond blanc) puis le serveur (fit "contain" + fond blanc)
+          // gèrent déjà ce cas.
           setSourceDims({ width: img.width, height: img.height });
           setImageSrc(src);
         };
@@ -158,7 +200,7 @@ export function ImageUploadDialog({
       };
       reader.readAsDataURL(file);
     },
-    [spec]
+    [spec, selectedType, allowTypeSelect, onFileSelected]
   );
 
   useEffect(() => {
@@ -180,26 +222,18 @@ export function ImageUploadDialog({
 
   const handleUpload = async () => {
     if (!imageSrc) return;
-    if (!isFreeUpload && !croppedAreaPixels) return;
+    if (!skipCrop && !croppedAreaPixels) return;
 
     const cleanLabel = normalizeAssetLabel(label);
     if (spec.requireLabel && !cleanLabel) {
       toast.error(`Label requis pour une image ${spec.displayName}`);
       return;
     }
-    if (sourceDims) {
-      const dimError = validateSourceDimensions(sourceDims.width, sourceDims.height, spec);
-      if (dimError) {
-        toast.error(dimError);
-        return;
-      }
-    }
-
     setUploading(true);
 
     try {
-      // Upload libre : image d'origine telle quelle. Sinon crop client-side (WYSIWYG)
-      const finalBase64 = isFreeUpload
+      // Upload libre ou vidéo : fichier d'origine tel quel. Sinon crop client-side (WYSIWYG)
+      const finalBase64 = skipCrop
         ? imageSrc
         : await getCroppedImg(
             imageSrc,
@@ -227,7 +261,7 @@ export function ImageUploadDialog({
       }
 
       const asset = await res.json();
-      toast.success("Image uploadée");
+      toast.success(isVideo ? "Vidéo uploadée" : "Image uploadée");
       onUploaded(asset.url);
     } catch {
       toast.error("Erreur lors de l'upload");
@@ -280,25 +314,38 @@ export function ImageUploadDialog({
           >
             <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground text-center">
-              Glissez une image ou cliquez pour sélectionner
+              {isVideo
+                ? "Glissez une vidéo ou cliquez pour sélectionner"
+                : "Glissez une image ou cliquez pour sélectionner"}
             </p>
             <p className="mt-1.5 text-xs text-muted-foreground/60 text-center">
-              {ACCEPTED_FORMATS_LABEL} · max {formatBytes(MAX_SOURCE_BYTES)}
-              {effTargetWidth && effTargetHeight
-                ? ` · min ${effTargetWidth}×${effTargetHeight} px`
-                : ""}
+              {isVideo
+                ? `${ACCEPTED_VIDEO_FORMATS_LABEL} · max ${formatBytes(MAX_VIDEO_SOURCE_BYTES)}`
+                : `${ACCEPTED_FORMATS_LABEL} · max ${formatBytes(MAX_SOURCE_BYTES)}${
+                    effTargetWidth && effTargetHeight
+                      ? ` · conseillé ${effTargetWidth}×${effTargetHeight} px (les images plus petites sont complétées en blanc)`
+                      : ""
+                  }`}
             </p>
             <input
               ref={fileInputRef}
               type="file"
-              accept={ACCEPTED_MIME_ATTR}
+              accept={isVideo ? ACCEPTED_VIDEO_MIME_ATTR : ACCEPTED_MIME_ATTR}
               className="hidden"
               onChange={handleFileChange}
             />
           </div>
         ) : (
           <div className="space-y-4">
-            {isFreeUpload ? (
+            {isVideo ? (
+              <div className="relative max-h-80 w-full overflow-hidden rounded-lg bg-black flex items-center justify-center">
+                <video
+                  src={imageSrc}
+                  controls
+                  className="max-h-80 w-auto max-w-full"
+                />
+              </div>
+            ) : isFreeUpload ? (
               <div className="relative max-h-80 w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -333,7 +380,9 @@ export function ImageUploadDialog({
             )}
 
             <p className="text-xs text-muted-foreground/60">
-              {isFreeUpload
+              {isVideo
+                ? "Sortie : vidéo MP4 d'origine conservée telle quelle"
+                : isFreeUpload
                 ? `Sortie : image d'origine conservée${sourceDims ? ` (${sourceDims.width}×${sourceDims.height} px)` : ""} · format d'origine, poids optimisé`
                 : `Sortie : ${
                     effTargetWidth && effTargetHeight
@@ -342,7 +391,7 @@ export function ImageUploadDialog({
                   } · ${spec.outputFormat === "jpeg" ? "JPEG" : "PNG"}`}
             </p>
 
-            {!isFreeUpload && (
+            {!skipCrop && (
               <div className="flex items-center gap-2">
                 <Label className="text-xs text-muted-foreground w-12">Zoom</Label>
                 <input

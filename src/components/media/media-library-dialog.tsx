@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Upload, Search } from "lucide-react";
+import { Upload, Search, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { looksLikeMp4 } from "@/lib/upload-specs";
 import type { Asset, AssetType } from "@/types";
 
 interface MediaLibraryDialogProps {
@@ -98,7 +99,7 @@ export function MediaLibraryDialog({
       setDragging(false);
       setDragCounter(0);
       const file = e.dataTransfer.files?.[0];
-      if (file && file.type.startsWith("image/")) {
+      if (file && (file.type.startsWith("image/") || file.type.startsWith("video/") || looksLikeMp4(file))) {
         onUploadNew(file, filterType || initialType);
       }
     },
@@ -208,12 +209,21 @@ export function MediaLibraryDialog({
                   onClick={() => onSelect(asset.url)}
                   className="group relative overflow-hidden rounded-lg border transition-all hover:ring-2 hover:ring-primary"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={asset.url}
-                    alt={asset.label}
-                    className="aspect-square w-full object-cover"
-                  />
+                  {asset.mimeType?.startsWith("video/") ? (
+                    <div className="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-muted p-2">
+                      <Video className="h-6 w-6 text-muted-foreground/60" />
+                      <span className="truncate text-[10px] text-muted-foreground/60">
+                        {asset.label || "Vidéo"}
+                      </span>
+                    </div>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={asset.url}
+                      alt={asset.label}
+                      className="aspect-square w-full object-cover"
+                    />
+                  )}
                   <div className="absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
                     {asset.label || "Sans label"}
                   </div>

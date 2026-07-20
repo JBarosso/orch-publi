@@ -9,8 +9,10 @@ import sharp from "sharp";
 import {
   ACCEPTED_FORMATS_LABEL,
   ACCEPTED_SHARP_FORMATS,
+  ACCEPTED_VIDEO_MIME_TYPES,
   ASSET_SPECS,
   MAX_SOURCE_BYTES,
+  MAX_VIDEO_SOURCE_BYTES,
   formatBytes,
   normalizeAssetLabel,
   resolveAssetType,
@@ -104,6 +106,11 @@ export async function POST(request: NextRequest) {
       { error: `Label requis pour une image ${spec.displayName}` },
       { status: 400 },
     );
+  }
+
+  // Vidéo (carte focus MEA v2) : pipeline dédiée, pas de sharp.
+  if (spec.kind === "video") {
+    return handleVideoUpload(image, assetType, cleanLabel, toIntOrNull(week), toIntOrNull(year));
   }
 
   try {
@@ -212,6 +219,72 @@ export async function POST(request: NextRequest) {
     console.error("Image processing error:", err);
     return NextResponse.json(
       { error: "Erreur lors du traitement de l'image" },
+      { status: 500 },
+    );
+  }
+}
+
+async function handleVideoUpload(
+  image: string,
+  assetType: string,
+  cleanLabel: string,
+  week: number | null,
+  year: number | null,
+) {
+  const mimeMatch = /^data:(video\/\w+);base64,/.exec(image);
+  const mimeType = mimeMatch?.[1] ?? "";
+  if (!ACCEPTED_VIDEO_MIME_TYPES.includes(mimeType)) {
+    return NextResponse.json(
+      { error: "Format non supporté. Formats acceptés : MP4." },
+      { status: 400 },
+    );
+  }
+
+  const base64Data = image.replace(/^data:video\/\w+;base64,/, "");
+  const videoBuffer = Buffer.from(base64Data, "base64");
+
+  if (videoBuffer.byteLength > MAX_VIDEO_SOURCE_BYTES) {
+    return NextResponse.json(
+      { error: `Vidéo trop lourde (${formatBytes(videoBuffer.byteLength)}). Maximum : ${formatBytes(MAX_VIDEO_SOURCE_BYTES)}.` },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const filename = `${uuidv4()}.mp4`;
+    const filepath = join(process.cwd(), "public", "uploads", filename);
+    await writeFile(filepath, videoBuffer);
+
+    const url = `/uploads/${filename}`;
+
+    let asset;
+    try {
+      [asset] = await db
+        .insert(assets)
+        .values({
+          url,
+          type: assetType,
+          label: cleanLabel,
+          mimeType: "video/mp4",
+          week,
+          year,
+        })
+        .returning();
+    } catch (err) {
+      if (!hasMissingColumnError(err)) {
+        throw err;
+      }
+      [asset] = await db
+        .insert(assets)
+        .values({ url, label: cleanLabel, mimeType: "video/mp4" })
+        .returning();
+    }
+
+    return NextResponse.json(asset, { status: 201 });
+  } catch (err) {
+    console.error("Video processing error:", err);
+    return NextResponse.json(
+      { error: "Erreur lors du traitement de la vidéo" },
       { status: 500 },
     );
   }

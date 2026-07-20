@@ -86,10 +86,10 @@ export default function ExportPage({
       a.href = url;
       const disposition = res.headers.get("Content-Disposition");
       const match = disposition?.match(/filename="(.+)"/);
-      a.download = match?.[1] ?? "images.zip";
+      a.download = match?.[1] ?? "fichiers.zip";
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Images téléchargées");
+      toast.success("Fichiers téléchargés");
     } catch {
       toast.error("Erreur lors du téléchargement");
     } finally {
@@ -112,10 +112,10 @@ export default function ExportPage({
       a.href = url;
       const disposition = res.headers.get("Content-Disposition");
       const match = disposition?.match(/filename="(.+)"/);
-      a.download = match?.[1] ?? "all-images.zip";
+      a.download = match?.[1] ?? "tous-les-fichiers.zip";
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Toutes les images téléchargées");
+      toast.success("Tous les fichiers téléchargés");
     } catch {
       toast.error("Erreur lors du téléchargement");
     } finally {
@@ -155,7 +155,7 @@ export default function ExportPage({
             ) : (
               <ImageDown className="mr-2 h-4 w-4" />
             )}
-            Exporter toutes les images
+            Exporter tous les fichiers
           </Button>
         </div>
       </div>
@@ -169,7 +169,11 @@ export default function ExportPage({
             <div className="flex items-center justify-between border-b border-border/60 px-5 py-3">
               <h3 className="text-sm font-semibold">{exp.title}</h3>
               <div className="flex items-center gap-2">
-                {(exp.type === "macarons" || exp.type === "mea" || exp.type === "custom") && (
+                {(exp.type === "macarons" ||
+                  exp.type === "mea" ||
+                  exp.type === "custom" ||
+                  exp.type === "macarons_v2" ||
+                  exp.type === "mea_v2") && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -182,7 +186,7 @@ export default function ExportPage({
                     ) : (
                       <ImageDown className="mr-1.5 h-3.5 w-3.5" />
                     )}
-                    Images (.jpg + .webp)
+                    Fichiers
                   </Button>
                 )}
                 <Button

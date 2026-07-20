@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { briefs, briefSections } from "@/lib/schema";
+import { briefs } from "@/lib/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { buildSlug } from "@/lib/utils";
 
@@ -55,23 +55,6 @@ export async function POST(request: NextRequest) {
       .insert(briefs)
       .values({ slug, year, week, locale, index: nextIndex })
       .returning();
-
-    await db.insert(briefSections).values([
-      {
-        briefId: newBrief.id,
-        type: "macarons",
-        title: "macaron (1)",
-        order: 0,
-        content: { items: [] },
-      },
-      {
-        briefId: newBrief.id,
-        type: "mea",
-        title: "mea (1)",
-        order: 1,
-        content: { items: [] },
-      }
-    ]);
 
     return NextResponse.json(newBrief, { status: 201 });
   } catch (err) {

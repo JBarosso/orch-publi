@@ -229,7 +229,9 @@ export function generateMeaHTML(items: MeaItem[], ctx: ExportContext): string {
   const itemsHTML = visibleItems
     .map((item, index) => {
       const wk = String(item.imageWeek ?? ctx.week).padStart(2, "0");
-      const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/mea-${index + 1}`;
+      // exportPosition fige le numéro pour les items venant d'une autre semaine
+      // (déplacer un item réutilisé ne le renumérote plus).
+      const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/mea-${item.exportPosition ?? index + 1}`;
 
       const plainTitle = esc(item.title.replace(/\n/g, " "));
       const buttons = item.buttons ?? [

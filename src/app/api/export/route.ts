@@ -6,7 +6,9 @@ import { generateMacaronsHTML } from "@/templates/macarons/export";
 import { generateMeaHTML } from "@/templates/mea/export";
 import { generateCustomHTML } from "@/templates/custom/export";
 import { normalizeCustomContent } from "@/templates/custom/schema";
-import type { MacaronsContent, MeaContent } from "@/types";
+import { generateQuickaccessV2HTML } from "@/templates/macarons-v2/export";
+import { generateMeaV2HTML } from "@/templates/mea-v2/export";
+import type { MacaronsContent, MeaContent, MeaV2Content } from "@/types";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -43,27 +45,26 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Le CMS attend la locale en minuscule dans les chemins d'assets
+  // (homepage/{année}/wk{semaine}/fr/...), alors qu'elle est stockée en
+  // majuscule ("FR", "BEFR"...) partout ailleurs dans l'outil.
+  const ctx = { year: brief.year, week: brief.week, locale: brief.locale.toLowerCase() };
+
   let html = "";
   if (section.type === "macarons") {
     const content = section.content as MacaronsContent;
-    html = generateMacaronsHTML(content?.items ?? [], {
-      year: brief.year,
-      week: brief.week,
-      locale: brief.locale,
-    });
+    html = generateMacaronsHTML(content?.items ?? [], ctx);
   } else if (section.type === "mea") {
     const content = section.content as MeaContent;
-    html = generateMeaHTML(content?.items ?? [], {
-      year: brief.year,
-      week: brief.week,
-      locale: brief.locale,
-    });
+    html = generateMeaHTML(content?.items ?? [], ctx);
   } else if (section.type === "custom") {
-    html = generateCustomHTML(normalizeCustomContent(section.content), {
-      year: brief.year,
-      week: brief.week,
-      locale: brief.locale,
-    });
+    html = generateCustomHTML(normalizeCustomContent(section.content), ctx);
+  } else if (section.type === "macarons_v2") {
+    const content = section.content as MacaronsContent;
+    html = generateQuickaccessV2HTML(content?.items ?? [], ctx);
+  } else if (section.type === "mea_v2") {
+    const content = section.content as MeaV2Content;
+    html = generateMeaV2HTML(content, ctx);
   }
 
   return NextResponse.json({ html, type: section.type });

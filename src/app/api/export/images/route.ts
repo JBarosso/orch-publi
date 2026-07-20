@@ -7,7 +7,7 @@ import { readFile } from "fs/promises";
 import sharp from "sharp";
 import archiver from "archiver";
 import { PassThrough } from "stream";
-import type { CustomContent, MacaronsContent, MeaContent } from "@/types";
+import type { CustomContent, MacaronsContent, MeaContent, MeaV2Content } from "@/types";
 
 interface ImageEntry {
   imageUrl: string;
@@ -16,15 +16,17 @@ interface ImageEntry {
   // null = dimensions libres (sections personnalisées) : pas de resize forcé
   width: number | null;
   height: number | null;
+  // Vidéo (carte focus MEA v2) : copiée telle quelle dans le zip, pas de sharp
+  isVideo?: boolean;
 }
 
 function getMacaronImages(content: MacaronsContent, briefWeek: number): ImageEntry[] {
   return (content?.items ?? [])
     .filter((i) => i.visible && i.imageUrl)
-    .map((item) => ({
+    .map((item, index) => ({
       imageUrl: item.imageUrl,
       imageWeek: item.imageWeek,
-      baseName: `quickaccess-${item.imageId}`,
+      baseName: `quickaccess-${item.exportPosition ?? index + 1}`,
       width: 70,
       height: 70,
     }));
@@ -36,7 +38,7 @@ function getMeaImages(content: MeaContent, briefWeek: number): ImageEntry[] {
     .map((item, index) => ({
       imageUrl: item.imageUrl,
       imageWeek: item.imageWeek,
-      baseName: `mea-${index + 1}`,
+      baseName: `mea-${item.exportPosition ?? index + 1}`,
       width: 600,
       height: 400,
     }));
@@ -52,6 +54,54 @@ function getCustomImages(content: CustomContent): ImageEntry[] {
       width: null,
       height: null,
     }));
+}
+
+function getMacaronsV2Images(content: MacaronsContent): ImageEntry[] {
+  return (content?.items ?? [])
+    .filter((i) => i.visible && i.imageUrl)
+    .map((item, index) => ({
+      imageUrl: item.imageUrl,
+      imageWeek: item.imageWeek,
+      baseName: `quickaccess-${item.exportPosition ?? index + 1}`,
+      width: 200,
+      height: 300,
+    }));
+}
+
+function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
+  const entries: ImageEntry[] = (content?.cards ?? [])
+    .filter((c) => c.imageUrl)
+    .map((card, index) => ({
+      imageUrl: card.imageUrl,
+      imageWeek: card.imageWeek,
+      baseName: `mea-${index + 1}`,
+      width: 600,
+      height: 500,
+    }));
+
+  const focus = content?.focus;
+  if (focus?.imageUrl) {
+    // Vignette (poster) : toujours exportée en image, même en mode vidéo
+    entries.push({
+      imageUrl: focus.imageUrl,
+      imageWeek: focus.imageWeek,
+      baseName: "mea-5",
+      width: 600,
+      height: 700,
+    });
+  }
+  if (focus?.mediaType === "video" && focus.videoUrl) {
+    entries.push({
+      imageUrl: focus.videoUrl,
+      imageWeek: focus.imageWeek,
+      baseName: "mea-5",
+      width: null,
+      height: null,
+      isVideo: true,
+    });
+  }
+
+  return entries;
 }
 
 export async function GET(request: NextRequest) {
@@ -94,10 +144,14 @@ export async function GET(request: NextRequest) {
     images = getMeaImages(section.content as MeaContent, brief.week);
   } else if (section.type === "custom") {
     images = getCustomImages(section.content as CustomContent);
+  } else if (section.type === "macarons_v2") {
+    images = getMacaronsV2Images(section.content as MacaronsContent);
+  } else if (section.type === "mea_v2") {
+    images = getMeaV2Images(section.content as MeaV2Content);
   }
 
   if (images.length === 0) {
-    return NextResponse.json({ error: "Aucune image à exporter" }, { status: 400 });
+    return NextResponse.json({ error: "Aucun fichier à exporter" }, { status: 400 });
   }
 
   return buildZip(images, brief);
@@ -127,11 +181,15 @@ async function exportAllImages(briefId: string) {
       allImages.push(...getMeaImages(section.content as MeaContent, brief.week));
     } else if (section.type === "custom") {
       allImages.push(...getCustomImages(section.content as CustomContent));
+    } else if (section.type === "macarons_v2") {
+      allImages.push(...getMacaronsV2Images(section.content as MacaronsContent));
+    } else if (section.type === "mea_v2") {
+      allImages.push(...getMeaV2Images(section.content as MeaV2Content));
     }
   }
 
   if (allImages.length === 0) {
-    return NextResponse.json({ error: "Aucune image à exporter" }, { status: 400 });
+    return NextResponse.json({ error: "Aucun fichier à exporter" }, { status: 400 });
   }
 
   return buildZip(allImages, brief);
@@ -145,13 +203,36 @@ async function buildZip(images: ImageEntry[], brief: { year: number; week: numbe
   const archive = archiver("zip", { zlib: { level: 9 } });
   archive.pipe(passthrough);
 
+  // Doit démarrer AVANT (et tourner pendant) les archive.append() ci-dessous :
+  // archiver met en file d'attente les entrées et attend que le flux de
+  // sortie soit lu pour passer à la suivante. Avec 2+ grosses entrées non
+  // compressibles (vidéos), ne lire qu'après finalize() bloque indéfiniment
+  // (deadlock reproduit et confirmé) — la lecture doit être concurrente.
+  const chunks: Buffer[] = [];
+  const drainPromise = (async () => {
+    for await (const chunk of passthrough) {
+      chunks.push(chunk as Buffer);
+    }
+  })();
+
   for (const img of images) {
     const imgWk = String(img.imageWeek ?? brief.week).padStart(2, "0");
-    const subFolder = `homepage/${brief.year}/wk${imgWk}/${brief.locale}`;
+    // Chemin CMS : locale en minuscule (doit matcher le <img src> exporté)
+    const subFolder = `homepage/${brief.year}/wk${imgWk}/${brief.locale.toLowerCase()}`;
 
     try {
       const filePath = join(process.cwd(), "public", img.imageUrl);
       const buffer = await readFile(filePath);
+
+      if (img.isVideo) {
+        // Vidéo (carte focus MEA v2) : copiée telle quelle, pas de passage par sharp.
+        // store:true = pas de tentative de compression deflate — une vidéo est déjà
+        // compressée (données quasi incompressibles), zlib niveau 9 dessus peut
+        // prendre plusieurs minutes pour rien (c'était la cause d'un export qui
+        // semblait rester bloqué indéfiniment).
+        archive.append(buffer, { name: `${subFolder}/${img.baseName}.mp4`, store: true });
+        continue;
+      }
 
       const jpgPipeline = sharp(buffer);
       if (img.width && img.height) {
@@ -179,11 +260,7 @@ async function buildZip(images: ImageEntry[], brief: { year: number; week: numbe
   }
 
   await archive.finalize();
-
-  const chunks: Buffer[] = [];
-  for await (const chunk of passthrough) {
-    chunks.push(chunk as Buffer);
-  }
+  await drainPromise;
   const zipBuffer = Buffer.concat(chunks);
 
   return new NextResponse(zipBuffer, {

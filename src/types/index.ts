@@ -1,7 +1,14 @@
 export type BriefStatus = "draft" | "published" | "treated";
 
-export type SectionType = "macarons" | "mea" | "custom";
-export type AssetType = "macaron" | "mea" | "other";
+export type SectionType = "macarons" | "mea" | "custom" | "macarons_v2" | "mea_v2";
+export type AssetType =
+  | "macaron"
+  | "mea"
+  | "other"
+  | "macaron_v2"
+  | "mea_v2"
+  | "mea_v2_focus"
+  | "mea_v2_video";
 
 export type Locale = "FR" | "BEFR" | "BENL" | "GR" | "ES";
 
@@ -77,6 +84,10 @@ export interface MacaronItem {
   imageUrl: string;
   imageId: string;
   imageWeek: number | null;
+  // Position figée dans l'export (quickaccess-{N}) quand imageWeek diffère de
+  // la semaine du brief — l'item ne se renumérote plus s'il est déplacé.
+  // null = natif de la semaine du brief : la position suit son index actuel.
+  exportPosition: number | null;
   visible: boolean;
 }
 
@@ -97,6 +108,10 @@ export interface MeaItem {
   imageUrl: string;
   imageId: string;
   imageWeek: number | null;
+  // Position figée dans l'export (mea-{N}) quand imageWeek diffère de la
+  // semaine du brief — ne pas confondre avec imagePosition (cadrage visuel).
+  // null = natif de la semaine du brief : la position suit l'index actuel.
+  exportPosition: number | null;
   imageOpacity: number; // e.g. 1 or 0.9
   imagePosition: number; // 0-100, horizontal position %
 
@@ -200,4 +215,46 @@ export interface CustomTemplate {
   blocks: CustomBlock[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+// --- MEA v2 (nouveau design system, 4 cartes fixes + 1 carte focus vidéo) ---
+// Quickaccess v2 (macarons_v2) réutilise MacaronItem/MacaronsContent tel quel :
+// même forme (label, lien, image) — seul l'export (CSS/dimensions/chemins) change.
+
+export interface MeaV2Card {
+  id: string;
+  comment: string;
+  title: string;
+  buttons: MeaButton[];
+  // Lien "fantôme" : toute la carte est cliquable, indépendamment des boutons
+  // (ex. HTML fourni : carte MEA2 a des boutons bébé fille/garçon mais le clic
+  // sur la carte pointe vers une sélection denim commune aux deux).
+  linkType: "cgid" | "url" | "cid";
+  cgid: string;
+  cid: string;
+  link: string;
+  imageUrl: string;
+  imageId: string;
+  imageWeek: number | null;
+}
+
+export interface MeaV2AppelPrix {
+  enabled: boolean;
+  title: string;
+  initialPrice: string;
+  clubPrice: string;
+  showClubIcon: boolean;
+}
+
+export interface MeaV2FocusCard extends MeaV2Card {
+  mediaType: "image" | "video";
+  videoUrl: string;
+  videoId: string;
+  appelPrix: MeaV2AppelPrix;
+}
+
+export interface MeaV2Content {
+  // Toujours 4 cartes : la grille CSS (nth-child(3n+1)) suppose ce nombre exact.
+  cards: MeaV2Card[];
+  focus: MeaV2FocusCard;
 }

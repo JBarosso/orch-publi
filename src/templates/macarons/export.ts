@@ -36,9 +36,13 @@ export function generateMacaronsHTML(
    const visibleItems = items.filter((item) => item.visible);
 
    const itemsHTML = visibleItems
-      .map((item) => {
+      .map((item, index) => {
          const wk = String(item.imageWeek ?? ctx.week).padStart(2, "0");
-         const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/quickaccess-${esc(item.imageId)}`;
+         // Nommage par position (parmi les items visibles), pas par imageId —
+         // même schéma que MEA. exportPosition fige le numéro pour les items
+         // dont l'image vient d'une autre semaine (déplacer ne les renumérote
+         // plus) ; sinon la position suit l'index actuel dans la liste.
+         const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/quickaccess-${item.exportPosition ?? index + 1}`;
 
          const plainLabel = esc(item.label.replace(/\n/g, " "));
          const htmlLabel = esc(item.label).replace(/\n/g, "<br>");

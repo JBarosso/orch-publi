@@ -6,11 +6,14 @@ import {
   cloneBlocksWithNewIds,
   createEmptyCustomContent,
 } from "@/templates/custom/schema";
+import { createEmptyMeaV2Content } from "@/templates/mea-v2/schema";
 import type { CustomBlock, CustomLayout } from "@/types";
 
 function normalizeTypeLabel(type: string): string {
   if (type === "macarons") return "macaron";
   if (type === "custom") return "section perso";
+  if (type === "macarons_v2") return "quickaccess v2";
+  if (type === "mea_v2") return "MEA v2";
   return type;
 }
 
@@ -126,6 +129,8 @@ export async function POST(request: NextRequest) {
     } else {
       content = createEmptyCustomContent();
     }
+  } else if (type === "mea_v2") {
+    content = createEmptyMeaV2Content();
   }
 
   const nextOrder = await getNextOrder(briefId);
