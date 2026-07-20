@@ -1,6 +1,14 @@
 export type BriefStatus = "draft" | "published" | "treated";
 
-export type SectionType = "macarons" | "mea" | "custom" | "macarons_v2" | "mea_v2";
+export type SectionType =
+  | "macarons"
+  | "mea"
+  | "custom"
+  | "macarons_v2"
+  | "mea_v2"
+  | "ariane"
+  | "edito"
+  | "carousel";
 export type AssetType =
   | "macaron"
   | "mea"
@@ -8,16 +16,20 @@ export type AssetType =
   | "macaron_v2"
   | "mea_v2"
   | "mea_v2_focus"
-  | "mea_v2_video";
+  | "mea_v2_video"
+  | "edito"
+  | "carousel"
+  | "carousel_title"
+  | "carousel_video";
 
 export type Locale = "FR" | "BEFR" | "BENL" | "GR" | "ES";
 
 export const LOCALES: { value: Locale; label: string }[] = [
-  { value: "FR", label: "FR" },
   { value: "BEFR", label: "BEFR" },
   { value: "BENL", label: "BENL" },
-  { value: "GR", label: "GR" },
   { value: "ES", label: "ES" },
+  { value: "FR", label: "FR" },
+  { value: "GR", label: "GR" },
 ];
 
 export const STATUS_CONFIG: Record<
@@ -172,8 +184,8 @@ export type CustomLayout = "stack" | "image-left" | "image-right";
 
 export const CUSTOM_LAYOUTS: { value: CustomLayout; label: string }[] = [
   { value: "stack", label: "Empilé (blocs dans l'ordre)" },
-  { value: "image-left", label: "Image à gauche, contenu à droite" },
   { value: "image-right", label: "Image à droite, contenu à gauche" },
+  { value: "image-left", label: "Image à gauche, contenu à droite" },
 ];
 
 export type CustomBlockType = "title" | "text" | "image" | "button";
@@ -257,4 +269,116 @@ export interface MeaV2Content {
   // Toujours 4 cartes : la grille CSS (nth-child(3n+1)) suppose ce nombre exact.
   cards: MeaV2Card[];
   focus: MeaV2FocusCard;
+}
+
+// --- Fil d'ariane (breadcrumb catégorie, pas d'image) ---
+
+export interface ArianeLink {
+  id: string;
+  label: string;
+  linkType: "cgid" | "url" | "cid";
+  cgid: string;
+  cid: string;
+  link: string;
+}
+
+export interface ArianeContent {
+  title: string;
+  comment: string;
+  links: ArianeLink[];
+}
+
+// --- Edito (cartes éditoriales à thème, carousel mobile / grille desktop) ---
+
+export type EditoTheme = "blue" | "green" | "aqua" | "purple" | "pink" | "peach";
+
+export const EDITO_THEMES: { value: EditoTheme; label: string }[] = [
+  { value: "aqua", label: "Aqua" },
+  { value: "blue", label: "Bleu" },
+  { value: "peach", label: "Pêche" },
+  { value: "pink", label: "Rose" },
+  { value: "green", label: "Vert" },
+  { value: "purple", label: "Violet" },
+];
+
+export interface EditoCard {
+  id: string;
+  comment: string;
+  theme: EditoTheme;
+  title: string;
+  text: string;
+  imageUrl: string;
+  imageId: string;
+  imageWeek: number | null;
+  exportPosition: number | null;
+  // Lien de l'image (edito-card__media), indépendant des boutons ci-dessous
+  linkType: "cgid" | "url" | "cid";
+  cgid: string;
+  cid: string;
+  link: string;
+  buttons: MeaButton[];
+}
+
+export interface EditoContent {
+  items: EditoCard[];
+}
+
+// --- Carousel héro (Bootstrap, v2-html/carousel.html) — 2 diapositives fixes,
+// pas de réordonnancement possible donc pas de exportPosition (comme MEA v2) ---
+
+export interface CarouselButton {
+  text: string;
+  linkType: "cgid" | "url" | "cid";
+  cgid: string;
+  cid: string;
+  link: string;
+}
+
+export interface CarouselProductCallout {
+  enabled: boolean;
+  side: "left" | "right";
+  showBrandLogo: boolean;
+  brandLogoPath: string; // segment après logo-puericulture/, ex: "svg/premaman.svg"
+  label: string;
+  publicPrice: string;
+  clubPrice: string;
+  showClubIcon: boolean;
+  showPromoBadge: boolean;
+  promoBadgeText: string;
+}
+
+export interface CarouselSlide {
+  id: string;
+  comment: string;
+
+  // Fond : image ou vidéo (avec vignette)
+  mediaType: "image" | "video";
+  imageUrl: string;
+  imageId: string;
+  imageWeek: number | null;
+  videoUrl: string;
+  videoId: string;
+  darkOverlay: boolean;
+
+  // Titre : image stylisée (ex: logo "Soldes") ou texte simple
+  titleType: "image" | "text";
+  titleText: string;
+  titleImageUrl: string;
+  titleImageId: string;
+  titleImageWeek: number | null;
+
+  productCallout: CarouselProductCallout;
+
+  buttons: CarouselButton[];
+
+  // Lien fantôme : toute la diapositive cliquable, indépendant des boutons
+  linkType: "cgid" | "url" | "cid";
+  cgid: string;
+  cid: string;
+  link: string;
+}
+
+export interface CarouselContent {
+  // Toujours 2 diapositives (indicateurs Bootstrap data-slide-to="0"/"1").
+  slides: CarouselSlide[];
 }

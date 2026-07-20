@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
 import { eq } from "drizzle-orm";
-import { join } from "path";
-import { readFile } from "fs/promises";
 import sharp from "sharp";
+import { readAsset } from "@/lib/storage";
 import archiver from "archiver";
 import { PassThrough } from "stream";
-import type { CustomContent, MacaronsContent, MeaContent, MeaV2Content } from "@/types";
+import type {
+  CarouselContent,
+  CustomContent,
+  EditoContent,
+  MacaronsContent,
+  MeaContent,
+  MeaV2Content,
+} from "@/types";
 
 interface ImageEntry {
   imageUrl: string;
@@ -41,6 +47,18 @@ function getMeaImages(content: MeaContent, briefWeek: number): ImageEntry[] {
       baseName: `mea-${item.exportPosition ?? index + 1}`,
       width: 600,
       height: 400,
+    }));
+}
+
+function getEditoImages(content: EditoContent): ImageEntry[] {
+  return (content?.items ?? [])
+    .filter((i) => i.imageUrl)
+    .map((item, index) => ({
+      imageUrl: item.imageUrl,
+      imageWeek: item.imageWeek,
+      baseName: `edito-${item.exportPosition ?? index + 1}`,
+      width: 370,
+      height: 210,
     }));
 }
 
@@ -104,6 +122,43 @@ function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
   return entries;
 }
 
+function getCarouselImages(content: CarouselContent): ImageEntry[] {
+  const entries: ImageEntry[] = [];
+  (content?.slides ?? []).forEach((slide, index) => {
+    const slot = index + 1;
+    if (slide.imageUrl) {
+      // Fond (ou vignette si vidéo) : toujours exporté en image
+      entries.push({
+        imageUrl: slide.imageUrl,
+        imageWeek: slide.imageWeek,
+        baseName: `carousel-${slot}`,
+        width: 1920,
+        height: 600,
+      });
+    }
+    if (slide.mediaType === "video" && slide.videoUrl) {
+      entries.push({
+        imageUrl: slide.videoUrl,
+        imageWeek: slide.imageWeek,
+        baseName: `carousel-${slot}`,
+        width: null,
+        height: null,
+        isVideo: true,
+      });
+    }
+    if (slide.titleType === "image" && slide.titleImageUrl) {
+      entries.push({
+        imageUrl: slide.titleImageUrl,
+        imageWeek: slide.titleImageWeek,
+        baseName: `carousel-${slot}-title`,
+        width: null,
+        height: null,
+      });
+    }
+  });
+  return entries;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const sectionId = searchParams.get("sectionId");
@@ -148,6 +203,10 @@ export async function GET(request: NextRequest) {
     images = getMacaronsV2Images(section.content as MacaronsContent);
   } else if (section.type === "mea_v2") {
     images = getMeaV2Images(section.content as MeaV2Content);
+  } else if (section.type === "edito") {
+    images = getEditoImages(section.content as EditoContent);
+  } else if (section.type === "carousel") {
+    images = getCarouselImages(section.content as CarouselContent);
   }
 
   if (images.length === 0) {
@@ -185,6 +244,10 @@ async function exportAllImages(briefId: string) {
       allImages.push(...getMacaronsV2Images(section.content as MacaronsContent));
     } else if (section.type === "mea_v2") {
       allImages.push(...getMeaV2Images(section.content as MeaV2Content));
+    } else if (section.type === "edito") {
+      allImages.push(...getEditoImages(section.content as EditoContent));
+    } else if (section.type === "carousel") {
+      allImages.push(...getCarouselImages(section.content as CarouselContent));
     }
   }
 
@@ -221,8 +284,7 @@ async function buildZip(images: ImageEntry[], brief: { year: number; week: numbe
     const subFolder = `homepage/${brief.year}/wk${imgWk}/${brief.locale.toLowerCase()}`;
 
     try {
-      const filePath = join(process.cwd(), "public", img.imageUrl);
-      const buffer = await readFile(filePath);
+      const buffer = await readAsset(img.imageUrl);
 
       if (img.isVideo) {
         // Vidéo (carte focus MEA v2) : copiée telle quelle, pas de passage par sharp.

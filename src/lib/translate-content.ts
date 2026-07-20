@@ -1,5 +1,10 @@
 import type {
+  ArianeContent,
+  CarouselContent,
+  CarouselSlide,
   CustomContent,
+  EditoCard,
+  EditoContent,
   Locale,
   MacaronsContent,
   MeaContent,
@@ -249,6 +254,107 @@ function translateMeaV2Content(
   };
 }
 
+// Fil d'ariane : titre + libellé de chaque lien. Notes regroupées sur le
+// commentaire de section, comme les sections personnalisées.
+function translateArianeContent(
+  content: ArianeContent,
+  lookup: Lookup,
+  stats: TranslateStats,
+): ArianeContent {
+  const notes: string[] = [];
+  const title = applyField(content.title, "titre", lookup, stats, notes);
+  const links = (content.links ?? []).map((link, i) => ({
+    ...link,
+    label: applyField(link.label, `lien ${i + 1}`, lookup, stats, notes),
+  }));
+  return { ...content, title, links, comment: appendNote(content.comment, notes) };
+}
+
+// Edito : titre + texte + textes de boutons par carte.
+function translateEditoCard(
+  card: EditoCard,
+  lookup: Lookup,
+  stats: TranslateStats,
+): EditoCard {
+  const notes: string[] = [];
+  const title = applyField(card.title, "titre", lookup, stats, notes);
+  const text = applyField(card.text, "texte", lookup, stats, notes);
+  const buttons = (card.buttons ?? []).map((button, i) => ({
+    ...button,
+    text: applyField(
+      button.text,
+      card.buttons.length > 1 ? `bouton ${i + 1}` : "bouton",
+      lookup,
+      stats,
+      notes,
+    ),
+  }));
+  return { ...card, title, text, buttons, comment: appendNote(card.comment, notes) };
+}
+
+function translateEditoContent(
+  content: EditoContent,
+  lookup: Lookup,
+  stats: TranslateStats,
+): EditoContent {
+  return {
+    ...content,
+    items: (content.items ?? []).map((card) => translateEditoCard(card, lookup, stats)),
+  };
+}
+
+// Carousel : titre (texte), textes de boutons, libellé + badge promo du
+// callout produit. Jamais les prix ni les images/vidéo.
+function translateCarouselSlide(
+  slide: CarouselSlide,
+  lookup: Lookup,
+  stats: TranslateStats,
+): CarouselSlide {
+  const notes: string[] = [];
+  const titleText =
+    slide.titleType === "text"
+      ? applyField(slide.titleText, "titre", lookup, stats, notes)
+      : slide.titleText;
+  const buttons = (slide.buttons ?? []).map((button, i) => ({
+    ...button,
+    text: applyField(
+      button.text,
+      slide.buttons.length > 1 ? `bouton ${i + 1}` : "bouton",
+      lookup,
+      stats,
+      notes,
+    ),
+  }));
+  const callout = slide.productCallout;
+  const productCallout = callout.enabled
+    ? {
+        ...callout,
+        label: applyField(callout.label, "libellé callout", lookup, stats, notes),
+        promoBadgeText: callout.showPromoBadge
+          ? applyField(callout.promoBadgeText, "badge promo", lookup, stats, notes)
+          : callout.promoBadgeText,
+      }
+    : callout;
+  return {
+    ...slide,
+    titleText,
+    buttons,
+    productCallout,
+    comment: appendNote(slide.comment, notes),
+  };
+}
+
+function translateCarouselContent(
+  content: CarouselContent,
+  lookup: Lookup,
+  stats: TranslateStats,
+): CarouselContent {
+  return {
+    ...content,
+    slides: (content.slides ?? []).map((slide) => translateCarouselSlide(slide, lookup, stats)),
+  };
+}
+
 export function translateSectionContent(
   type: string,
   content: unknown,
@@ -266,6 +372,15 @@ export function translateSectionContent(
   }
   if (type === "custom") {
     return translateCustomContent(content as CustomContent, lookup, stats);
+  }
+  if (type === "ariane") {
+    return translateArianeContent(content as ArianeContent, lookup, stats);
+  }
+  if (type === "edito") {
+    return translateEditoContent(content as EditoContent, lookup, stats);
+  }
+  if (type === "carousel") {
+    return translateCarouselContent(content as CarouselContent, lookup, stats);
   }
   return content;
 }

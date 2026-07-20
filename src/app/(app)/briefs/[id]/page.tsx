@@ -37,10 +37,25 @@ import { MeaEditor } from "@/templates/mea/editor";
 import { MeaPreview } from "@/templates/mea/preview";
 import { MeaV2Editor } from "@/templates/mea-v2/editor";
 import { MeaV2Preview } from "@/templates/mea-v2/preview";
+import { ArianeEditor } from "@/templates/ariane/editor";
+import { ArianePreview } from "@/templates/ariane/preview";
+import { EditoEditor } from "@/templates/edito/editor";
+import { EditoPreview } from "@/templates/edito/preview";
+import { CarouselEditor } from "@/templates/carousel/editor";
+import { CarouselPreview } from "@/templates/carousel/preview";
 import { CustomEditor } from "@/templates/custom/editor";
 import { CustomPreview } from "@/templates/custom/preview";
 import { normalizeCustomContent } from "@/templates/custom/schema";
-import type { MeaItem, MeaContent, MeaV2Content, CustomTemplate } from "@/types";
+import type {
+  MeaItem,
+  MeaContent,
+  MeaV2Content,
+  ArianeContent,
+  EditoCard,
+  EditoContent,
+  CarouselContent,
+  CustomTemplate,
+} from "@/types";
 import { StatusActions } from "@/components/editor/status-actions";
 import { StatusBadge } from "@/components/briefs/status-badge";
 import { MediaLibraryDialog } from "@/components/media/media-library-dialog";
@@ -83,6 +98,13 @@ export default function BriefEditorPage({
   // avec chaînage vers l'upload de la vignette pré-remplie par la 1ère frame capturée
   const [videoUploadSectionId, setVideoUploadSectionId] = useState<string | null>(null);
   const [capturedPosterFile, setCapturedPosterFile] = useState<File | null>(null);
+  // Carousel : même principe que MEA v2 ci-dessus, mais 2 diapositives
+  // possibles donc on garde aussi l'index de la diapositive ciblée.
+  const [carouselVideoTarget, setCarouselVideoTarget] = useState<{
+    sectionId: string;
+    slideIndex: number;
+  } | null>(null);
+  const [carouselCapturedPosterFile, setCarouselCapturedPosterFile] = useState<File | null>(null);
   const [dirty, setDirty] = useState(false);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
   const savedSectionsRef = useRef<string>("");
@@ -158,7 +180,7 @@ export default function BriefEditorPage({
   );
 
   const updateSectionItems = useCallback(
-    (sectionId: string, items: MacaronItem[] | MeaItem[]) => {
+    (sectionId: string, items: MacaronItem[] | MeaItem[] | EditoCard[]) => {
       updateSection(sectionId, { content: { items } });
     },
     [updateSection],
@@ -297,7 +319,37 @@ export default function BriefEditorPage({
           }
           return section;
         }
-        const content = section.content as { items?: (MacaronItem | MeaItem)[] };
+        if (section.type === "carousel") {
+          const content = section.content as CarouselContent;
+          const slideMatch = /^slide-(\d+)$/.exec(target.itemId);
+          if (slideMatch) {
+            const idx = Number(slideMatch[1]);
+            return {
+              ...section,
+              content: {
+                ...content,
+                slides: content.slides.map((s, i) =>
+                  i === idx ? { ...s, imageUrl: url, imageWeek: null } : s,
+                ),
+              },
+            };
+          }
+          const titleMatch = /^title-(\d+)$/.exec(target.itemId);
+          if (titleMatch) {
+            const idx = Number(titleMatch[1]);
+            return {
+              ...section,
+              content: {
+                ...content,
+                slides: content.slides.map((s, i) =>
+                  i === idx ? { ...s, titleImageUrl: url, titleImageWeek: null } : s,
+                ),
+              },
+            };
+          }
+          return section;
+        }
+        const content = section.content as { items?: (MacaronItem | MeaItem | EditoCard)[] };
         // Nouvelle image sélectionnée/uploadée : redevient native de la
         // semaine courante (semaine + position figées repassent dynamiques).
         const items = (content.items ?? []).map((item) =>
@@ -319,7 +371,10 @@ export default function BriefEditorPage({
     if (!createOpen) return;
     (async () => {
       const res = await fetch("/api/templates?status=published");
-      if (res.ok) setPublishedTemplates(await res.json());
+      if (res.ok) {
+        const templates: CustomTemplate[] = await res.json();
+        setPublishedTemplates(templates.sort((a, b) => a.name.localeCompare(b.name)));
+      }
     })();
   }, [createOpen]);
 
@@ -466,10 +521,13 @@ export default function BriefEditorPage({
           <Select
             value={newSectionType}
             items={[
+              { value: "carousel", label: "Carousel" },
+              { value: "edito", label: "Edito" },
+              { value: "ariane", label: "Fil d'ariane" },
               { value: "macarons", label: "Macaron" },
               { value: "mea", label: "MEA" },
-              { value: "macarons_v2", label: "Quickaccess v2" },
               { value: "mea_v2", label: "MEA v2" },
+              { value: "macarons_v2", label: "Quickaccess v2" },
               { value: "custom", label: "Section personnalisée (vierge)" },
               ...publishedTemplates.map((template) => ({
                 value: `tpl:${template.id}`,
@@ -482,10 +540,13 @@ export default function BriefEditorPage({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="w-fit min-w-(--anchor-width)">
+              <SelectItem value="carousel">Carousel</SelectItem>
+              <SelectItem value="edito">Edito</SelectItem>
+              <SelectItem value="ariane">Fil d&apos;ariane</SelectItem>
               <SelectItem value="macarons">Macaron</SelectItem>
               <SelectItem value="mea">MEA</SelectItem>
-              <SelectItem value="macarons_v2">Quickaccess v2</SelectItem>
               <SelectItem value="mea_v2">MEA v2</SelectItem>
+              <SelectItem value="macarons_v2">Quickaccess v2</SelectItem>
               <SelectItem value="custom">Section personnalisée (vierge)</SelectItem>
               {publishedTemplates.map((template) => (
                 <SelectItem key={template.id} value={`tpl:${template.id}`}>
@@ -760,6 +821,40 @@ export default function BriefEditorPage({
                           }
                           onOpenVideoUpload={() => setVideoUploadSectionId(section.id)}
                         />
+                      ) : section.type === "ariane" ? (
+                        <ArianeEditor
+                          content={section.content as ArianeContent}
+                          onChange={(content) => updateSection(section.id, { content })}
+                        />
+                      ) : section.type === "edito" ? (
+                        <EditoEditor
+                          items={((section.content as EditoContent)?.items ?? [])}
+                          briefWeek={brief.week}
+                          onChange={(items) => updateSectionItems(section.id, items)}
+                          onOpenMediaLibrary={(itemId) =>
+                            setMediaTarget({
+                              sectionId: section.id,
+                              itemId,
+                              type: "edito",
+                            })
+                          }
+                        />
+                      ) : section.type === "carousel" ? (
+                        <CarouselEditor
+                          content={section.content as CarouselContent}
+                          briefWeek={brief.week}
+                          onChange={(content) => updateSection(section.id, { content })}
+                          onOpenMediaLibrary={(target) =>
+                            setMediaTarget({
+                              sectionId: section.id,
+                              itemId: target,
+                              type: target.startsWith("title-") ? "carousel_title" : "carousel",
+                            })
+                          }
+                          onOpenVideoUpload={(slideIndex) =>
+                            setCarouselVideoTarget({ sectionId: section.id, slideIndex })
+                          }
+                        />
                       ) : (
                         <p className="text-sm text-muted-foreground">
                           Template « {section.type} » non pris en charge dans l&apos;éditeur pour le moment.
@@ -864,6 +959,36 @@ export default function BriefEditorPage({
                         {section.title || "Section"}
                       </p>
                       <MeaV2Preview content={section.content as MeaV2Content} />
+                    </div>
+                  );
+                }
+                if (section.type === "ariane") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <ArianePreview content={section.content as ArianeContent} />
+                    </div>
+                  );
+                }
+                if (section.type === "edito") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <EditoPreview items={((section.content as EditoContent)?.items ?? [])} />
+                    </div>
+                  );
+                }
+                if (section.type === "carousel") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <CarouselPreview content={section.content as CarouselContent} />
                     </div>
                   );
                 }
@@ -973,6 +1098,58 @@ export default function BriefEditorPage({
           onClose={() => {
             setVideoUploadSectionId(null);
             setCapturedPosterFile(null);
+          }}
+        />
+      )}
+      {carouselVideoTarget && (
+        <ImageUploadDialog
+          assetType="carousel_video"
+          defaultWeek={brief.week}
+          defaultYear={brief.year}
+          onFileSelected={(file) => {
+            captureVideoFirstFrame(file)
+              .then((dataUrl) => dataUrlToFile(dataUrl, "vignette.jpg"))
+              .then(setCarouselCapturedPosterFile)
+              .catch(() => setCarouselCapturedPosterFile(null));
+          }}
+          onUploaded={(url) => {
+            const { sectionId, slideIndex } = carouselVideoTarget;
+            setSections((prev) => {
+              const next = prev.map((s) => {
+                if (s.id !== sectionId || s.type !== "carousel") return s;
+                const content = s.content as CarouselContent;
+                return {
+                  ...s,
+                  content: {
+                    ...content,
+                    slides: content.slides.map((slide, i) =>
+                      i === slideIndex
+                        ? { ...slide, mediaType: "video" as const, videoUrl: url }
+                        : slide,
+                    ),
+                  },
+                };
+              });
+              setDirty(serializeSections(next) !== savedSectionsRef.current);
+              return next;
+            });
+            // Enchaîne sur l'upload de la vignette, pré-remplie par la 1ère
+            // frame capturée côté navigateur (l'utilisateur ajuste le cadrage).
+            if (carouselCapturedPosterFile) {
+              toast.success("Vidéo uploadée — ajustez le cadrage de la vignette suggérée", {
+                duration: 5000,
+              });
+              setMediaTarget({ sectionId, itemId: `slide-${slideIndex}`, type: "carousel" });
+              setDroppedFile(carouselCapturedPosterFile);
+              setUploadAssetType("carousel");
+              setShowUpload(true);
+            }
+            setCarouselVideoTarget(null);
+            setCarouselCapturedPosterFile(null);
+          }}
+          onClose={() => {
+            setCarouselVideoTarget(null);
+            setCarouselCapturedPosterFile(null);
           }}
         />
       )}

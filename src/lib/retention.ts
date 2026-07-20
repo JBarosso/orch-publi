@@ -1,8 +1,7 @@
 import { db } from "@/lib/db";
 import { assets, briefs, briefSections, settings } from "@/lib/schema";
 import { and, eq, inArray, lt, notInArray } from "drizzle-orm";
-import { unlink } from "fs/promises";
-import { join } from "path";
+import { deleteAsset } from "@/lib/storage";
 import type { CustomContent, MeaV2Content } from "@/types";
 
 // Rétention des données — v1 : dry-run + purge manuelle pour les briefs
@@ -135,11 +134,7 @@ export async function executePurge(months: number): Promise<PurgeResult> {
   }
 
   for (const asset of preview.assets) {
-    try {
-      await unlink(join(process.cwd(), "public", asset.url));
-    } catch {
-      // fichier déjà absent : on supprime quand même la ligne
-    }
+    await deleteAsset(asset.url);
     await db.delete(assets).where(eq(assets.id, asset.id));
   }
 
@@ -232,11 +227,7 @@ export async function executeVideoPurge(days: number): Promise<VideoPurgeResult>
   const preview = await computeVideoPurgePreview(days);
 
   for (const video of preview.videos) {
-    try {
-      await unlink(join(process.cwd(), "public", video.url));
-    } catch {
-      // fichier déjà absent : on supprime quand même la ligne
-    }
+    await deleteAsset(video.url);
     await db.delete(assets).where(eq(assets.id, video.id));
   }
 

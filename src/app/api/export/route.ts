@@ -8,7 +8,17 @@ import { generateCustomHTML } from "@/templates/custom/export";
 import { normalizeCustomContent } from "@/templates/custom/schema";
 import { generateQuickaccessV2HTML } from "@/templates/macarons-v2/export";
 import { generateMeaV2HTML } from "@/templates/mea-v2/export";
-import type { MacaronsContent, MeaContent, MeaV2Content } from "@/types";
+import { generateArianeHTML } from "@/templates/ariane/export";
+import { generateEditoHTML } from "@/templates/edito/export";
+import { generateCarouselHTML } from "@/templates/carousel/export";
+import type {
+  ArianeContent,
+  CarouselContent,
+  EditoContent,
+  MacaronsContent,
+  MeaContent,
+  MeaV2Content,
+} from "@/types";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -65,6 +75,13 @@ export async function GET(request: NextRequest) {
   } else if (section.type === "mea_v2") {
     const content = section.content as MeaV2Content;
     html = generateMeaV2HTML(content, ctx);
+  } else if (section.type === "ariane") {
+    html = generateArianeHTML(section.content as ArianeContent);
+  } else if (section.type === "edito") {
+    const content = section.content as EditoContent;
+    html = generateEditoHTML(content?.items ?? [], ctx);
+  } else if (section.type === "carousel") {
+    html = generateCarouselHTML(section.content as CarouselContent, ctx);
   }
 
   return NextResponse.json({ html, type: section.type });

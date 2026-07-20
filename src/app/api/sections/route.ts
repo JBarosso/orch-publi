@@ -7,6 +7,8 @@ import {
   createEmptyCustomContent,
 } from "@/templates/custom/schema";
 import { createEmptyMeaV2Content } from "@/templates/mea-v2/schema";
+import { createEmptyArianeContent } from "@/templates/ariane/schema";
+import { createEmptyCarouselContent } from "@/templates/carousel/schema";
 import type { CustomBlock, CustomLayout } from "@/types";
 
 function normalizeTypeLabel(type: string): string {
@@ -14,6 +16,9 @@ function normalizeTypeLabel(type: string): string {
   if (type === "custom") return "section perso";
   if (type === "macarons_v2") return "quickaccess v2";
   if (type === "mea_v2") return "MEA v2";
+  if (type === "ariane") return "fil d'ariane";
+  if (type === "edito") return "edito";
+  if (type === "carousel") return "carousel";
   return type;
 }
 
@@ -131,6 +136,10 @@ export async function POST(request: NextRequest) {
     }
   } else if (type === "mea_v2") {
     content = createEmptyMeaV2Content();
+  } else if (type === "ariane") {
+    content = createEmptyArianeContent();
+  } else if (type === "carousel") {
+    content = createEmptyCarouselContent();
   }
 
   const nextOrder = await getNextOrder(briefId);

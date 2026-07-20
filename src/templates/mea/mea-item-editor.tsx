@@ -210,15 +210,15 @@ export function MeaItemEditor({
 
             <Select
               value={item.overlayType}
-              items={{ none: "Sans texte", label: "Badge Rond", text: "Texte" }}
+              items={{ label: "Badge Rond", none: "Sans texte", text: "Texte" }}
               onValueChange={(v) => onUpdate({ overlayType: v as MeaOverlayType })}
             >
               <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs">
                 <SelectValue placeholder="Overlay" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Sans texte</SelectItem>
                 <SelectItem value="label">Badge Rond</SelectItem>
+                <SelectItem value="none">Sans texte</SelectItem>
                 <SelectItem value="text">Texte</SelectItem>
               </SelectContent>
             </Select>
@@ -245,16 +245,16 @@ export function MeaItemEditor({
           <div className="flex items-center gap-2 bg-muted/40 p-1.5 rounded-md flex-wrap">
             <Select
               value={pricingMode}
-              items={{ standard: "Standard", strikethrough: "Prix barré", custom: "Custom" }}
+              items={{ custom: "Custom", strikethrough: "Prix barré", standard: "Standard" }}
               onValueChange={(v) => onUpdate({ pricingMode: v as MeaPricingMode })}
             >
               <SelectTrigger className="h-7 flex-1 text-xs">
                 <SelectValue placeholder="Mode prix" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="strikethrough">Prix barré</SelectItem>
                 <SelectItem value="custom">Custom</SelectItem>
+                <SelectItem value="strikethrough">Prix barré</SelectItem>
+                <SelectItem value="standard">Standard</SelectItem>
               </SelectContent>
             </Select>
 

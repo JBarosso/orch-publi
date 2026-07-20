@@ -147,15 +147,18 @@ export function ImageUploadDialog({
   const loadFile = useCallback(
     (file: File) => {
       // Sélecteur de type générique (médiathèque) : si le fichier déposé est
-      // une vidéo, on bascule sur le type vidéo même si un autre type était
-      // sélectionné — évite d'avoir à choisir le type manuellement avant.
+      // une vidéo et qu'aucun type vidéo n'est déjà sélectionné, bascule sur
+      // un type vidéo par défaut — évite d'avoir à choisir le type avant.
+      // Si un type vidéo spécifique était déjà sélectionné (ex: "Carousel -
+      // Vidéo"), on le respecte plutôt que d'écraser vers un autre.
       // Windows ne rapporte pas toujours file.type pour les .mp4 (souvent
       // vide) : on se fie aussi à l'extension via looksLikeMp4.
       const isVideoFile = file.type.startsWith("video/") || looksLikeMp4(file);
-      if (isVideoFile && allowTypeSelect && selectedType !== "mea_v2_video") {
+      if (isVideoFile && allowTypeSelect && spec.kind !== "video") {
         setSelectedType("mea_v2_video");
       }
-      const activeSpec = isVideoFile && allowTypeSelect ? ASSET_SPECS.mea_v2_video : spec;
+      const activeSpec =
+        isVideoFile && allowTypeSelect ? (spec.kind === "video" ? spec : ASSET_SPECS.mea_v2_video) : spec;
 
       if (activeSpec.kind === "video") {
         const videoError = validateSourceVideoFile(file);

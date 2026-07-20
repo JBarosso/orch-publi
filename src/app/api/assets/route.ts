@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { assets } from "@/lib/schema";
 import { and, desc, eq, ilike } from "drizzle-orm";
-import { writeFile, unlink } from "fs/promises";
-import { join } from "path";
 import { v4 as uuidv4 } from "uuid";
 import sharp from "sharp";
+import { putAsset, deleteAsset } from "@/lib/storage";
 import {
   ACCEPTED_FORMATS_LABEL,
   ACCEPTED_SHARP_FORMATS,
@@ -182,10 +181,7 @@ export async function POST(request: NextRequest) {
     }
 
     const filename = `${uuidv4()}.${extension}`;
-    const filepath = join(process.cwd(), "public", "uploads", filename);
-    await writeFile(filepath, outputBuffer);
-
-    const url = `/uploads/${filename}`;
+    const url = await putAsset(outputBuffer, filename, mimeType);
 
     let asset;
     try {
@@ -252,10 +248,7 @@ async function handleVideoUpload(
 
   try {
     const filename = `${uuidv4()}.mp4`;
-    const filepath = join(process.cwd(), "public", "uploads", filename);
-    await writeFile(filepath, videoBuffer);
-
-    const url = `/uploads/${filename}`;
+    const url = await putAsset(videoBuffer, filename, "video/mp4");
 
     let asset;
     try {
@@ -303,13 +296,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Asset introuvable" }, { status: 404 });
   }
 
-  try {
-    const filepath = join(process.cwd(), "public", asset.url);
-    await unlink(filepath).catch(() => { });
-  } catch {
-    // ignore file deletion errors
-  }
-
+  await deleteAsset(asset.url);
   await db.delete(assets).where(eq(assets.id, id));
   return NextResponse.json({ ok: true });
 }

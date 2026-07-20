@@ -99,6 +99,37 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
     requireLabel: false,
     kind: "video",
   },
+  edito: {
+    displayName: "Edito",
+    targetWidth: 370,
+    targetHeight: 210,
+    cropShape: "rect",
+    cropAspect: 370 / 210,
+    outputFormat: "jpeg",
+    requireLabel: false,
+  },
+  carousel: {
+    displayName: "Carousel - Fond",
+    targetWidth: 1920,
+    targetHeight: 600,
+    cropShape: "rect",
+    cropAspect: 1920 / 600,
+    outputFormat: "jpeg",
+    requireLabel: false,
+  },
+  carousel_title: {
+    displayName: "Carousel - Titre image",
+    // Upload libre (comme "other") : le titre est un visuel stylisé
+    // (object-fit: contain côté CMS), pas de recadrage forcé.
+    outputFormat: "source",
+    requireLabel: false,
+  },
+  carousel_video: {
+    displayName: "Carousel - Vidéo",
+    outputFormat: "source",
+    requireLabel: false,
+    kind: "video",
+  },
 };
 
 const KNOWN_ASSET_TYPES: AssetType[] = [
@@ -108,6 +139,10 @@ const KNOWN_ASSET_TYPES: AssetType[] = [
   "mea_v2",
   "mea_v2_focus",
   "mea_v2_video",
+  "edito",
+  "carousel",
+  "carousel_title",
+  "carousel_video",
 ];
 
 export function resolveAssetType(type: unknown): AssetType {

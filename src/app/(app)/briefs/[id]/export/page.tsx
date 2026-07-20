@@ -173,7 +173,9 @@ export default function ExportPage({
                   exp.type === "mea" ||
                   exp.type === "custom" ||
                   exp.type === "macarons_v2" ||
-                  exp.type === "mea_v2") && (
+                  exp.type === "mea_v2" ||
+                  exp.type === "edito" ||
+                  exp.type === "carousel") && (
                   <Button
                     variant="outline"
                     size="sm"
