@@ -8,7 +8,8 @@ export type SectionType =
   | "mea_v2"
   | "ariane"
   | "edito"
-  | "carousel";
+  | "carousel"
+  | "global_header";
 export type AssetType =
   | "macaron"
   | "mea"
@@ -381,4 +382,44 @@ export interface CarouselSlide {
 export interface CarouselContent {
   // Toujours 2 diapositives (indicateurs Bootstrap data-slide-to="0"/"1").
   slides: CarouselSlide[];
+}
+
+// --- Global header (bannière carousel Bootstrap, exemples/global-header-*.html)
+// Items enregistrés dans une bibliothèque partagée (table global_header_items,
+// recherchable par label) : la sélectionner copie son contenu dans la section
+// (snapshot, comme les templates perso) — l'édition locale ne modifie la
+// bibliothèque que via une sauvegarde explicite. Jusqu'à 3 items par section,
+// l'ordre détermine la rotation (le 1er est "active"). Couleur au niveau de
+// la section entière (pas par item).
+
+export type GlobalHeaderLinkType = "cgid" | "cid" | "url" | "none";
+
+export interface GlobalHeaderLibraryItem {
+  id: string;
+  // Un item n'a de sens que dans une langue : la bibliothèque est filtrée
+  // par la locale du brief en cours d'édition (fichiers exemples/global-
+  // header-{FR,BEFR,BENL,ES,GR}.html — un jeu de messages différent par
+  // marché/langue).
+  locale: Locale;
+  label: string;
+  text: string;
+  linkType: GlobalHeaderLinkType;
+  cgid: string;
+  cid: string;
+  link: string;
+}
+
+// Copie section-locale d'un item : pas de locale propre (celle du brief
+// s'applique déjà), sourceItemId et comment sont propres à cette section.
+export interface GlobalHeaderItem extends Omit<GlobalHeaderLibraryItem, "locale"> {
+  // Item de bibliothèque dont ce contenu est issu (null = créé à la volée,
+  // jamais sauvegardé) — permet le bouton "Enregistrer dans la bibliothèque".
+  sourceItemId: string | null;
+  // Note dev locale à cette section, jamais sauvegardée dans la bibliothèque.
+  comment: string;
+}
+
+export interface GlobalHeaderContent {
+  items: GlobalHeaderItem[];
+  bgColor: string;
 }

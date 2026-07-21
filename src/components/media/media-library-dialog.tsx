@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Upload, Search, Video } from "lucide-react";
+import { Upload, Search, Video, Pencil, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { looksLikeMp4 } from "@/lib/upload-specs";
 import type { Asset, AssetType } from "@/types";
@@ -38,6 +38,21 @@ export function MediaLibraryDialog({
   const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const saveLabel = async (id: string) => {
+    const res = await fetch("/api/assets", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, label: editValue }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setAssets((prev) => prev.map((a) => (a.id === id ? { ...a, label: updated.label } : a)));
+    }
+    setEditingId(null);
+  };
 
   useEffect(() => {
     const fetchAssets = async () => {
@@ -203,31 +218,82 @@ export function MediaLibraryDialog({
           ) : (
             <div className={cn("grid grid-cols-4 gap-3", dragging && "opacity-30 pointer-events-none")}>
               {assets.map((asset) => (
-                <button
+                <div
                   key={asset.id}
-                  type="button"
-                  onClick={() => onSelect(asset.url)}
                   className="group relative overflow-hidden rounded-lg border transition-all hover:ring-2 hover:ring-primary"
                 >
-                  {asset.mimeType?.startsWith("video/") ? (
-                    <div className="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-muted p-2">
-                      <Video className="h-6 w-6 text-muted-foreground/60" />
-                      <span className="truncate text-[10px] text-muted-foreground/60">
-                        {asset.label || "Vidéo"}
-                      </span>
+                  <button type="button" onClick={() => onSelect(asset.url)} className="block w-full">
+                    {asset.mimeType?.startsWith("video/") ? (
+                      <div className="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-muted p-2">
+                        <Video className="h-6 w-6 text-muted-foreground/60" />
+                        <span className="truncate text-[10px] text-muted-foreground/60">
+                          {asset.label || "Vidéo"}
+                        </span>
+                      </div>
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={asset.url}
+                        alt={asset.label}
+                        className="aspect-square w-full object-cover"
+                      />
+                    )}
+                  </button>
+
+                  {editingId === asset.id ? (
+                    <div className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-black/80 px-1.5 py-1">
+                      <Input
+                        autoFocus
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveLabel(asset.id);
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        className="h-6 flex-1 border-0 bg-transparent px-1 text-xs text-white focus-visible:ring-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          saveLabel(asset.id);
+                        }}
+                        className="shrink-0 text-emerald-400 hover:text-emerald-300"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingId(null);
+                        }}
+                        className="shrink-0 text-white/70 hover:text-white"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={asset.url}
-                      alt={asset.label}
-                      className="aspect-square w-full object-cover"
-                    />
+                    <>
+                      <div className="absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                        {asset.label || "Sans label"}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingId(asset.id);
+                          setEditValue(asset.label ?? "");
+                        }}
+                        className="absolute right-1 top-1 rounded bg-black/60 p-1 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+                        title="Modifier le label"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    </>
                   )}
-                  <div className="absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-                    {asset.label || "Sans label"}
-                  </div>
-                </button>
+                </div>
               ))}
             </div>
           )}

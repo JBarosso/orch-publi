@@ -7,11 +7,14 @@ import { Label } from "@/components/ui/label";
 import {
   Eraser,
   Loader2,
+  Plus,
   RefreshCw,
   Save,
   Settings as SettingsIcon,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import type { HeaderColor } from "@/lib/header-colors";
 
 interface PurgePreview {
   cutoff: string;
@@ -41,6 +44,10 @@ export default function SettingsPage() {
   const [loadingVideoPreview, setLoadingVideoPreview] = useState(false);
   const [purgingVideo, setPurgingVideo] = useState(false);
 
+  const [colors, setColors] = useState<HeaderColor[]>([]);
+  const [savedColors, setSavedColors] = useState<HeaderColor[] | null>(null);
+  const [savingColors, setSavingColors] = useState(false);
+
   useEffect(() => {
     (async () => {
       const res = await fetch("/api/settings");
@@ -53,6 +60,8 @@ export default function SettingsPage() {
       setSavedMonths(data.retentionMonths);
       setVideoDays(String(data.videoRetentionDays));
       setSavedVideoDays(data.videoRetentionDays);
+      setColors(data.headerColors ?? []);
+      setSavedColors(data.headerColors ?? []);
     })();
   }, []);
 
@@ -177,12 +186,40 @@ export default function SettingsPage() {
     }
   };
 
+  const updateColor = (index: number, updates: Partial<HeaderColor>) => {
+    setColors((prev) => prev.map((c, i) => (i === index ? { ...c, ...updates } : c)));
+  };
+  const addColor = () => setColors((prev) => [...prev, { name: "", hex: "#000000" }]);
+  const removeColor = (index: number) => setColors((prev) => prev.filter((_, i) => i !== index));
+
+  const handleSaveColors = async () => {
+    setSavingColors(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ headerColors: colors }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Erreur lors de la sauvegarde");
+        return;
+      }
+      setSavedColors(data.headerColors);
+      toast.success("Couleurs recommandées enregistrées");
+    } finally {
+      setSavingColors(false);
+    }
+  };
+
   const dirty = savedMonths !== null && Number(months) !== savedMonths;
   const nothingToPurge =
     preview && preview.briefs.length === 0 && preview.assets.length === 0;
 
   const videoDirty = savedVideoDays !== null && Number(videoDays) !== savedVideoDays;
   const nothingToPurgeVideo = videoPreview && videoPreview.videos.length === 0;
+
+  const colorsDirty = savedColors !== null && JSON.stringify(colors) !== JSON.stringify(savedColors);
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl">
@@ -444,6 +481,62 @@ export default function SettingsPage() {
             )}
           </div>
         )}
+      </section>
+
+      <section className="mt-6 rounded-lg border border-border/60 bg-card p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-foreground">
+          Couleurs recommandées — Global header
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Proposées en priorité dans l&apos;éditeur de section Global header,
+          en plus du sélecteur de couleur libre.
+        </p>
+        <div className="mt-4 space-y-2">
+          {colors.map((color, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="color"
+                value={color.hex}
+                onChange={(e) => updateColor(i, { hex: e.target.value })}
+                className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
+              />
+              <Input
+                placeholder="Nom (ex: Orchestra)"
+                value={color.name}
+                onChange={(e) => updateColor(i, { name: e.target.value })}
+                className="w-48"
+              />
+              <Input
+                value={color.hex}
+                onChange={(e) => updateColor(i, { hex: e.target.value })}
+                placeholder="#RRGGBB"
+                className="w-28 font-mono text-xs"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => removeColor(i)}
+                className="h-8 w-8 shrink-0 text-muted-foreground/50 hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+          <div className="flex items-center gap-3 pt-1">
+            <Button variant="outline" size="sm" onClick={addColor}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Ajouter une couleur
+            </Button>
+            <Button onClick={handleSaveColors} disabled={!colorsDirty || savingColors} size="sm">
+              {savingColors ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-1.5 h-4 w-4" />
+              )}
+              Enregistrer
+            </Button>
+          </div>
+        </div>
       </section>
     </div>
   );

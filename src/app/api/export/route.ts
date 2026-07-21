@@ -11,10 +11,12 @@ import { generateMeaV2HTML } from "@/templates/mea-v2/export";
 import { generateArianeHTML } from "@/templates/ariane/export";
 import { generateEditoHTML } from "@/templates/edito/export";
 import { generateCarouselHTML } from "@/templates/carousel/export";
+import { generateGlobalHeaderHTML } from "@/templates/global-header/export";
 import type {
   ArianeContent,
   CarouselContent,
   EditoContent,
+  GlobalHeaderContent,
   MacaronsContent,
   MeaContent,
   MeaV2Content,
@@ -82,6 +84,8 @@ export async function GET(request: NextRequest) {
     html = generateEditoHTML(content?.items ?? [], ctx);
   } else if (section.type === "carousel") {
     html = generateCarouselHTML(section.content as CarouselContent, ctx);
+  } else if (section.type === "global_header") {
+    html = generateGlobalHeaderHTML(section.content as GlobalHeaderContent);
   }
 
   return NextResponse.json({ html, type: section.type });

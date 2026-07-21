@@ -5,6 +5,8 @@ import type {
   CustomContent,
   EditoCard,
   EditoContent,
+  GlobalHeaderContent,
+  GlobalHeaderItem,
   Locale,
   MacaronsContent,
   MeaContent,
@@ -355,6 +357,29 @@ function translateCarouselContent(
   };
 }
 
+// Global header : uniquement le texte du message. Jamais le lien, ni le
+// label (identifiant de bibliothèque, pas un contenu affiché).
+function translateGlobalHeaderItem(
+  item: GlobalHeaderItem,
+  lookup: Lookup,
+  stats: TranslateStats,
+): GlobalHeaderItem {
+  const notes: string[] = [];
+  const text = applyField(item.text, "texte", lookup, stats, notes);
+  return { ...item, text, comment: appendNote(item.comment, notes) };
+}
+
+function translateGlobalHeaderContent(
+  content: GlobalHeaderContent,
+  lookup: Lookup,
+  stats: TranslateStats,
+): GlobalHeaderContent {
+  return {
+    ...content,
+    items: (content.items ?? []).map((item) => translateGlobalHeaderItem(item, lookup, stats)),
+  };
+}
+
 export function translateSectionContent(
   type: string,
   content: unknown,
@@ -381,6 +406,9 @@ export function translateSectionContent(
   }
   if (type === "carousel") {
     return translateCarouselContent(content as CarouselContent, lookup, stats);
+  }
+  if (type === "global_header") {
+    return translateGlobalHeaderContent(content as GlobalHeaderContent, lookup, stats);
   }
   return content;
 }

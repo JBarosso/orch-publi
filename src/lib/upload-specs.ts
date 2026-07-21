@@ -3,7 +3,19 @@ import type { AssetType } from "@/types";
 // Source de vérité des contraintes d'upload, partagée entre le client
 // (validation immédiate dans le dialog) et le serveur (garantie finale).
 
-export const MAX_SOURCE_BYTES = 15 * 1024 * 1024; // 15 Mo
+// Le poids source importe peu : sharp redimensionne + réencode systématiquement
+// (cf. assets/route.ts), donc le fichier réellement sauvegardé est toujours
+// optimisé quel que soit le poids uploadé. Cette limite n'existe que pour
+// rester sous le plafond de la requête (proxyClientMaxBodySize, next.config.ts)
+// une fois le fichier encodé en base64 (+33% de poids environ).
+export const MAX_SOURCE_BYTES = 40 * 1024 * 1024; // 40 Mo
+
+// Filet de sécurité pour les types sans dimensions cibles (outputFormat
+// "source" : "other", "carousel_title") : pas de crop imposé, mais on limite
+// quand même le plus grand côté pour éviter qu'une photo à pleine résolution
+// (ex: 6000x4000) parte telle quelle sur le CMS. Ne réduit jamais une image
+// déjà plus petite (withoutEnlargement).
+export const MAX_SOURCE_DIMENSION = 2400;
 
 export const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const ACCEPTED_MIME_ATTR = ACCEPTED_MIME_TYPES.join(",");
@@ -67,7 +79,7 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
     requireLabel: false,
   },
   macaron_v2: {
-    displayName: "Quickaccess v2",
+    displayName: "Macaron v2",
     targetWidth: 200,
     targetHeight: 300,
     cropShape: "rect",
@@ -109,7 +121,7 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
     requireLabel: false,
   },
   carousel: {
-    displayName: "Carousel - Fond",
+    displayName: "Slider - Fond",
     targetWidth: 1920,
     targetHeight: 600,
     cropShape: "rect",
@@ -118,14 +130,14 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
     requireLabel: false,
   },
   carousel_title: {
-    displayName: "Carousel - Titre image",
+    displayName: "Slider - Titre image",
     // Upload libre (comme "other") : le titre est un visuel stylisé
     // (object-fit: contain côté CMS), pas de recadrage forcé.
     outputFormat: "source",
     requireLabel: false,
   },
   carousel_video: {
-    displayName: "Carousel - Vidéo",
+    displayName: "Slider - Vidéo",
     outputFormat: "source",
     requireLabel: false,
     kind: "video",

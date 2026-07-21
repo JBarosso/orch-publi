@@ -93,6 +93,29 @@ export const customTemplates = pgTable("custom_templates", {
     .$onUpdate(() => new Date()),
 });
 
+// Bibliothèque d'items de bannière "Global header" : réutilisables par
+// label, snapshot indépendant à la sélection dans une section (même
+// principe que customTemplates ci-dessus).
+export const globalHeaderItems = pgTable("global_header_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  // Un item n'a de sens que dans une langue (texte traduit) : la
+  // bibliothèque est filtrée par la locale du brief en cours d'édition.
+  locale: varchar("locale", { length: 5 }).notNull(),
+  label: varchar("label", { length: 255 }).notNull(),
+  text: text("text").notNull().default(""),
+  linkType: varchar("link_type", { length: 16 }).notNull().default("none"),
+  cgid: varchar("cgid", { length: 255 }).notNull().default(""),
+  cid: varchar("cid", { length: 255 }).notNull().default(""),
+  link: text("link").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 export const assets = pgTable("assets", {
   id: uuid("id").defaultRandom().primaryKey(),
   url: text("url").notNull(),

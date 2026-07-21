@@ -11,6 +11,7 @@ import {
   ACCEPTED_VIDEO_MIME_TYPES,
   ASSET_SPECS,
   MAX_SOURCE_BYTES,
+  MAX_SOURCE_DIMENSION,
   MAX_VIDEO_SOURCE_BYTES,
   formatBytes,
   normalizeAssetLabel,
@@ -88,6 +89,27 @@ export async function GET(request: NextRequest) {
   );
 }
 
+export async function PUT(request: NextRequest) {
+  const body = await request.json();
+  const { id, label } = body;
+
+  if (!id) {
+    return NextResponse.json({ error: "id est requis" }, { status: 400 });
+  }
+
+  const [updated] = await db
+    .update(assets)
+    .set({ label: normalizeAssetLabel(typeof label === "string" ? label : "") })
+    .where(eq(assets.id, id))
+    .returning();
+
+  if (!updated) {
+    return NextResponse.json({ error: "Asset introuvable" }, { status: 404 });
+  }
+
+  return NextResponse.json(updated);
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { image, crop, label, week, year, type } = body;
@@ -151,6 +173,14 @@ export async function POST(request: NextRequest) {
           background: { r: 255, g: 255, b: 255, alpha: 1 },
         })
         .flatten({ background: { r: 255, g: 255, b: 255 } });
+    } else {
+      // Pas de dimensions imposées (upload libre) : on plafonne quand même le
+      // plus grand côté pour que le fichier sauvegardé reste optimisé, sans
+      // jamais agrandir une image plus petite que le plafond.
+      processed = processed.resize(MAX_SOURCE_DIMENSION, MAX_SOURCE_DIMENSION, {
+        fit: "inside",
+        withoutEnlargement: true,
+      });
     }
 
     // "source" : format d'origine conservé, ré-encodé pour optimiser le poids

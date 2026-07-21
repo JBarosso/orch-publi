@@ -2,7 +2,7 @@ import type { MacaronItem } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF } from "@/lib/cms-css";
 
-// CSS scopé au nouveau design "Quickaccess v2" (v2-html/quickaccess.html +
+// CSS scopé au nouveau design "Macaron v2" (v2-html/quickaccess.html +
 // v2-html/style.html). Coexiste avec le CSS des macarons v1 (quickaccess-list),
 // classes différentes, aucune collision.
 interface ExportContext {

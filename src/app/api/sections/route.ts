@@ -9,16 +9,18 @@ import {
 import { createEmptyMeaV2Content } from "@/templates/mea-v2/schema";
 import { createEmptyArianeContent } from "@/templates/ariane/schema";
 import { createEmptyCarouselContent } from "@/templates/carousel/schema";
+import { createEmptyGlobalHeaderContent } from "@/templates/global-header/schema";
 import type { CustomBlock, CustomLayout } from "@/types";
 
 function normalizeTypeLabel(type: string): string {
   if (type === "macarons") return "macaron";
   if (type === "custom") return "section perso";
-  if (type === "macarons_v2") return "quickaccess v2";
+  if (type === "macarons_v2") return "macaron v2";
   if (type === "mea_v2") return "MEA v2";
   if (type === "ariane") return "fil d'ariane";
   if (type === "edito") return "edito";
-  if (type === "carousel") return "carousel";
+  if (type === "carousel") return "slider";
+  if (type === "global_header") return "global header";
   return type;
 }
 
@@ -140,6 +142,8 @@ export async function POST(request: NextRequest) {
     content = createEmptyArianeContent();
   } else if (type === "carousel") {
     content = createEmptyCarouselContent();
+  } else if (type === "global_header") {
+    content = createEmptyGlobalHeaderContent();
   }
 
   const nextOrder = await getNextOrder(briefId);

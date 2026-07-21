@@ -9,13 +9,15 @@ import {
   MIN_VIDEO_RETENTION_DAYS,
   MAX_VIDEO_RETENTION_DAYS,
 } from "@/lib/retention";
+import { getHeaderColors, setHeaderColors, type HeaderColor } from "@/lib/header-colors";
 
 export async function GET() {
-  const [retentionMonths, videoRetentionDays] = await Promise.all([
+  const [retentionMonths, videoRetentionDays, headerColors] = await Promise.all([
     getRetentionMonths(),
     getVideoRetentionDays(),
+    getHeaderColors(),
   ]);
-  return NextResponse.json({ retentionMonths, videoRetentionDays });
+  return NextResponse.json({ retentionMonths, videoRetentionDays, headerColors });
 }
 
 export async function PUT(request: NextRequest) {
@@ -55,6 +57,25 @@ export async function PUT(request: NextRequest) {
     }
     await setVideoRetentionDays(days);
     return NextResponse.json({ videoRetentionDays: days });
+  }
+
+  if (body.headerColors !== undefined) {
+    const colors = body.headerColors;
+    const isValidColor = (c: unknown): c is HeaderColor =>
+      typeof c === "object" &&
+      c !== null &&
+      typeof (c as HeaderColor).name === "string" &&
+      (c as HeaderColor).name.trim() !== "" &&
+      /^#[0-9a-fA-F]{6}$/.test((c as HeaderColor).hex);
+
+    if (!Array.isArray(colors) || !colors.every(isValidColor)) {
+      return NextResponse.json(
+        { error: "Couleurs invalides : chaque entrée doit avoir un nom et un hex #RRGGBB" },
+        { status: 400 },
+      );
+    }
+    await setHeaderColors(colors);
+    return NextResponse.json({ headerColors: colors });
   }
 
   return NextResponse.json({ error: "Aucun champ à mettre à jour" }, { status: 400 });

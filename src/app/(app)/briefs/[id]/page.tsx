@@ -43,6 +43,8 @@ import { EditoEditor } from "@/templates/edito/editor";
 import { EditoPreview } from "@/templates/edito/preview";
 import { CarouselEditor } from "@/templates/carousel/editor";
 import { CarouselPreview } from "@/templates/carousel/preview";
+import { GlobalHeaderEditor } from "@/templates/global-header/editor";
+import { GlobalHeaderPreview } from "@/templates/global-header/preview";
 import { CustomEditor } from "@/templates/custom/editor";
 import { CustomPreview } from "@/templates/custom/preview";
 import { normalizeCustomContent } from "@/templates/custom/schema";
@@ -54,6 +56,7 @@ import type {
   EditoCard,
   EditoContent,
   CarouselContent,
+  GlobalHeaderContent,
   CustomTemplate,
 } from "@/types";
 import { StatusActions } from "@/components/editor/status-actions";
@@ -521,14 +524,15 @@ export default function BriefEditorPage({
           <Select
             value={newSectionType}
             items={[
-              { value: "carousel", label: "Carousel" },
               { value: "edito", label: "Edito" },
               { value: "ariane", label: "Fil d'ariane" },
+              { value: "global_header", label: "Global header" },
               { value: "macarons", label: "Macaron" },
+              { value: "macarons_v2", label: "Macaron v2" },
               { value: "mea", label: "MEA" },
               { value: "mea_v2", label: "MEA v2" },
-              { value: "macarons_v2", label: "Quickaccess v2" },
               { value: "custom", label: "Section personnalisée (vierge)" },
+              { value: "carousel", label: "Slider" },
               ...publishedTemplates.map((template) => ({
                 value: `tpl:${template.id}`,
                 label: `Template : ${template.name}`,
@@ -540,14 +544,15 @@ export default function BriefEditorPage({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="w-fit min-w-(--anchor-width)">
-              <SelectItem value="carousel">Carousel</SelectItem>
               <SelectItem value="edito">Edito</SelectItem>
               <SelectItem value="ariane">Fil d&apos;ariane</SelectItem>
+              <SelectItem value="global_header">Global header</SelectItem>
               <SelectItem value="macarons">Macaron</SelectItem>
+              <SelectItem value="macarons_v2">Macaron v2</SelectItem>
               <SelectItem value="mea">MEA</SelectItem>
               <SelectItem value="mea_v2">MEA v2</SelectItem>
-              <SelectItem value="macarons_v2">Quickaccess v2</SelectItem>
               <SelectItem value="custom">Section personnalisée (vierge)</SelectItem>
+              <SelectItem value="carousel">Slider</SelectItem>
               {publishedTemplates.map((template) => (
                 <SelectItem key={template.id} value={`tpl:${template.id}`}>
                   Template : {template.name}
@@ -855,6 +860,12 @@ export default function BriefEditorPage({
                             setCarouselVideoTarget({ sectionId: section.id, slideIndex })
                           }
                         />
+                      ) : section.type === "global_header" ? (
+                        <GlobalHeaderEditor
+                          content={section.content as GlobalHeaderContent}
+                          locale={brief.locale}
+                          onChange={(content) => updateSection(section.id, { content })}
+                        />
                       ) : (
                         <p className="text-sm text-muted-foreground">
                           Template « {section.type} » non pris en charge dans l&apos;éditeur pour le moment.
@@ -989,6 +1000,16 @@ export default function BriefEditorPage({
                         {section.title || "Section"}
                       </p>
                       <CarouselPreview content={section.content as CarouselContent} />
+                    </div>
+                  );
+                }
+                if (section.type === "global_header") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <GlobalHeaderPreview content={section.content as GlobalHeaderContent} />
                     </div>
                   );
                 }

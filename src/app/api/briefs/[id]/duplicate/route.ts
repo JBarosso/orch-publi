@@ -10,7 +10,8 @@ import {
   type TranslateStats,
 } from "@/lib/translate-content";
 import { freezeSectionContentWeek } from "@/lib/freeze-content-week";
-import type { Locale } from "@/types";
+import { detachGlobalHeaderLibraryLinks } from "@/templates/global-header/schema";
+import type { GlobalHeaderContent, Locale } from "@/types";
 
 export async function POST(
   request: NextRequest,
@@ -102,13 +103,20 @@ export async function POST(
   // réuploadé. Pas de gel si on duplique sur la même semaine (ex: juste pour
   // une autre langue) — rien n'a besoin d'être figé dans ce cas.
   const shouldFreezeWeek = week !== original.week;
+  // Indépendant de shouldTranslate (qui ne s'active que si "traduire" est
+  // coché) : la langue change dès que targetLocale diffère, même sans
+  // traduction demandée.
+  const localeChanged = destLocale !== sourceLocale;
 
   if (originalSections.length > 0) {
     await db.insert(briefSections).values(
       originalSections.map((s) => {
-        const content = shouldFreezeWeek
+        let content = shouldFreezeWeek
           ? freezeSectionContentWeek(s.type, s.content, original.week)
           : s.content;
+        if (s.type === "global_header" && localeChanged) {
+          content = detachGlobalHeaderLibraryLinks(content as GlobalHeaderContent);
+        }
         return {
           briefId: newBrief.id,
           type: s.type,

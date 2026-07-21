@@ -149,7 +149,7 @@ export function ImageUploadDialog({
       // Sélecteur de type générique (médiathèque) : si le fichier déposé est
       // une vidéo et qu'aucun type vidéo n'est déjà sélectionné, bascule sur
       // un type vidéo par défaut — évite d'avoir à choisir le type avant.
-      // Si un type vidéo spécifique était déjà sélectionné (ex: "Carousel -
+      // Si un type vidéo spécifique était déjà sélectionné (ex: "Slider -
       // Vidéo"), on le respecte plutôt que d'écraser vers un autre.
       // Windows ne rapporte pas toujours file.type pour les .mp4 (souvent
       // vide) : on se fie aussi à l'extension via looksLikeMp4.
