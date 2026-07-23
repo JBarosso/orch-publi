@@ -23,6 +23,16 @@ export async function putAsset(
     });
     return blob.url;
   }
+  // process.env.VERCEL est posé sur tous les déploiements Vercel (prod,
+  // preview, vercel dev) : public/ y est en lecture seule, écrire sur disque
+  // échouerait de toute façon avec un EROFS cryptique — autant échouer avec
+  // un message clair pointant directement la cause (token Blob manquant).
+  if (process.env.VERCEL) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN absent sur ce déploiement Vercel — le disque local n'est pas accessible en écriture ici. " +
+        "Vérifie Settings > Environment Variables (coché pour Production) puis redéploie.",
+    );
+  }
   const filepath = join(process.cwd(), "public", "uploads", filename);
   await writeFile(filepath, buffer);
   return `/uploads/${filename}`;
