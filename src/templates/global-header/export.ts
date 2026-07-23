@@ -32,6 +32,10 @@ function cssStyle(bgColor: string, textColor: string): string {
     color: var(--header-banner_color);
   }
 
+  .header-banner a {
+    color: var(--header-banner_color);
+  }
+
   .header-banner div:nth-child(1) {
     align-items: center;
   }
