@@ -1,6 +1,6 @@
 import type { CarouselButton, CarouselContent, CarouselSlide } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
-import { PREVIEW_CMS_CSS_HREF } from "@/lib/cms-css";
+import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 
 interface ExportContext {
   year: number;
@@ -282,6 +282,7 @@ export function generatePreviewHTML(content: CarouselContent, frameId = ""): str
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="${PREVIEW_CMS_CSS_HREF}" />
 <style>
+${PREVIEW_ROOT_VARS}
 ${cssStyle}
 ${previewCommentStyles}
 body { margin: 0; background: #fff; cursor: default; }

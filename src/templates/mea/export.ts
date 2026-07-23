@@ -1,7 +1,7 @@
 import type { MeaItem, MeaButton } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 
-import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF } from "@/lib/cms-css";
+import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 
 export { CMS_CSS_URL };
 
@@ -344,6 +344,7 @@ ${buttonsHTML}
 <link rel="stylesheet" href="${PREVIEW_CMS_CSS_HREF}" />
 <link rel="preload" href="/fonts/Alphakind.ttf" as="font" type="font/ttf" crossorigin />
 <style>
+    ${PREVIEW_ROOT_VARS}
     ${cssStyle}
     ${previewCommentStyles}
     @font-face {

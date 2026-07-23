@@ -1,7 +1,7 @@
 import type { GlobalHeaderContent, GlobalHeaderItem } from "@/types";
 import { accessibleTextColor } from "@/lib/contrast-color";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
-import { PREVIEW_CMS_CSS_HREF } from "@/lib/cms-css";
+import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 
 // Contrairement aux autres templates, ce <style> EST exporté : la couleur du
 // bandeau est propre à chaque section (choisie dans l'éditeur), le CMS n'a
@@ -127,6 +127,7 @@ export function generatePreviewHTML(content: GlobalHeaderContent, frameId = ""):
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="${PREVIEW_CMS_CSS_HREF}" />
 <style>
+${PREVIEW_ROOT_VARS}
 ${cssStyle(content.bgColor, textColor)}
 ${previewCommentStyles}
 body { margin: 0; background: #fff; cursor: default; }

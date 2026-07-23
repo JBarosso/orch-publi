@@ -1,6 +1,6 @@
 import type { CustomBlock, CustomContent } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
-import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF } from "@/lib/cms-css";
+import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 
 export { CMS_CSS_URL };
 
@@ -208,6 +208,7 @@ export function generatePreviewHTML(content: CustomContent, frameId = ""): strin
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="${PREVIEW_CMS_CSS_HREF}" />
 <style>
+   ${PREVIEW_ROOT_VARS}
    ${cssStyle}
    ${previewCommentStyles}
    body { margin: 0; background: #fff; cursor: default; }

@@ -1,6 +1,6 @@
 import type { MacaronItem } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
-import { PREVIEW_CMS_CSS_HREF } from "@/lib/cms-css";
+import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 
 // CSS scopé au nouveau design "Macaron v2" (v2-html/quickaccess.html +
 // v2-html/style.html). Coexiste avec le CSS des macarons v1 (quickaccess-list),
@@ -208,7 +208,9 @@ export function generatePreviewHTML(items: MacaronItem[], frameId = ""): string 
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="${PREVIEW_CMS_CSS_HREF}" />
 <style>
+${PREVIEW_ROOT_VARS}
 ${cssStyle}
+.quickaccess-v2__list li{max-width: 200px;}
 ${previewCommentStyles}
 body { margin: 0; background: #fff; cursor: default; }
 </style>
