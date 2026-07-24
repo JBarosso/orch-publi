@@ -19,12 +19,13 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { WeekInput } from "@/components/week-input";
 import type { Brief, Locale } from "@/types";
 import { LOCALES } from "@/types";
 
 interface DuplicateDialogProps {
   brief: Brief;
-  onDuplicate: (locale: Locale, week: number, translate: boolean) => void;
+  onDuplicate: (locale: Locale, week: number, translate: boolean, name: string) => void;
   onClose: () => void;
 }
 
@@ -39,6 +40,8 @@ export function DuplicateDialog({
   );
   const [targetWeek, setTargetWeek] = useState<number>(brief.week);
   const [translate, setTranslate] = useState(false);
+  // Par défaut, garde le nom du brief source — personnalisable ici.
+  const [name, setName] = useState(brief.name || "");
 
   const localeChanged =
     targetLocale.toUpperCase() !== brief.locale.toUpperCase();
@@ -50,13 +53,23 @@ export function DuplicateDialog({
           <DialogTitle>Dupliquer le brief</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Dupliquer <strong>{brief.slug}</strong>
+          Dupliquer <strong>{brief.name || brief.slug}</strong>
         </p>
+        <div className="space-y-2">
+          <Label>Nom du brief (optionnel)</Label>
+          <Input
+            placeholder="ex: Rentrée scolaire"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full"
+          />
+        </div>
         <div className="flex gap-4">
           <div className="flex-1 space-y-2">
             <Label>Langue</Label>
             <Select
               value={targetLocale}
+              items={Object.fromEntries(LOCALES.map((l) => [l.value, l.label]))}
               onValueChange={(v) => v && setTargetLocale(v as Locale)}
             >
               <SelectTrigger className="w-full">
@@ -73,14 +86,7 @@ export function DuplicateDialog({
           </div>
           <div className="flex-1 space-y-2">
             <Label>Semaine</Label>
-            <Input
-              type="number"
-              value={targetWeek}
-              onChange={(e) => setTargetWeek(Number(e.target.value))}
-              min={1}
-              max={53}
-              className="w-full"
-            />
+            <WeekInput value={targetWeek} onChange={setTargetWeek} year={brief.year} className="w-full" />
           </div>
         </div>
         {localeChanged && (
@@ -108,7 +114,7 @@ export function DuplicateDialog({
           </Button>
           <Button
             onClick={() =>
-              onDuplicate(targetLocale, targetWeek, localeChanged && translate)
+              onDuplicate(targetLocale, targetWeek, localeChanged && translate, name)
             }
           >
             Dupliquer

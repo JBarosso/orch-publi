@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { year, week, locale } = body;
+    const { year, week, locale, name } = body;
 
     if (!year || !week || !locale) {
       return NextResponse.json(
@@ -50,10 +50,11 @@ export async function POST(request: NextRequest) {
 
     const nextIndex = (existing[0]?.maxIndex ?? 0) + 1;
     const slug = buildSlug(year, week, locale, nextIndex);
+    const cleanName = typeof name === "string" ? name.trim().slice(0, 128) : "";
 
     const [newBrief] = await db
       .insert(briefs)
-      .values({ slug, year, week, locale, index: nextIndex })
+      .values({ slug, year, week, locale, index: nextIndex, name: cleanName })
       .returning();
 
     return NextResponse.json(newBrief, { status: 201 });

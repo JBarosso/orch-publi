@@ -129,11 +129,12 @@ export function BriefsList() {
     targetLocale: Locale,
     targetWeek: number,
     translate: boolean,
+    name: string,
   ) => {
     const res = await fetch(`/api/briefs/${id}/duplicate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetLocale, targetWeek, translate }),
+      body: JSON.stringify({ targetLocale, targetWeek, translate, name }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -290,12 +291,12 @@ export function BriefsList() {
                   <TableCell>
                     <Link
                       href={`/briefs/${brief.id}`}
-                      className="font-medium text-foreground hover:text-primary transition-colors"
+                      className="font-semibold text-foreground hover:text-primary transition-colors"
                     >
                       {brief.name || brief.slug}
                     </Link>
                     {brief.name && (
-                      <span className="ml-2 text-xs text-muted-foreground">{brief.slug}</span>
+                      <span className="font-light ml-2 text-xs text-muted-foreground">{brief.slug}</span>
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground tabular-nums">
@@ -342,8 +343,8 @@ export function BriefsList() {
       {duplicating && (
         <DuplicateDialog
           brief={duplicating}
-          onDuplicate={(locale, week, translate) =>
-            handleDuplicate(duplicating.id, locale, week, translate)
+          onDuplicate={(locale, week, translate, name) =>
+            handleDuplicate(duplicating.id, locale, week, translate, name)
           }
           onClose={() => setDuplicating(null)}
         />

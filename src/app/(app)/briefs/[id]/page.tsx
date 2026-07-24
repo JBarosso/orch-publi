@@ -673,6 +673,9 @@ export default function BriefEditorPage({
                 <Pencil className="h-3 w-3 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60" />
               </button>
             )}
+            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {brief.year} · S{String(brief.week).padStart(2, "0")} · {brief.locale.toUpperCase()}
+            </span>
             <StatusBadge status={brief.status as BriefStatus} />
             {dirty && (
               <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">

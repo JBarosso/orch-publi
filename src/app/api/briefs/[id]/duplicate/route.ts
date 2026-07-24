@@ -18,7 +18,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const { targetLocale, targetWeek, translate } = await request.json();
+  const { targetLocale, targetWeek, translate, name } = await request.json();
 
   if (!targetLocale) {
     return NextResponse.json(
@@ -55,6 +55,9 @@ export async function POST(
 
   const nextIndex = (existing[0]?.maxIndex ?? 0) + 1;
   const slug = buildSlug(year, week, targetLocale, nextIndex);
+  // Par défaut, garde le nom du brief source (comme le reste des champs) —
+  // personnalisable dans le dialogue de duplication.
+  const cleanName = typeof name === "string" ? name.trim().slice(0, 128) : original.name;
 
   const [newBrief] = await db
     .insert(briefs)
@@ -64,6 +67,7 @@ export async function POST(
       week,
       locale: targetLocale,
       index: nextIndex,
+      name: cleanName,
     })
     .returning();
 

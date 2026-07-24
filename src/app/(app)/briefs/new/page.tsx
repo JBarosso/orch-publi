@@ -17,12 +17,14 @@ import {
 import { toast } from "sonner";
 import { LOCALES, type Locale } from "@/types";
 import { getCurrentWeek } from "@/lib/utils";
+import { WeekInput } from "@/components/week-input";
 
 export default function NewBriefPage() {
   const router = useRouter();
   const currentYear = new Date().getFullYear();
   const currentWeek = getCurrentWeek();
 
+  const [name, setName] = useState("");
   const [year, setYear] = useState(currentYear);
   const [week, setWeek] = useState(currentWeek);
   const [locale, setLocale] = useState<Locale>("FR");
@@ -34,7 +36,7 @@ export default function NewBriefPage() {
       const res = await fetch("/api/briefs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ year, week, locale }),
+        body: JSON.stringify({ year, week, locale, name }),
       });
 
       if (!res.ok) {
@@ -67,6 +69,19 @@ export default function NewBriefPage() {
           <h2 className="mb-5 text-sm font-semibold">Informations du brief</h2>
 
           <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-xs font-medium">
+                Nom du brief (optionnel)
+              </Label>
+              <Input
+                id="name"
+                placeholder="ex: Rentrée scolaire"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-10"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="year" className="text-xs font-medium">
@@ -86,15 +101,7 @@ export default function NewBriefPage() {
                 <Label htmlFor="week" className="text-xs font-medium">
                   Semaine
                 </Label>
-                <Input
-                  id="week"
-                  type="number"
-                  value={week}
-                  onChange={(e) => setWeek(Number(e.target.value))}
-                  min={1}
-                  max={53}
-                  className="h-10"
-                />
+                <WeekInput id="week" value={week} onChange={setWeek} year={year} className="h-10" />
               </div>
             </div>
 
@@ -102,6 +109,7 @@ export default function NewBriefPage() {
               <Label className="text-xs font-medium">Langue</Label>
               <Select
                 value={locale}
+                items={Object.fromEntries(LOCALES.map((l) => [l.value, l.label]))}
                 onValueChange={(v) => v && setLocale(v as Locale)}
               >
                 <SelectTrigger className="h-10">
