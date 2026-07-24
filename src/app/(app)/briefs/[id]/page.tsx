@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, LayoutTemplate, Trash2, Monitor, Smartphone } from "lucide-react";
+import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -96,6 +96,10 @@ export default function BriefEditorPage({
   } | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | undefined>(undefined);
+  // Drop direct sur un bouton d'image (saute la médiathèque) : distingue ce
+  // cas du clic normal (ouvre la médiathèque) pour qu'annuler le popin de
+  // recadrage ne fasse pas apparaître une médiathèque jamais demandée.
+  const [directDropUpload, setDirectDropUpload] = useState(false);
   const [uploadAssetType, setUploadAssetType] = useState<AssetType>("other");
   // Carte focus MEA v2 : upload vidéo dédié (pas de médiathèque, direct à l'upload),
   // avec chaînage vers l'upload de la vignette pré-remplie par la 1ère frame capturée
@@ -264,6 +268,21 @@ export default function BriefEditorPage({
     }
   };
 
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState("");
+
+  const handleRenameSubmit = async () => {
+    const nextName = nameValue.trim();
+    setEditingName(false);
+    if (!brief || nextName === brief.name) return;
+    await fetch(`/api/briefs/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: nextName }),
+    });
+    fetchBrief();
+  };
+
   const handleStatusChange = async (newStatus: string) => {
     if (dirty) {
       toast.error("Sauvegardez vos modifications avant de changer le statut");
@@ -277,6 +296,17 @@ export default function BriefEditorPage({
     fetchBrief();
     toast.success("Statut mis à jour");
   };
+
+  const handleDirectDrop = useCallback(
+    (target: { sectionId: string; itemId: string; type: AssetType }, file: File) => {
+      setMediaTarget(target);
+      setDroppedFile(file);
+      setUploadAssetType(target.type);
+      setShowUpload(true);
+      setDirectDropUpload(true);
+    },
+    [],
+  );
 
   const handleImageSelected = useCallback((url: string) => {
     if (!mediaTarget) return;
@@ -598,7 +628,51 @@ export default function BriefEditorPage({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-3">
-            <h1 className="text-[15px] font-semibold">{brief.slug}</h1>
+            {editingName ? (
+              <div className="flex items-center gap-1">
+                <Input
+                  autoFocus
+                  value={nameValue}
+                  placeholder={brief.slug}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleRenameSubmit();
+                    if (e.key === "Escape") setEditingName(false);
+                  }}
+                  onBlur={handleRenameSubmit}
+                  className="h-7 w-56 text-[15px] font-semibold"
+                />
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleRenameSubmit}
+                  className="text-emerald-600 hover:text-emerald-500"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setEditingName(false)}
+                  className="text-muted-foreground/60 hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="group flex items-center gap-1.5"
+                title={brief.name ? brief.slug : undefined}
+                onClick={() => {
+                  setNameValue(brief.name);
+                  setEditingName(true);
+                }}
+              >
+                <h1 className="text-[15px] font-semibold">{brief.name || brief.slug}</h1>
+                <Pencil className="h-3 w-3 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60" />
+              </button>
+            )}
             <StatusBadge status={brief.status as BriefStatus} />
             {dirty && (
               <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">
@@ -766,6 +840,9 @@ export default function BriefEditorPage({
                               type: "macaron",
                             })
                           }
+                          onDropFile={(itemId, file) =>
+                            handleDirectDrop({ sectionId: section.id, itemId, type: "macaron" }, file)
+                          }
                         />
                       ) : section.type === "mea" ? (
                         <MeaEditor
@@ -781,6 +858,9 @@ export default function BriefEditorPage({
                               type: "mea",
                             })
                           }
+                          onDropFile={(itemId, file) =>
+                            handleDirectDrop({ sectionId: section.id, itemId, type: "mea" }, file)
+                          }
                         />
                       ) : section.type === "custom" ? (
                         <CustomEditor
@@ -793,6 +873,9 @@ export default function BriefEditorPage({
                               itemId: blockId,
                               type: "other",
                             })
+                          }
+                          onDropFile={(blockId, file) =>
+                            handleDirectDrop({ sectionId: section.id, itemId: blockId, type: "other" }, file)
                           }
                         />
                       ) : section.type === "macarons_v2" ? (
@@ -809,6 +892,9 @@ export default function BriefEditorPage({
                               type: "macaron_v2",
                             })
                           }
+                          onDropFile={(itemId, file) =>
+                            handleDirectDrop({ sectionId: section.id, itemId, type: "macaron_v2" }, file)
+                          }
                         />
                       ) : section.type === "mea_v2" ? (
                         <MeaV2Editor
@@ -823,6 +909,12 @@ export default function BriefEditorPage({
                               itemId: target,
                               type: target === "focus" ? "mea_v2_focus" : "mea_v2",
                             })
+                          }
+                          onDropFile={(target, file) =>
+                            handleDirectDrop(
+                              { sectionId: section.id, itemId: target, type: target === "focus" ? "mea_v2_focus" : "mea_v2" },
+                              file,
+                            )
                           }
                           onOpenVideoUpload={() => setVideoUploadSectionId(section.id)}
                         />
@@ -843,6 +935,9 @@ export default function BriefEditorPage({
                               type: "edito",
                             })
                           }
+                          onDropFile={(itemId, file) =>
+                            handleDirectDrop({ sectionId: section.id, itemId, type: "edito" }, file)
+                          }
                         />
                       ) : section.type === "carousel" ? (
                         <CarouselEditor
@@ -855,6 +950,16 @@ export default function BriefEditorPage({
                               itemId: target,
                               type: target.startsWith("title-") ? "carousel_title" : "carousel",
                             })
+                          }
+                          onDropFile={(target, file) =>
+                            handleDirectDrop(
+                              {
+                                sectionId: section.id,
+                                itemId: target,
+                                type: target.startsWith("title-") ? "carousel_title" : "carousel",
+                              },
+                              file,
+                            )
                           }
                           onOpenVideoUpload={(slideIndex) =>
                             setCarouselVideoTarget({ sectionId: section.id, slideIndex })
@@ -1063,10 +1168,15 @@ export default function BriefEditorPage({
               handleImageSelected(url);
               setShowUpload(false);
               setDroppedFile(undefined);
+              setDirectDropUpload(false);
             }}
             onClose={() => {
               setShowUpload(false);
               setDroppedFile(undefined);
+              // Drop direct annulé : ne pas laisser apparaître une
+              // médiathèque jamais ouverte par l'utilisateur.
+              if (directDropUpload) setMediaTarget(null);
+              setDirectDropUpload(false);
             }}
           />
         );

@@ -28,9 +28,10 @@ interface EditoEditorProps {
   briefWeek: number;
   onChange: (items: EditoCard[]) => void;
   onOpenMediaLibrary: (itemId: string) => void;
+  onDropFile?: (itemId: string, file: File) => void;
 }
 
-export function EditoEditor({ items, briefWeek, onChange, onOpenMediaLibrary }: EditoEditorProps) {
+export function EditoEditor({ items, briefWeek, onChange, onOpenMediaLibrary, onDropFile }: EditoEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -107,6 +108,7 @@ export function EditoEditor({ items, briefWeek, onChange, onOpenMediaLibrary }: 
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
                 onOpenMediaLibrary={() => onOpenMediaLibrary(item.id)}
+                onDropFile={onDropFile ? (file) => onDropFile(item.id, file) : undefined}
               />
             ))}
           </div>

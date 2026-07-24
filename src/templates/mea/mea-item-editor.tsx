@@ -25,6 +25,7 @@ import {
 import type { MeaItem, MeaOverlayType, MeaPricingMode, MeaButton } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "./schema";
+import { useFileDrop } from "@/lib/use-file-drop";
 
 interface MeaItemEditorProps {
   item: MeaItem;
@@ -33,6 +34,7 @@ interface MeaItemEditorProps {
   onUpdate: (updates: Partial<MeaItem>) => void;
   onRemove: () => void;
   onOpenMediaLibrary: () => void;
+  onDropFile?: (file: File) => void;
 }
 
 export function MeaItemEditor({
@@ -42,7 +44,9 @@ export function MeaItemEditor({
   onUpdate,
   onRemove,
   onOpenMediaLibrary,
+  onDropFile,
 }: MeaItemEditorProps) {
+  const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const {
     attributes,
@@ -105,7 +109,11 @@ export function MeaItemEditor({
             <button
               type="button"
               onClick={onOpenMediaLibrary}
-              className="flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5"
+              {...dropHandlers}
+              className={cn(
+                "flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5",
+                isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
+              )}
               style={{ width: 150, height: 100 }}
             >
               {item.imageUrl ? (

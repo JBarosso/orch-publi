@@ -30,6 +30,7 @@ interface MeaEditorProps {
   briefLocale: string;
   onChange: (items: MeaItem[]) => void;
   onOpenMediaLibrary: (itemId: string) => void;
+  onDropFile?: (itemId: string, file: File) => void;
 }
 
 export function MeaEditor({
@@ -37,6 +38,7 @@ export function MeaEditor({
   briefWeek,
   onChange,
   onOpenMediaLibrary,
+  onDropFile,
 }: MeaEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -122,6 +124,7 @@ export function MeaEditor({
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
                 onOpenMediaLibrary={() => onOpenMediaLibrary(item.id)}
+                onDropFile={onDropFile ? (file) => onDropFile(item.id, file) : undefined}
               />
             ))}
           </div>

@@ -9,6 +9,7 @@ interface CarouselEditorProps {
   onChange: (content: CarouselContent) => void;
   // "slide-0" | "slide-1" ciblent le fond, "title-0" | "title-1" le titre image
   onOpenMediaLibrary: (target: string) => void;
+  onDropFile?: (target: string, file: File) => void;
   onOpenVideoUpload: (slideIndex: number) => void;
 }
 
@@ -17,6 +18,7 @@ export function CarouselEditor({
   briefWeek,
   onChange,
   onOpenMediaLibrary,
+  onDropFile,
   onOpenVideoUpload,
 }: CarouselEditorProps) {
   const slides = content.slides ?? [];
@@ -40,7 +42,9 @@ export function CarouselEditor({
             briefWeek={briefWeek}
             onUpdate={(updates) => updateSlide(i, updates)}
             onOpenMediaLibrary={() => onOpenMediaLibrary(`slide-${i}`)}
+            onDropFile={onDropFile ? (file) => onDropFile(`slide-${i}`, file) : undefined}
             onOpenTitleImageLibrary={() => onOpenMediaLibrary(`title-${i}`)}
+            onDropTitleFile={onDropFile ? (file) => onDropFile(`title-${i}`, file) : undefined}
             onOpenVideoUpload={() => onOpenVideoUpload(i)}
           />
         ))}

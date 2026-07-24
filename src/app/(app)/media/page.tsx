@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Upload, Trash2, ImageOff } from "lucide-react";
+import { Search, Upload, Trash2, ImageOff, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Asset, AssetType } from "@/types";
 import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
@@ -20,6 +20,21 @@ export default function MediaPage() {
   const [loading, setLoading] = useState(true);
   const [backfilling, setBackfilling] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const saveLabel = async (id: string) => {
+    const res = await fetch("/api/assets", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, label: editValue }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setAssets((prev) => prev.map((a) => (a.id === id ? { ...a, label: updated.label } : a)));
+    }
+    setEditingId(null);
+  };
 
   const fetchAssets = async () => {
     setLoading(true);
@@ -180,9 +195,50 @@ export default function MediaPage() {
                 className="aspect-square w-full object-cover"
               />
               <div className="p-2.5">
-                <p className="truncate text-xs font-medium text-foreground">
-                  {asset.label || "Sans label"}
-                </p>
+                {editingId === asset.id ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      autoFocus
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveLabel(asset.id);
+                        if (e.key === "Escape") setEditingId(null);
+                      }}
+                      className="h-6 flex-1 px-1.5 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => saveLabel(asset.id)}
+                      className="shrink-0 text-emerald-600 hover:text-emerald-500"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(null)}
+                      className="shrink-0 text-muted-foreground/60 hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="group/label flex items-center gap-1">
+                    <p className="truncate text-xs font-medium text-foreground">
+                      {asset.label || "Sans label"}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(asset.id);
+                        setEditValue(asset.label ?? "");
+                      }}
+                      className="shrink-0 text-muted-foreground/40 opacity-0 transition-opacity hover:text-foreground group-hover/label:opacity-100"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
                 <p className="text-[10px] text-muted-foreground/60">
                   Type: {asset.type ?? "other"}
                 </p>

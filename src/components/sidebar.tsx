@@ -13,8 +13,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  Code2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDevMode, setDevMode } from "@/lib/dev-mode";
+import { Switch } from "@/components/ui/switch";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -43,6 +46,7 @@ export function Sidebar() {
     getCollapsedSnapshot,
     () => false,
   );
+  const devMode = useDevMode();
 
   const toggle = () => {
     localStorage.setItem(STORAGE_KEY, String(!collapsed));
@@ -130,6 +134,29 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className={cn("border-t border-sidebar-border", collapsed ? "p-2" : "p-3")}>
+        {collapsed ? (
+          <button
+            onClick={() => setDevMode(!devMode)}
+            title={`Mode dev${devMode ? " (actif)" : ""}`}
+            className={cn(
+              "flex w-full items-center justify-center rounded-lg py-2 text-[13px] font-medium transition-colors hover:bg-sidebar-accent/50",
+              devMode ? "text-primary" : "text-muted-foreground/60 hover:text-sidebar-foreground",
+            )}
+          >
+            <Code2 className="h-4 w-4 shrink-0" />
+          </button>
+        ) : (
+          <div className="flex items-center justify-between gap-2 rounded-lg px-2.5">
+            <span className="flex items-center gap-2.5 text-[13px] font-medium text-sidebar-foreground/60">
+              <Code2 className="h-4 w-4 shrink-0" />
+              Mode dev
+            </span>
+            <Switch checked={devMode} onCheckedChange={setDevMode} className="scale-75" />
+          </div>
+        )}
+      </div>
 
       <div className={cn("border-t border-sidebar-border", collapsed ? "p-2" : "p-3")}>
         <button

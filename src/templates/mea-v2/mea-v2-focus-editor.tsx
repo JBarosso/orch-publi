@@ -14,12 +14,14 @@ import {
 import type { MeaV2FocusCard, MeaButton } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "./schema";
+import { useFileDrop } from "@/lib/use-file-drop";
 
 interface MeaV2FocusEditorProps {
   focus: MeaV2FocusCard;
   briefWeek: number;
   onUpdate: (updates: Partial<MeaV2FocusCard>) => void;
   onOpenMediaLibrary: () => void;
+  onDropFile?: (file: File) => void;
   onOpenVideoUpload: () => void;
 }
 
@@ -28,8 +30,10 @@ export function MeaV2FocusEditor({
   briefWeek,
   onUpdate,
   onOpenMediaLibrary,
+  onDropFile,
   onOpenVideoUpload,
 }: MeaV2FocusEditorProps) {
+  const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   const buttons: MeaButton[] = focus.buttons ?? [createEmptyButton()];
 
   const updateButton = (index: number, updates: Partial<MeaButton>) => {
@@ -65,7 +69,11 @@ export function MeaV2FocusEditor({
         <button
           type="button"
           onClick={onOpenMediaLibrary}
-          className="flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5"
+          {...dropHandlers}
+          className={cn(
+            "flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5",
+            isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
+          )}
           style={{ width: 150, height: 175 }}
           title={focus.mediaType === "video" ? "Vignette (poster) de la vidéo" : "Image"}
         >

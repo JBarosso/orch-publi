@@ -26,6 +26,7 @@ import {
 import type { MacaronItem } from "@/types";
 import { sanitizeMacaronLabel } from "./schema";
 import { cn } from "@/lib/utils";
+import { useFileDrop } from "@/lib/use-file-drop";
 
 interface MacaronItemEditorProps {
   item: MacaronItem;
@@ -34,6 +35,7 @@ interface MacaronItemEditorProps {
   onUpdate: (updates: Partial<MacaronItem>) => void;
   onRemove: () => void;
   onOpenMediaLibrary: () => void;
+  onDropFile?: (file: File) => void;
 }
 
 export function MacaronItemEditor({
@@ -43,7 +45,9 @@ export function MacaronItemEditor({
   onUpdate,
   onRemove,
   onOpenMediaLibrary,
+  onDropFile,
 }: MacaronItemEditorProps) {
+  const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const {
     attributes,
@@ -84,7 +88,11 @@ export function MacaronItemEditor({
           <button
             type="button"
             onClick={onOpenMediaLibrary}
-            className="shrink-0 flex h-[70px] w-[70px] items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5"
+            {...dropHandlers}
+            className={cn(
+              "shrink-0 flex h-[70px] w-[70px] items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
+              isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
+            )}
           >
             {item.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element

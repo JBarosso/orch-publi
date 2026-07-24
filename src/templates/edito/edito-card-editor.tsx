@@ -26,6 +26,7 @@ import type { EditoCard, MeaButton } from "@/types";
 import { EDITO_THEMES } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "@/templates/mea/schema";
+import { useFileDrop } from "@/lib/use-file-drop";
 
 interface EditoCardEditorProps {
   item: EditoCard;
@@ -34,6 +35,7 @@ interface EditoCardEditorProps {
   onUpdate: (updates: Partial<EditoCard>) => void;
   onRemove: () => void;
   onOpenMediaLibrary: () => void;
+  onDropFile?: (file: File) => void;
 }
 
 export function EditoCardEditor({
@@ -43,7 +45,9 @@ export function EditoCardEditor({
   onUpdate,
   onRemove,
   onOpenMediaLibrary,
+  onDropFile,
 }: EditoCardEditorProps) {
+  const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -88,7 +92,11 @@ export function EditoCardEditor({
           <button
             type="button"
             onClick={onOpenMediaLibrary}
-            className="flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5"
+            {...dropHandlers}
+            className={cn(
+              "flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5",
+              isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
+            )}
             style={{ width: 150, height: 85 }}
           >
             {item.imageUrl ? (

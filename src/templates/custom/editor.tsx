@@ -41,12 +41,14 @@ import { cn } from "@/lib/utils";
 import type { CustomBlock, CustomBlockType, CustomContent, CustomLayout } from "@/types";
 import { CUSTOM_BLOCK_LABELS, CUSTOM_LAYOUTS } from "@/types";
 import { createEmptyBlock } from "./schema";
+import { useFileDrop } from "@/lib/use-file-drop";
 
 interface CustomEditorProps {
   content: CustomContent;
   briefWeek?: number;
   onChange: (content: CustomContent) => void;
   onOpenMediaLibrary: (blockId: string) => void;
+  onDropFile?: (blockId: string, file: File) => void;
   /** Commentaire dev au niveau de la section (masqué dans l'éditeur de template) */
   showComment?: boolean;
 }
@@ -63,6 +65,7 @@ export function CustomEditor({
   briefWeek,
   onChange,
   onOpenMediaLibrary,
+  onDropFile,
   showComment = true,
 }: CustomEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -164,6 +167,7 @@ export function CustomEditor({
                 onUpdate={(updates) => updateBlock(block.id, updates)}
                 onRemove={() => removeBlock(block.id)}
                 onOpenMediaLibrary={() => onOpenMediaLibrary(block.id)}
+                onDropFile={onDropFile ? (file) => onDropFile(block.id, file) : undefined}
               />
             ))}
           </div>
@@ -206,6 +210,7 @@ interface CustomBlockEditorProps {
   onUpdate: (updates: Partial<CustomBlock>) => void;
   onRemove: () => void;
   onOpenMediaLibrary: () => void;
+  onDropFile?: (file: File) => void;
 }
 
 function CustomBlockEditor({
@@ -215,7 +220,9 @@ function CustomBlockEditor({
   onUpdate,
   onRemove,
   onOpenMediaLibrary,
+  onDropFile,
 }: CustomBlockEditorProps) {
+  const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   const {
     attributes,
     listeners,
@@ -278,7 +285,11 @@ function CustomBlockEditor({
             <button
               type="button"
               onClick={onOpenMediaLibrary}
-              className="shrink-0 flex h-20 w-32 items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5"
+              {...dropHandlers}
+              className={cn(
+                "shrink-0 flex h-20 w-32 items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
+                isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
+              )}
             >
               {block.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

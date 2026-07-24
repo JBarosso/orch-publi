@@ -10,19 +10,8 @@ import { createEmptyMeaV2Content } from "@/templates/mea-v2/schema";
 import { createEmptyArianeContent } from "@/templates/ariane/schema";
 import { createEmptyCarouselContent } from "@/templates/carousel/schema";
 import { createEmptyGlobalHeaderContent } from "@/templates/global-header/schema";
+import { normalizeTypeLabel } from "@/lib/section-labels";
 import type { CustomBlock, CustomLayout } from "@/types";
-
-function normalizeTypeLabel(type: string): string {
-  if (type === "macarons") return "macaron";
-  if (type === "custom") return "section perso";
-  if (type === "macarons_v2") return "macaron v2";
-  if (type === "mea_v2") return "MEA v2";
-  if (type === "ariane") return "fil d'ariane";
-  if (type === "edito") return "edito";
-  if (type === "carousel") return "slider";
-  if (type === "global_header") return "global header";
-  return type;
-}
 
 async function buildDefaultTitle(briefId: string, type: string): Promise<string> {
   const typeRows = await db

@@ -32,6 +32,7 @@ export async function PUT(
 
   const updateData: Record<string, unknown> = {};
   if (body.status) updateData.status = body.status;
+  if (body.name !== undefined) updateData.name = String(body.name).trim().slice(0, 128);
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: "Rien à mettre à jour" }, { status: 400 });

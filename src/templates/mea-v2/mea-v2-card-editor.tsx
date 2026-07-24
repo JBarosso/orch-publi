@@ -13,6 +13,7 @@ import {
 import type { MeaV2Card, MeaButton } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "./schema";
+import { useFileDrop } from "@/lib/use-file-drop";
 
 interface MeaV2CardEditorProps {
   card: MeaV2Card;
@@ -20,6 +21,7 @@ interface MeaV2CardEditorProps {
   briefWeek: number;
   onUpdate: (updates: Partial<MeaV2Card>) => void;
   onOpenMediaLibrary: () => void;
+  onDropFile?: (file: File) => void;
 }
 
 export function MeaV2CardEditor({
@@ -28,7 +30,9 @@ export function MeaV2CardEditor({
   briefWeek,
   onUpdate,
   onOpenMediaLibrary,
+  onDropFile,
 }: MeaV2CardEditorProps) {
+  const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   const buttons: MeaButton[] = card.buttons ?? [createEmptyButton()];
 
   const updateButton = (index: number, updates: Partial<MeaButton>) => {
@@ -47,7 +51,11 @@ export function MeaV2CardEditor({
         <button
           type="button"
           onClick={onOpenMediaLibrary}
-          className="flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5"
+          {...dropHandlers}
+          className={cn(
+            "flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5",
+            isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
+          )}
           style={{ width: 150, height: 125 }}
         >
           {card.imageUrl ? (

@@ -45,6 +45,7 @@ export const STATUS_CONFIG: Record<
 export interface Brief {
   id: string;
   slug: string;
+  name: string;
   year: number;
   week: number;
   locale: Locale;

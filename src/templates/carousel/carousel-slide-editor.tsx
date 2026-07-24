@@ -14,6 +14,7 @@ import {
 import type { CarouselButton, CarouselSlide } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyCarouselButton } from "./schema";
+import { useFileDrop } from "@/lib/use-file-drop";
 
 interface CarouselSlideEditorProps {
   slide: CarouselSlide;
@@ -21,7 +22,9 @@ interface CarouselSlideEditorProps {
   briefWeek: number;
   onUpdate: (updates: Partial<CarouselSlide>) => void;
   onOpenMediaLibrary: () => void;
+  onDropFile?: (file: File) => void;
   onOpenTitleImageLibrary: () => void;
+  onDropTitleFile?: (file: File) => void;
   onOpenVideoUpload: () => void;
 }
 
@@ -71,9 +74,15 @@ export function CarouselSlideEditor({
   briefWeek,
   onUpdate,
   onOpenMediaLibrary,
+  onDropFile,
   onOpenTitleImageLibrary,
+  onDropTitleFile,
   onOpenVideoUpload,
 }: CarouselSlideEditorProps) {
+  const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
+  const { isDraggingOver: isDraggingOverTitle, dropHandlers: titleDropHandlers } = useFileDrop(
+    (file) => onDropTitleFile?.(file),
+  );
   const buttons: CarouselButton[] = slide.buttons ?? [];
   const updateButton = (index: number, updates: Partial<CarouselButton>) => {
     onUpdate({ buttons: buttons.map((b, i) => (i === index ? { ...b, ...updates } : b)) });
@@ -108,7 +117,11 @@ export function CarouselSlideEditor({
           <button
             type="button"
             onClick={onOpenMediaLibrary}
-            className="flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5"
+            {...dropHandlers}
+            className={cn(
+              "flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-white transition-all hover:border-primary/40 hover:bg-primary/5",
+              isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
+            )}
             style={{ width: 150, height: 90 }}
             title={slide.mediaType === "video" ? "Vignette (poster) de la vidéo" : "Fond"}
           >
@@ -214,7 +227,11 @@ export function CarouselSlideEditor({
               <button
                 type="button"
                 onClick={onOpenTitleImageLibrary}
-                className="flex h-8 items-center justify-center overflow-hidden rounded border border-dashed border-muted-foreground/20 bg-white px-3 text-xs text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5"
+                {...titleDropHandlers}
+                className={cn(
+                  "flex h-8 items-center justify-center overflow-hidden rounded border border-dashed border-muted-foreground/20 bg-white px-3 text-xs text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5",
+                  isDraggingOverTitle && "border-primary bg-primary/10 ring-2 ring-primary/30",
+                )}
               >
                 {slide.titleImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element

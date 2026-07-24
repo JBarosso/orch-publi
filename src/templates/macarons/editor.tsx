@@ -30,6 +30,7 @@ interface MacaronsEditorProps {
   briefLocale: string;
   onChange: (items: MacaronItem[]) => void;
   onOpenMediaLibrary: (itemId: string) => void;
+  onDropFile?: (itemId: string, file: File) => void;
 }
 
 export function MacaronsEditor({
@@ -37,6 +38,7 @@ export function MacaronsEditor({
   briefWeek,
   onChange,
   onOpenMediaLibrary,
+  onDropFile,
 }: MacaronsEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -122,6 +124,7 @@ export function MacaronsEditor({
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
                 onOpenMediaLibrary={() => onOpenMediaLibrary(item.id)}
+                onDropFile={onDropFile ? (file) => onDropFile(item.id, file) : undefined}
               />
             ))}
           </div>

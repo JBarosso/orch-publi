@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Pencil,
   Copy,
@@ -12,7 +13,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Layers,
 } from "lucide-react";
+import { useDevMode } from "@/lib/dev-mode";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -39,6 +42,8 @@ type SortColumn = "slug" | "week" | "locale" | "status" | "createdAt";
 type SortDirection = "asc" | "desc" | null;
 
 export function BriefsList() {
+  const router = useRouter();
+  const devMode = useDevMode();
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterLocale, setFilterLocale] = useState<string>("all");
@@ -46,6 +51,16 @@ export function BriefsList() {
   const [duplicating, setDuplicating] = useState<Brief | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>("createdAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggleSelected = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const toggleSort = useCallback((column: SortColumn) => {
     setSortColumn((prev) => {
@@ -67,7 +82,7 @@ export function BriefsList() {
       let cmp = 0;
       switch (sortColumn) {
         case "slug":
-          cmp = a.slug.localeCompare(b.slug);
+          cmp = (a.name || a.slug).localeCompare(b.name || b.slug);
           break;
         case "week":
           cmp = a.week - b.week;
@@ -190,12 +205,34 @@ export function BriefsList() {
             <SelectItem value="treated">Traité</SelectItem>
           </SelectContent>
         </Select>
+
+        {devMode && selected.size >= 2 && (
+          <Button
+            className="ml-auto rounded-lg"
+            onClick={() => router.push(`/export-groupe?briefs=${[...selected].join(",")}`)}
+          >
+            <Layers className="mr-1.5 h-3.5 w-3.5" />
+            Exporter en groupe ({selected.size})
+          </Button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border/60 bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
+              {devMode && (
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={briefs.length > 0 && selected.size === briefs.length}
+                    onChange={(e) =>
+                      setSelected(e.target.checked ? new Set(briefs.map((b) => b.id)) : new Set())
+                    }
+                    className="h-3.5 w-3.5 cursor-pointer"
+                  />
+                </TableHead>
+              )}
               {([
                 ["slug", "Slug"],
                 ["week", "Semaine"],
@@ -226,13 +263,13 @@ export function BriefsList() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-16 text-center">
+                <TableCell colSpan={devMode ? 7 : 6} className="py-16 text-center">
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : briefs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-16 text-center">
+                <TableCell colSpan={devMode ? 7 : 6} className="py-16 text-center">
                   <FileX className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">Aucun brief trouvé</p>
                 </TableCell>
@@ -240,13 +277,26 @@ export function BriefsList() {
             ) : (
               sortedBriefs.map((brief) => (
                 <TableRow key={brief.id} className="group">
+                  {devMode && (
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(brief.id)}
+                        onChange={() => toggleSelected(brief.id)}
+                        className="h-3.5 w-3.5 cursor-pointer"
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Link
                       href={`/briefs/${brief.id}`}
                       className="font-medium text-foreground hover:text-primary transition-colors"
                     >
-                      {brief.slug}
+                      {brief.name || brief.slug}
                     </Link>
+                    {brief.name && (
+                      <span className="ml-2 text-xs text-muted-foreground">{brief.slug}</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground tabular-nums">
                     S{String(brief.week).padStart(2, "0")}

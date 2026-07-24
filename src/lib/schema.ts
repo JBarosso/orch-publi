@@ -19,6 +19,10 @@ export const briefStatusEnum = pgEnum("brief_status", [
 export const briefs = pgTable("briefs", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: varchar("slug", { length: 64 }).notNull().unique(),
+  // Nom libre optionnel, affiché à la place du slug si renseigné — year/week/
+  // locale/index (et le slug lui-même) restent inchangés, c'est purement un
+  // alias d'affichage.
+  name: varchar("name", { length: 128 }).notNull().default(""),
   year: integer("year").notNull(),
   week: integer("week").notNull(),
   locale: varchar("locale", { length: 5 }).notNull(),
