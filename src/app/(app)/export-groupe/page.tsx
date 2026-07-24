@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Copy, Check, Loader2, ImageDown } from "lucide-react";
@@ -38,6 +38,20 @@ const IMAGE_SECTION_TYPES = new Set([
 ]);
 
 export default function ExportGroupePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <ExportGroupeContent />
+    </Suspense>
+  );
+}
+
+function ExportGroupeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const briefIds = useMemo(
