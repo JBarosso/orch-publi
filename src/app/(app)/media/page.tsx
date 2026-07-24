@@ -182,7 +182,7 @@ export default function MediaPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(clamp(100% / (8 + 1) + 0.1%, 160px, 100%), 1fr))" }}>
+        <div className="grid grid-cols-2 gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(clamp(100% / (8 + 1) + 0.1%, 160px, 100%), 1fr))" }}>
           {assets.map((asset) => (
             <div
               key={asset.id}
