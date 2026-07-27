@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   Settings,
   Code2,
+  CalendarRange,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDevMode, setDevMode } from "@/lib/dev-mode";
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/media", label: "Médiathèque", icon: Image },
   { href: "/translations", label: "Traduction", icon: Languages },
   { href: "/templates", label: "Templates", icon: LayoutTemplate },
+  { href: "/programmation", label: "Programmation", icon: CalendarRange },
   { href: "/settings", label: "Paramétrage", icon: Settings },
 ];
 

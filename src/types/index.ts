@@ -67,6 +67,30 @@ export interface BriefSection {
   updatedAt: Date;
 }
 
+// --- Programmation : tableau informatif, blocs (nom d'asset + période
+// optionnelle) rangés en colonnes par pays. ---
+
+export type ProgrammationCountry = "FR" | "BE" | "ES" | "GR";
+
+export const PROGRAMMATION_COUNTRIES: { value: ProgrammationCountry; label: string }[] = [
+  { value: "FR", label: "FR" },
+  { value: "BE", label: "BE" },
+  { value: "ES", label: "ES" },
+  { value: "GR", label: "GR" },
+];
+
+export interface ProgrammationBlock {
+  id: string;
+  country: ProgrammationCountry;
+  label: string;
+  // "YYYY-MM-DD", ou null si non renseignée (les deux dates sont optionnelles)
+  startDate: string | null;
+  endDate: string | null;
+  comment: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Asset {
   id: string;
   url: string;

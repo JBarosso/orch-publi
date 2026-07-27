@@ -7,6 +7,7 @@ import {
   jsonb,
   boolean,
   timestamp,
+  date,
   pgEnum,
 } from "drizzle-orm/pg-core";
 
@@ -111,6 +112,31 @@ export const globalHeaderItems = pgTable("global_header_items", {
   cgid: varchar("cgid", { length: 255 }).notNull().default(""),
   cid: varchar("cid", { length: 255 }).notNull().default(""),
   link: text("link").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+// Onglet "Programmation" : tableau purement informatif, des blocs (nom
+// d'asset + période optionnelle) rangés en colonnes par pays.
+export const programmationCountryEnum = pgEnum("programmation_country", [
+  "FR",
+  "BE",
+  "ES",
+  "GR",
+]);
+
+export const programmationBlocks = pgTable("programmation_blocks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  country: programmationCountryEnum("country").notNull(),
+  label: varchar("label", { length: 255 }).notNull(),
+  startDate: date("start_date", { mode: "string" }),
+  endDate: date("end_date", { mode: "string" }),
+  comment: text("comment").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
