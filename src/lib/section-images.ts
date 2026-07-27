@@ -49,8 +49,8 @@ function getEditoImages(content: EditoContent): ImageEntry[] {
       imageUrl: item.imageUrl,
       imageWeek: item.imageWeek,
       baseName: `edito-${item.exportPosition ?? index + 1}`,
-      width: 370,
-      height: 210,
+      width: 300,
+      height: 250,
     }));
 }
 
@@ -125,7 +125,7 @@ function getCarouselImages(content: CarouselContent): ImageEntry[] {
         imageWeek: slide.imageWeek,
         baseName: `carousel-${slot}`,
         width: 1920,
-        height: 600,
+        height: 1080,
       });
     }
     if (slide.mediaType === "video" && slide.videoUrl) {

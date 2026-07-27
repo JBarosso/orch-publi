@@ -287,6 +287,7 @@ ${cssStyle}
 ${previewCommentStyles}
 body { margin: 0; background: #fff; cursor: default; }
 #carouselHomepage { position: relative; overflow: hidden; }
+.carousel-caption{left: 0;}
 </style>
 </head>
 <body>

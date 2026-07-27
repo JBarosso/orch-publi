@@ -40,3 +40,16 @@ export function cloneBlocksWithNewIds(blocks: CustomBlock[]): CustomBlock[] {
     imageId: uuidv4().slice(0, 8),
   }));
 }
+
+export function validateCustomContent(content: CustomContent): string[] {
+  const errors: string[] = [];
+  (content.blocks ?? []).forEach((block, i) => {
+    if (block.type === "image" && !block.imageUrl) errors.push(`Bloc ${i + 1} (image): image requise`);
+    if ((block.type === "title" || block.type === "button") && !block.text.trim()) {
+      errors.push(`Bloc ${i + 1} (${CUSTOM_BLOCK_LABELS_LOWER[block.type]}): texte requis`);
+    }
+  });
+  return errors;
+}
+
+const CUSTOM_BLOCK_LABELS_LOWER: Record<string, string> = { title: "titre", button: "bouton" };

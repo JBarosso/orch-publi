@@ -3,11 +3,55 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Copy, Check, Loader2, ImageDown } from "lucide-react";
+import { ArrowLeft, Copy, Check, Loader2, ImageDown, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import type { Brief, BriefSection, BriefStatus } from "@/types";
+import type {
+  Brief,
+  BriefSection,
+  BriefStatus,
+  MacaronsContent,
+  MeaContent,
+  MeaV2Content,
+  EditoContent,
+  CarouselContent,
+  ArianeContent,
+  GlobalHeaderContent,
+  CustomContent,
+} from "@/types";
 import { StatusBadge } from "@/components/briefs/status-badge";
+import { validateMacaronsContent } from "@/templates/macarons/schema";
+import { validateMeaContent } from "@/templates/mea/schema";
+import { validateMeaV2Content } from "@/templates/mea-v2/schema";
+import { validateEditoContent } from "@/templates/edito/schema";
+import { validateCarouselContent } from "@/templates/carousel/schema";
+import { validateArianeContent } from "@/templates/ariane/schema";
+import { validateGlobalHeaderContent } from "@/templates/global-header/schema";
+import { validateCustomContent } from "@/templates/custom/schema";
+
+function validateSectionContent(section: BriefSection): string[] {
+  switch (section.type) {
+    case "macarons":
+    case "macarons_v2":
+      return validateMacaronsContent((section.content as MacaronsContent).items ?? []);
+    case "mea":
+      return validateMeaContent((section.content as MeaContent).items ?? []);
+    case "mea_v2":
+      return validateMeaV2Content(section.content as MeaV2Content);
+    case "edito":
+      return validateEditoContent((section.content as EditoContent).items ?? []);
+    case "carousel":
+      return validateCarouselContent(section.content as CarouselContent);
+    case "ariane":
+      return validateArianeContent(section.content as ArianeContent);
+    case "global_header":
+      return validateGlobalHeaderContent(section.content as GlobalHeaderContent);
+    case "custom":
+      return validateCustomContent(section.content as CustomContent);
+    default:
+      return [];
+  }
+}
 
 interface BriefWithSections extends Brief {
   sections: BriefSection[];
@@ -28,6 +72,7 @@ export default function ExportPage({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [downloadingImages, setDownloadingImages] = useState<string | null>(null);
   const [skippedCount, setSkippedCount] = useState(0);
+  const [warnings, setWarnings] = useState<{ sectionId: string; title: string; message: string }[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -43,6 +88,16 @@ export default function ExportPage({
       // Les sections avec le toggle "Export" désactivé sont informatives : ignorées
       const exportableSections = data.sections.filter((s) => s.visible !== false);
       setSkippedCount(data.sections.length - exportableSections.length);
+
+      setWarnings(
+        exportableSections.flatMap((section) =>
+          validateSectionContent(section).map((message) => ({
+            sectionId: section.id,
+            title: section.title || section.type,
+            message,
+          })),
+        ),
+      );
 
       const results = await Promise.all(
         exportableSections.map(async (section) => {
@@ -159,6 +214,29 @@ export default function ExportPage({
           </Button>
         </div>
       </div>
+
+      {warnings.length > 0 ? (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+          <div className="mb-2 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+            <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-400">
+              {warnings.length} point{warnings.length > 1 ? "s" : ""} à vérifier avant export
+            </h2>
+          </div>
+          <ul className="list-inside list-disc space-y-1 text-xs text-amber-700 dark:text-amber-400/90">
+            {warnings.map((w, i) => (
+              <li key={i}>
+                <strong>{w.title}</strong> — {w.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <div className="mb-6 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-500">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Aucun problème détecté
+        </div>
+      )}
 
       <div className="space-y-6">
         {exports.map((exp) => (

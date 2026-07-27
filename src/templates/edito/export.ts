@@ -194,7 +194,7 @@ function cardHTML(item: EditoCard, imgPath: string, href: string, plainTitle: st
         <picture class="edito-card__picture">
           <source srcset="${imgPath}.webp?$staticlink$" type="image/webp">
           <source srcset="${imgPath}.jpg?$staticlink$" type="image/jpeg">
-          <img src="${imgPath}.jpg?$staticlink$" alt="" class="edito-card__img" width="370" height="210" aria-hidden="true" loading="lazy">
+          <img src="${imgPath}.jpg?$staticlink$" alt="" class="edito-card__img" width="300" height="250" aria-hidden="true" loading="lazy">
         </picture>
       </a>
       <div class="edito-card__body">

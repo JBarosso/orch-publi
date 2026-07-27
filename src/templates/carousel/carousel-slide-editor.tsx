@@ -273,7 +273,7 @@ export function CarouselSlideEditor({
             {callout.enabled && (
               <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <Select
+                  {/* <Select
                     value={callout.side}
                     items={{ right: "Droite", left: "Gauche" }}
                     onValueChange={(v) => v && onUpdate({ productCallout: { ...callout, side: v as "left" | "right" } })}
@@ -285,7 +285,7 @@ export function CarouselSlideEditor({
                       <SelectItem value="right">Droite</SelectItem>
                       <SelectItem value="left">Gauche</SelectItem>
                     </SelectContent>
-                  </Select>
+                  </Select> */}
                   <Input
                     placeholder="Libellé (ex: Ensemble)"
                     value={callout.label}
