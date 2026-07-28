@@ -100,7 +100,7 @@ export function CarouselSlideEditor({
 
       {/* Fond : image ou vidéo */}
       <div className="flex items-start gap-3">
-        <div className="flex w-[150px] shrink-0 flex-col items-center gap-1.5">
+        <div className="flex w-37.5 shrink-0 flex-col items-center gap-1.5">
           <Select
             value={slide.mediaType}
             items={{ image: "Image", video: "Vidéo" }}

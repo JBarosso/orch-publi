@@ -88,7 +88,7 @@ export function EditoCardEditor({
           <GripVertical className="h-4 w-4" />
         </button>
 
-        <div className="flex w-[150px] shrink-0 flex-col items-center gap-1.5">
+        <div className="flex w-37.5 shrink-0 flex-col items-center gap-1.5">
           <button
             type="button"
             onClick={onOpenMediaLibrary}

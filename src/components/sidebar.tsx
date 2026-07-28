@@ -65,7 +65,7 @@ export function Sidebar() {
     <aside
       className={cn(
         "flex h-full flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-in-out",
-        collapsed ? "w-[60px]" : "w-[240px]"
+        collapsed ? "w-15" : "w-60"
       )}
     >
       <div className={cn("flex h-14 items-center px-3", collapsed ? "justify-center" : "gap-2.5")}>
