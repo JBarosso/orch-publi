@@ -26,6 +26,7 @@ import {
   MAX_VIDEO_SOURCE_BYTES,
   formatBytes,
   looksLikeMp4,
+  looksLikeTiff,
   normalizeAssetLabel,
   validateSourceFile,
   validateSourceVideoFile,
@@ -125,6 +126,7 @@ export function ImageUploadDialog({
   const [week, setWeek] = useState(defaultWeek != null ? String(defaultWeek) : "");
   const [year, setYear] = useState(defaultYear != null ? String(defaultYear) : "");
   const [uploading, setUploading] = useState(false);
+  const [convertingTiff, setConvertingTiff] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialFileProcessed = useRef(false);
 
@@ -187,9 +189,37 @@ export function ImageUploadDialog({
         toast.error(fileError);
         return;
       }
+      const isTiff = looksLikeTiff(file);
       const reader = new FileReader();
-      reader.onload = () => {
-        const src = reader.result as string;
+      reader.onload = async () => {
+        let src = reader.result as string;
+
+        // Aucun navigateur ne sait décoder le TIFF (ni <img>, ni canvas) : on
+        // le convertit en PNG côté serveur avant de poursuivre le flux
+        // habituel, qui n'a alors plus besoin de savoir que la source était
+        // un TIFF.
+        if (isTiff) {
+          setConvertingTiff(true);
+          try {
+            const res = await fetch("/api/assets/convert-tiff", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ image: src }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+              toast.error(data?.error ?? "Impossible de convertir ce fichier TIFF");
+              return;
+            }
+            src = data.image;
+          } catch {
+            toast.error("Erreur lors de la conversion du fichier TIFF");
+            return;
+          } finally {
+            setConvertingTiff(false);
+          }
+        }
+
         const img = new Image();
         img.onload = () => {
           // Pas de blocage sur une image plus petite que la taille conseillée :
@@ -308,7 +338,12 @@ export function ImageUploadDialog({
           </div>
         )}
 
-        {!imageSrc ? (
+        {convertingTiff ? (
+          <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-12">
+            <Loader2 className="mb-2 h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground text-center">Conversion du fichier TIFF…</p>
+          </div>
+        ) : !imageSrc ? (
           <div
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}

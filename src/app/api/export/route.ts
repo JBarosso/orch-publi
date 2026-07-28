@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
 import { eq } from "drizzle-orm";
+import { cleanExportedHtml } from "@/lib/utils";
 import { generateMacaronsHTML } from "@/templates/macarons/export";
 import { generateMeaHTML } from "@/templates/mea/export";
 import { generateCustomHTML } from "@/templates/custom/export";
@@ -88,5 +89,5 @@ export async function GET(request: NextRequest) {
     html = generateGlobalHeaderHTML(section.content as GlobalHeaderContent);
   }
 
-  return NextResponse.json({ html, type: section.type });
+  return NextResponse.json({ html: cleanExportedHtml(html), type: section.type });
 }

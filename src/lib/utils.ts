@@ -35,3 +35,10 @@ export function getISOWeek(date: Date): number {
 export function getCurrentWeek(): number {
   return getISOWeek(new Date());
 }
+
+// Le copier-coller depuis PowerPoint/Word insère souvent des espaces de
+// largeur nulle (U+200B) dans le texte — invisibles à l'édition, mais
+// présents dans le HTML exporté vers le CMS.
+export function cleanExportedHtml(html: string): string {
+  return html.replace(/​/g, "");
+}

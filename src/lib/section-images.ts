@@ -85,8 +85,8 @@ function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
       imageUrl: card.imageUrl,
       imageWeek: card.imageWeek,
       baseName: `mea-${index + 1}`,
-      width: 600,
-      height: 500,
+      width: 1000,
+      height: 600,
     }));
 
   const focus = content?.focus;

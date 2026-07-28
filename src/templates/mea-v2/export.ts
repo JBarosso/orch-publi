@@ -308,7 +308,7 @@ function regularCardHTML(card: MeaV2Card, index: number, ctx: ExportContext): st
         <picture class="hp-cat-header-mea__picture">
           <source srcset="${imgPath}.webp?$staticlink$" type="image/webp" />
           <source srcset="${imgPath}.jpg?$staticlink$" type="image/jpeg" />
-          <img src="${imgPath}.jpg?$staticlink$" alt="" class="hp-cat-header-mea__img" width="600" height="500" aria-hidden="true" />
+          <img src="${imgPath}.jpg?$staticlink$" alt="" class="hp-cat-header-mea__img" width="1000" height="600" aria-hidden="true" />
         </picture>
         <div class="hp-cat-header-mea__container">
           <h3 class="hp-cat-header-mea__title">${plainTitle}</h3>

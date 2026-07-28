@@ -17,12 +17,19 @@ export const MAX_SOURCE_BYTES = 40 * 1024 * 1024; // 40 Mo
 // déjà plus petite (withoutEnlargement).
 export const MAX_SOURCE_DIMENSION = 2400;
 
-export const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
-export const ACCEPTED_MIME_ATTR = ACCEPTED_MIME_TYPES.join(",");
-export const ACCEPTED_FORMATS_LABEL = "JPEG, PNG ou WebP";
+export const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/tiff"];
+// Windows ne rapporte pas toujours le type MIME des .tif/.tiff (file.type
+// peut être vide) : on ajoute l'extension, comme pour le .mp4 plus bas.
+export const ACCEPTED_MIME_ATTR = `${ACCEPTED_MIME_TYPES.join(",")},.tif,.tiff`;
+export const ACCEPTED_FORMATS_LABEL = "JPEG, PNG, WebP ou TIFF";
 
 // Formats tels que rapportés par sharp().metadata().format
-export const ACCEPTED_SHARP_FORMATS = ["jpeg", "png", "webp"];
+export const ACCEPTED_SHARP_FORMATS = ["jpeg", "png", "webp", "tiff"];
+
+// Même souci que looksLikeMp4 plus bas : ne pas se fier uniquement à file.type.
+export function looksLikeTiff(file: { type: string; name?: string }): boolean {
+  return file.type === "image/tiff" || /\.tiff?$/i.test(file.name ?? "");
+}
 
 // Vidéo (carte focus MEA v2) : pas de passage par sharp, pipeline dédiée.
 export const MAX_VIDEO_SOURCE_BYTES = 40 * 1024 * 1024; // 40 Mo
@@ -89,10 +96,10 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
   },
   mea_v2: {
     displayName: "MEA v2",
-    targetWidth: 600,
-    targetHeight: 500,
+    targetWidth: 1000,
+    targetHeight: 600,
     cropShape: "rect",
-    cropAspect: 600 / 500,
+    cropAspect: 1000 / 600,
     outputFormat: "jpeg",
     requireLabel: true,
   },
@@ -175,8 +182,9 @@ export function formatBytes(bytes: number): string {
 export function validateSourceFile(file: {
   type: string;
   size: number;
+  name?: string;
 }): string | null {
-  if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
+  if (!ACCEPTED_MIME_TYPES.includes(file.type) && !looksLikeTiff(file)) {
     return `Format non supporté${file.type ? ` (${file.type})` : ""}. Formats acceptés : ${ACCEPTED_FORMATS_LABEL}.`;
   }
   if (file.size > MAX_SOURCE_BYTES) {
