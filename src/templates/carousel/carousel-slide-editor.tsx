@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { CarouselButton, CarouselSlide } from "@/types";
+import type { CarouselButton, CarouselProductCallout, CarouselSlide } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyCarouselButton } from "./schema";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -260,6 +260,34 @@ export function CarouselSlideEditor({
             />
           </div>
 
+          {/* Alignement de la diapositive (data-align) — indépendant du
+              callout produit : s'applique même s'il est désactivé. */}
+          <div className="flex items-center gap-2 rounded-md bg-muted/40 p-1.5">
+            <span
+              className="text-[10px] text-muted-foreground shrink-0"
+              title="Position du contenu (attribut data-align)"
+            >
+              Alignement
+            </span>
+            <Select
+              value={callout.side}
+              items={{ left: "Gauche", right: "Droite", center: "Centre", "only-center": "Centre seul" }}
+              onValueChange={(v) =>
+                v && onUpdate({ productCallout: { ...callout, side: v as CarouselProductCallout["side"] } })
+              }
+            >
+              <SelectTrigger className="h-7 w-28 shrink-0 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="left">Gauche</SelectItem>
+                <SelectItem value="right">Droite</SelectItem>
+                <SelectItem value="center">Centre</SelectItem>
+                <SelectItem value="only-center">Centre seul</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Callout produit (optionnel) */}
           <div className="space-y-1.5 rounded-md bg-muted/40 p-1.5">
             <div className="flex items-center gap-1.5">
@@ -273,19 +301,6 @@ export function CarouselSlideEditor({
             {callout.enabled && (
               <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {/* <Select
-                    value={callout.side}
-                    items={{ right: "Droite", left: "Gauche" }}
-                    onValueChange={(v) => v && onUpdate({ productCallout: { ...callout, side: v as "left" | "right" } })}
-                  >
-                    <SelectTrigger className="h-7 w-24 shrink-0 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="right">Droite</SelectItem>
-                      <SelectItem value="left">Gauche</SelectItem>
-                    </SelectContent>
-                  </Select> */}
                   <Input
                     placeholder="Libellé (ex: Ensemble)"
                     value={callout.label}

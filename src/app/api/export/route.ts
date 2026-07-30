@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
 import { eq } from "drizzle-orm";
-import { cleanExportedHtml } from "@/lib/utils";
+import { cleanExportedHtml, cmsLocalePath } from "@/lib/utils";
 import { generateMacaronsHTML } from "@/templates/macarons/export";
 import { generateMeaHTML } from "@/templates/mea/export";
 import { generateCustomHTML } from "@/templates/custom/export";
@@ -60,8 +60,9 @@ export async function GET(request: NextRequest) {
 
   // Le CMS attend la locale en minuscule dans les chemins d'assets
   // (homepage/{année}/wk{semaine}/fr/...), alors qu'elle est stockée en
-  // majuscule ("FR", "BEFR"...) partout ailleurs dans l'outil.
-  const ctx = { year: brief.year, week: brief.week, locale: brief.locale.toLowerCase() };
+  // majuscule ("FR", "BEFR"...) partout ailleurs dans l'outil — et un seul
+  // dossier "be" pour BEFR/BENL (cf. cmsLocalePath).
+  const ctx = { year: brief.year, week: brief.week, locale: cmsLocalePath(brief.locale) };
 
   let html = "";
   if (section.type === "macarons") {

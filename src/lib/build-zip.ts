@@ -3,6 +3,7 @@ import archiver from "archiver";
 import { PassThrough } from "stream";
 import { readAsset } from "@/lib/storage";
 import type { ImageEntry } from "@/lib/section-images";
+import { cmsLocalePath } from "@/lib/utils";
 
 export interface ZipGroup {
   // "" pour l'export simple (comportement historique) — un chemin type
@@ -35,8 +36,8 @@ export async function buildZipBuffer(groups: ZipGroup[]): Promise<Buffer> {
   for (const group of groups) {
     for (const img of group.images) {
       const imgWk = String(img.imageWeek ?? group.week).padStart(2, "0");
-      // Chemin CMS : locale en minuscule (doit matcher le <img src> exporté)
-      const subFolder = `${group.folderPrefix ? `${group.folderPrefix}/` : ""}homepage/${group.year}/wk${imgWk}/${group.locale.toLowerCase()}`;
+      // Chemin CMS : locale en minuscule, "be" pour BEFR/BENL (doit matcher le <img src> exporté)
+      const subFolder = `${group.folderPrefix ? `${group.folderPrefix}/` : ""}homepage/${group.year}/wk${imgWk}/${cmsLocalePath(group.locale)}`;
 
       try {
         const buffer = await readAsset(img.imageUrl);

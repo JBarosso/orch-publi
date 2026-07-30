@@ -362,7 +362,11 @@ export interface CarouselButton {
 
 export interface CarouselProductCallout {
   enabled: boolean;
-  side: "left" | "right";
+  // Réutilisé aussi comme alignement global de la diapositive (data-align
+  // sur .carousel-caption) — "left"/"right" positionnent le callout produit
+  // ET la diapositive du même côté ; "center"/"only-center" n'ont pas
+  // d'équivalent .carousel-product dans le CSS scopé de la preview (approximation).
+  side: "left" | "right" | "center" | "only-center";
   showBrandLogo: boolean;
   brandLogoPath: string; // segment après logo-puericulture/, ex: "svg/premaman.svg"
   label: string;

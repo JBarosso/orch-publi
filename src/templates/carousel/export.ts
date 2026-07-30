@@ -164,12 +164,14 @@ function productCalloutHTML(slide: CarouselSlide, preview: boolean): string {
     : `logo-puericulture/${p.brandLogoPath}?$staticlink$`;
   const clubIconSrc = preview ? CLUB_ICON_STAGING : "icons/ico-club.svg?$staticlink$";
 
-  return `          <div class="carousel-product-container d-flex flex-row w-100 h-100 p-4 justify-content-end align-items-end align-items-md-end">
+  return `          <div class="carousel-product-container d-flex flex-row w-100 h-100 p-4 justify-content-end align-items-end align-items-xl-start">
             <div class="carousel-product ${p.side} d-flex flex-column align-items-start">
               ${p.showBrandLogo ? `<img src="${logoSrc}" alt="Logo marque" height="32" class="pb-1">` : ""}
-              <span class="font-weight-bold text-left">${esc(p.label)}</span>
-              <span class="carousel-public-price">${esc(p.publicPrice)}</span>
-              <span class="carousel-club-price d-flex">${esc(p.clubPrice)}${p.showClubIcon ? ` <img src="${clubIconSrc}" alt="Club Orchestra" width="22" class="ml-1">` : ""}${p.showPromoBadge ? ` <span class="label-promo px-1 ml-1">${esc(p.promoBadgeText)}</span>` : ""}</span>
+              <span class="font-weight-bold mb-1 text-left">${esc(p.label)}</span>
+              <div class="d-flex align-items-center gap-1">
+                <span class="carousel-public-price">${esc(p.publicPrice)}</span>
+                <span class="carousel-club-price d-flex">${esc(p.clubPrice)}${p.showClubIcon ? ` <img src="${clubIconSrc}" alt="Club Orchestra" width="22" class="ml-1">` : ""}${p.showPromoBadge ? ` <span class="label-promo px-1 ml-1">${esc(p.promoBadgeText)}</span>` : ""}</span>
+              </div>
             </div>
           </div>\n`;
 }
@@ -197,17 +199,19 @@ function slideHTML(slide: CarouselSlide, slot: number, isFirst: boolean, ctx: Ex
       ? `${slide.titleImageUrl ? `<img src="${titleImgPath}.jpg?$staticlink$" class="imgSoldes" alt="${plainTitle}">` : ""}`
       : `<span class="carousel-title">${esc(slide.titleText).replace(/\r?\n/g, "<br>")}</span>`;
 
-  return `      <div class="carousel-item w-100 h-100${isFirst ? " active" : ""}">
+  return `      <div class="carousel-item carousel-item-${slot} w-100 h-100${isFirst ? " active" : ""}">
         <div class="background-filter-container position-absolute w-100 h-100">
 ${slide.darkOverlay ? '          <div class="background-filter-effect black"></div>\n' : ""}${mediaHTML}
         </div>
-        <div class="carousel-caption d-flex flex-column align-items-center w-100 position-relative">
-${productCalloutHTML(slide, false)}          <div class="d-flex flex-column align-items-center justify-content-end w-100 h-100">
-            ${titleHTML}
-          </div>
-          <div class="width-fit d-flex justify-content-md-center z-2">
-            <div class="carousel-buttons d-flex flex-row flex-nowrap overflow-auto pt-3 pb-4">
+        <div class="carousel-caption d-flex flex-column flex-xl-row-reverse align-items-center w-100 position-relative" data-align="${slide.productCallout.side}">
+${productCalloutHTML(slide, false)}          <div class="carousel__content d-flex flex-column w-100 h-100 align-items-start justify-content-end">
+            <div class="carousel__heading d-flex flex-column align-items-start justify-content-start text-left px-4">
+              ${titleHTML}
+            </div>
+            <div class="carousel__actions w-100 d-flex z-2">
+              <div class="carousel-buttons d-flex flex-row flex-nowrap overflow-auto w-100 pt-3 pb-3">
 ${buttonsHTML(slide.buttons, false)}
+              </div>
             </div>
           </div>
           <a href="${getHref(slide)}" aria-label="${plainTitle}" class="absolute-btn position-absolute"></a>
@@ -255,13 +259,15 @@ function slidePreviewHTML(slide: CarouselSlide, isFirst: boolean): string {
 ${commentHtml}        <div class="background-filter-container position-absolute w-100 h-100">
 ${slide.darkOverlay ? '          <div class="background-filter-effect black"></div>\n' : ""}${mediaHTML}
         </div>
-        <div class="carousel-caption d-flex flex-column align-items-center w-100 position-relative">
-${productCalloutHTML(slide, true)}          <div class="d-flex flex-column align-items-center justify-content-end w-100 h-100">
-            ${titleHTML}
-          </div>
-          <div class="width-fit d-flex justify-content-md-center z-2">
-            <div class="carousel-buttons d-flex flex-row flex-nowrap overflow-auto pt-3 pb-4">
+        <div class="carousel-caption d-flex flex-column flex-xl-row-reverse align-items-center w-100 position-relative" data-align="${slide.productCallout.side}">
+${productCalloutHTML(slide, true)}          <div class="carousel__content d-flex flex-column w-100 h-100 align-items-start justify-content-end">
+            <div class="carousel__heading d-flex flex-column align-items-start justify-content-start text-left px-4">
+              ${titleHTML}
+            </div>
+            <div class="carousel__actions w-100 d-flex z-2">
+              <div class="carousel-buttons d-flex flex-row flex-nowrap overflow-auto w-100 pt-3 pb-3">
 ${buttonsHTML(slide.buttons, true)}
+              </div>
             </div>
           </div>
         </div>

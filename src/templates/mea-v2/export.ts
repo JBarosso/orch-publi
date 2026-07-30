@@ -1,6 +1,7 @@
 import type { MeaV2Content, MeaV2Card, MeaV2FocusCard, MeaButton } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
+import { focusCardHasContent } from "./schema";
 
 interface ExportContext {
   year: number;
@@ -365,13 +366,17 @@ export function generateMeaV2HTML(content: MeaV2Content, ctx: ExportContext): st
     .map((card, i) => regularCardHTML(card, i, ctx))
     .join("\n\n");
 
+  // Carte focus optionnelle : générée dès qu'au moins un champ est renseigné
+  // (titre, lien, image, vidéo ou bouton) — cf. focusCardHasContent.
+  const hasFocus = !!content.focus && focusCardHasContent(content.focus);
+
   // Pas de <style> : le CSS existe déjà côté CMS, on n'exporte que le HTML.
   return `<div class="hp-cat-header hp-cat-container">
   <div class="hp-cat-header__container">
     <div class="hp-cat-header-meas">
 ${cardsHTML}
     </div>
-${content.focus ? focusCardHTML(content.focus, ctx) : ""}
+${hasFocus ? focusCardHTML(content.focus, ctx) : ""}
   </div>
 </div>`;
 }
@@ -427,6 +432,9 @@ export function generatePreviewHTML(content: MeaV2Content, frameId = ""): string
   const cardsHTML = (content.cards ?? [])
     .map((card, i) => regularCardPreviewHTML(card, i))
     .join("\n\n");
+  // Même règle qu'à l'export : cf. focusCardHasContent, pour que l'aperçu
+  // reflète fidèlement ce qui sera réellement exporté.
+  const hasFocus = !!content.focus && focusCardHasContent(content.focus);
 
   return `<!DOCTYPE html>
 <html>
@@ -447,7 +455,7 @@ body { margin: 0; background: #fff; cursor: default; }
     <div class="hp-cat-header-meas">
 ${cardsHTML}
     </div>
-${content.focus ? focusCardPreviewHTML(content.focus) : ""}
+${hasFocus ? focusCardPreviewHTML(content.focus) : ""}
   </div>
 </div>
 <script>

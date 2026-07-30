@@ -23,6 +23,7 @@ import {
   ACCEPTED_VIDEO_MIME_ATTR,
   ASSET_SPECS,
   MAX_SOURCE_BYTES,
+  MAX_SOURCE_DIMENSION,
   MAX_VIDEO_SOURCE_BYTES,
   formatBytes,
   looksLikeMp4,
@@ -101,6 +102,30 @@ async function getCroppedImg(
   return canvas.toDataURL("image/jpeg", 0.95);
 }
 
+// Upload libre (pas de crop) d'un TIFF converti : imageSrc est une object URL
+// (potentiellement en pleine résolution TIFF, donc énorme). On la ramène au
+// même plafond que le serveur applique de toute façon (MAX_SOURCE_DIMENSION)
+// avant de l'envoyer en JSON/base64 — sinon on recrée le même risque de
+// mémoire excessive côté navigateur qu'on vient d'éliminer à la conversion.
+async function downscaleForUpload(imageSrc: string, maxDimension: number): Promise<string> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = imageSrc;
+  });
+
+  const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(image.width * scale);
+  canvas.height = Math.round(image.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No 2d context");
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  return canvas.toDataURL("image/png");
+}
+
 export function ImageUploadDialog({
   defaultLabel,
   defaultWeek,
@@ -129,6 +154,11 @@ export function ImageUploadDialog({
   const [convertingTiff, setConvertingTiff] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialFileProcessed = useRef(false);
+  // Upload libre (skipCrop) d'un fichier issu d'un TIFF : l'image envoyée au
+  // final est le PNG converti en pleine résolution, potentiellement lourd —
+  // le serveur doit alors appliquer le plafond TIFF plutôt que le plafond
+  // image standard sur cette requête.
+  const sourceWasTiffRef = useRef(false);
 
   const spec = ASSET_SPECS[selectedType];
   // Les props explicites (éditeur de brief) priment sur la spec du type
@@ -148,6 +178,7 @@ export function ImageUploadDialog({
 
   const loadFile = useCallback(
     (file: File) => {
+      sourceWasTiffRef.current = false;
       // Sélecteur de type générique (médiathèque) : si le fichier déposé est
       // une vidéo et qu'aucun type vidéo n'est déjà sélectionné, bascule sur
       // un type vidéo par défaut — évite d'avoir à choisir le type avant.
@@ -189,37 +220,8 @@ export function ImageUploadDialog({
         toast.error(fileError);
         return;
       }
-      const isTiff = looksLikeTiff(file);
-      const reader = new FileReader();
-      reader.onload = async () => {
-        let src = reader.result as string;
 
-        // Aucun navigateur ne sait décoder le TIFF (ni <img>, ni canvas) : on
-        // le convertit en PNG côté serveur avant de poursuivre le flux
-        // habituel, qui n'a alors plus besoin de savoir que la source était
-        // un TIFF.
-        if (isTiff) {
-          setConvertingTiff(true);
-          try {
-            const res = await fetch("/api/assets/convert-tiff", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ image: src }),
-            });
-            const data = await res.json().catch(() => null);
-            if (!res.ok) {
-              toast.error(data?.error ?? "Impossible de convertir ce fichier TIFF");
-              return;
-            }
-            src = data.image;
-          } catch {
-            toast.error("Erreur lors de la conversion du fichier TIFF");
-            return;
-          } finally {
-            setConvertingTiff(false);
-          }
-        }
-
+      const showImage = (src: string) => {
         const img = new Image();
         img.onload = () => {
           // Pas de blocage sur une image plus petite que la taille conseillée :
@@ -231,6 +233,41 @@ export function ImageUploadDialog({
         img.onerror = () => toast.error("Impossible de lire cette image.");
         img.src = src;
       };
+
+      if (looksLikeTiff(file)) {
+        sourceWasTiffRef.current = true;
+        // Un TIFF peut peser plusieurs centaines de Mo : on l'envoie en
+        // binaire brut (pas de FileReader/base64/JSON, qui multiplieraient la
+        // mémoire nécessaire côté navigateur jusqu'au crash) et on récupère
+        // un blob en retour, exposé via une object URL — <img>/Cropper
+        // savent tous les deux la charger nativement, comme une data URL.
+        setConvertingTiff(true);
+        (async () => {
+          try {
+            const res = await fetch("/api/assets/convert-tiff", {
+              method: "POST",
+              headers: { "Content-Type": file.type || "application/octet-stream" },
+              body: file,
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => null);
+              toast.error(data?.error ?? "Impossible de convertir ce fichier TIFF");
+              return;
+            }
+            const blob = await res.blob();
+            showImage(URL.createObjectURL(blob));
+          } catch {
+            toast.error("Erreur lors de la conversion du fichier TIFF");
+          } finally {
+            setConvertingTiff(false);
+          }
+        })();
+        return;
+      }
+
+      sourceWasTiffRef.current = false;
+      const reader = new FileReader();
+      reader.onload = () => showImage(reader.result as string);
       reader.readAsDataURL(file);
     },
     [spec, selectedType, allowTypeSelect, onFileSelected]
@@ -242,6 +279,17 @@ export function ImageUploadDialog({
       loadFile(initialFile);
     }
   }, [initialFile, loadFile]);
+
+  // Libère l'object URL du TIFF converti quand elle est remplacée ou à la
+  // fermeture du dialog (sinon le blob reste en mémoire jusqu'au rechargement
+  // de la page).
+  useEffect(() => {
+    return () => {
+      if (imageSrc?.startsWith("blob:")) {
+        URL.revokeObjectURL(imageSrc);
+      }
+    };
+  }, [imageSrc]);
 
   const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels);
@@ -266,8 +314,13 @@ export function ImageUploadDialog({
 
     try {
       // Upload libre ou vidéo : fichier d'origine tel quel. Sinon crop client-side (WYSIWYG)
+      // Cas particulier upload libre + TIFF : imageSrc est une object URL en
+      // pleine résolution (potentiellement énorme) — on la ramène au plafond
+      // avant de basculer sur le format JSON/base64 attendu par /api/assets.
       const finalBase64 = skipCrop
-        ? imageSrc
+        ? sourceWasTiffRef.current
+          ? await downscaleForUpload(imageSrc, MAX_SOURCE_DIMENSION)
+          : imageSrc
         : await getCroppedImg(
             imageSrc,
             croppedAreaPixels as Area,
@@ -284,6 +337,7 @@ export function ImageUploadDialog({
           week: week ? Number(week) : null,
           year: year ? Number(year) : null,
           type: selectedType,
+          fromTiff: sourceWasTiffRef.current,
         }),
       });
 

@@ -12,6 +12,7 @@ import {
   ASSET_SPECS,
   MAX_SOURCE_BYTES,
   MAX_SOURCE_DIMENSION,
+  MAX_TIFF_SOURCE_BYTES,
   MAX_VIDEO_SOURCE_BYTES,
   formatBytes,
   normalizeAssetLabel,
@@ -112,7 +113,7 @@ export async function PUT(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { image, crop, label, week, year, type } = body;
+  const { image, crop, label, week, year, type, fromTiff } = body;
 
   if (!image) {
     return NextResponse.json({ error: "Image requise" }, { status: 400 });
@@ -138,9 +139,13 @@ export async function POST(request: NextRequest) {
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
     const imageBuffer = Buffer.from(base64Data, "base64");
 
-    if (imageBuffer.byteLength > MAX_SOURCE_BYTES) {
+    // Upload libre (pas de crop) issu d'un TIFF converti : l'image reçue ici
+    // est encore en pleine résolution — plafond TIFF plutôt que le plafond
+    // image standard (déjà appliqué au TIFF source par /api/assets/convert-tiff).
+    const maxBytes = fromTiff === true ? MAX_TIFF_SOURCE_BYTES : MAX_SOURCE_BYTES;
+    if (imageBuffer.byteLength > maxBytes) {
       return NextResponse.json(
-        { error: `Image trop lourde (${formatBytes(imageBuffer.byteLength)}). Maximum : ${formatBytes(MAX_SOURCE_BYTES)}.` },
+        { error: `Image trop lourde (${formatBytes(imageBuffer.byteLength)}). Maximum : ${formatBytes(maxBytes)}.` },
         { status: 400 },
       );
     }

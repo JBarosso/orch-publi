@@ -42,3 +42,11 @@ export function getCurrentWeek(): number {
 export function cleanExportedHtml(html: string): string {
   return html.replace(/​/g, "");
 }
+
+// Le CMS n'a qu'un seul dossier "be" pour la Belgique, quelle que soit la
+// langue (BEFR/BENL) — la distinction de langue reste gérée par le contenu
+// (glossaire, textes), pas par le chemin des assets.
+export function cmsLocalePath(locale: string): string {
+  const lower = locale.toLowerCase();
+  return lower === "befr" || lower === "benl" ? "be" : lower;
+}

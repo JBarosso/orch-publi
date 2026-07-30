@@ -31,6 +31,13 @@ export function looksLikeTiff(file: { type: string; name?: string }): boolean {
   return file.type === "image/tiff" || /\.tiff?$/i.test(file.name ?? "");
 }
 
+// Un TIFF source (scan/appareil pro, souvent peu ou pas compressé) peut être
+// bien plus lourd qu'un JPEG/PNG équivalent — plafond dédié, volontairement
+// haut ("quasi pas de limite" demandé). Reste borné pour éviter qu'un fichier
+// vraiment pathologique ne fasse exploser la mémoire du serveur (sharp/JSON).
+// ponytail: plafond arbitraire à 1 Go, à remonter si un vrai cas dépasse.
+export const MAX_TIFF_SOURCE_BYTES = 1024 * 1024 * 1024; // 1 Go
+
 // Vidéo (carte focus MEA v2) : pas de passage par sharp, pipeline dédiée.
 export const MAX_VIDEO_SOURCE_BYTES = 40 * 1024 * 1024; // 40 Mo
 export const ACCEPTED_VIDEO_MIME_TYPES = ["video/mp4"];
@@ -187,8 +194,9 @@ export function validateSourceFile(file: {
   if (!ACCEPTED_MIME_TYPES.includes(file.type) && !looksLikeTiff(file)) {
     return `Format non supporté${file.type ? ` (${file.type})` : ""}. Formats acceptés : ${ACCEPTED_FORMATS_LABEL}.`;
   }
-  if (file.size > MAX_SOURCE_BYTES) {
-    return `Fichier trop lourd (${formatBytes(file.size)}). Maximum : ${formatBytes(MAX_SOURCE_BYTES)}.`;
+  const maxBytes = looksLikeTiff(file) ? MAX_TIFF_SOURCE_BYTES : MAX_SOURCE_BYTES;
+  if (file.size > maxBytes) {
+    return `Fichier trop lourd (${formatBytes(file.size)}). Maximum : ${formatBytes(maxBytes)}.`;
   }
   return null;
 }
