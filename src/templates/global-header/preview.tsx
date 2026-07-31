@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, useMemo } from "react";
 import type { GlobalHeaderContent } from "@/types";
 import { generatePreviewHTML } from "./export";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 interface GlobalHeaderPreviewProps {
   content: GlobalHeaderContent;
@@ -12,8 +13,9 @@ export function GlobalHeaderPreview({ content }: GlobalHeaderPreviewProps) {
   const frameId = useId();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(120);
+  const debouncedContent = useDebouncedValue(content, 400);
 
-  const srcDoc = useMemo(() => generatePreviewHTML(content, frameId), [content, frameId]);
+  const srcDoc = useMemo(() => generatePreviewHTML(debouncedContent, frameId), [debouncedContent, frameId]);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {

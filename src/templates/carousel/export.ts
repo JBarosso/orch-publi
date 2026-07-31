@@ -22,9 +22,9 @@ const CLUB_ICON_STAGING =
 // fichier source (déjà dans le CSS global du site) — approximation minimale
 // ci-dessous pour que la preview reste lisible.
 const cssStyle = `
-  #carouselHomepage > .carousel-inner {
-    height: 395px;
-  }
+  // #carouselHomepage > .carousel-inner {
+  //   height: 395px;
+  // }
 
   .carousel-indicators > li {
     height: 15px;
@@ -136,6 +136,159 @@ const cssStyle = `
   @media screen and (min-width: 1440px) {
     #carouselHomepage > .carousel-inner { height: 600px; }
     #carouselHomepage .carousel-title { font-size: 4rem; line-height: 4.5rem; }
+  }
+
+  /* --- Ajouté depuis exemples/css.html (CSS réel du site, uniquement les
+     règles qui s'appliquent aux classes générées par ce template). Les
+     règles déjà identiques ci-dessus ne sont pas dupliquées. Volontairement
+     exclus :
+     - le chrome de page CMS (.experience-component...), jamais émis par ce
+       générateur ;
+     - les variantes campagne (French Days, Ventes privées, Mois du bébé,
+       Black Friday), sans champ dédié dans l'éditeur ;
+     - "#carouselHomepage { height: 76svh / 69svh }" : cette preview est un
+       <iframe> dont la hauteur est elle-même calculée à partir de son
+       contenu (ResizeObserver + postMessage, cf. carousel/preview.tsx) —
+       une hauteur en svh dedans crée une dépendance circulaire et fait
+       s'effondrer l'aperçu (constaté en testant). Le site réel n'a pas ce
+       souci (vrai viewport de navigateur) ; cssStyle ne sert de toute façon
+       qu'à la preview, jamais à l'export réel. --- */
+
+  @media screen and (min-width: 1200px) {
+    .carousel-caption {
+      padding-left: 8%;
+      padding-right: 8%;
+      // padding-top: 178px !important;
+      // padding-bottom: 178px !important;
+    }
+
+    .carousel-indicators {
+      margin-bottom: 60px;
+    }
+  }
+
+  .carousel-product {
+    color: #fff;
+    background: rgb(0 0 0 / 25%);
+    padding: 8px;
+    height: fit-content;
+    font-size: 16px;
+    line-height: 16px;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+
+  .carousel-public-price {
+    font-size: 13px;
+    color: #FFF;
+    margin-right: 8px;
+  }
+
+  .carousel-club-price {
+    font-size: 13px;
+    background: #e32638;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+
+  .carousel-buttons {
+    gap: 10px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    width: fit-content !important;
+    justify-content: flex-start;
+  }
+
+  .carousel-buttons .btn {
+    border-radius: 4px;
+    padding: 3.25px 12px;
+    font-size: 13px;
+  }
+
+  @media (min-width: 375px) {
+    .carousel-buttons .btn {
+      border-radius: 6px;
+      padding: 8px 20px;
+      font-size: 16px;
+    }
+  }
+
+  .carousel-buttons a:first-child { margin-left: 24px; }
+  .carousel-buttons a:last-child { margin-right: 24px !important; }
+
+  .carousel-1 {
+    object-position: 50% top;
+    transform: scale(1);
+  }
+
+  .carousel-2 {
+    object-position: center center;
+    transform: scale(1);
+  }
+
+  #carouselHomepage .carousel-title {
+    font-family: "Alphakind", Lato, sans-serif;
+    text-transform: uppercase;
+    font-size: 2.625rem;
+    line-height: 100%;
+  }
+
+  [data-align="only-center"] .carousel__heading {
+    width: 100% !important;
+  }
+
+  [data-align="center"] .carousel-buttons,
+  [data-align="only-center"] .carousel-buttons,
+  [data-align="center"] .carousel__actions,
+  [data-align="only-center"] .carousel__actions {
+    justify-content: center;
+  }
+
+  @media screen and (min-width: 768px) {
+    #carouselHomepage .carousel-title { font-size: 3.25rem; }
+  }
+
+  @media (min-width: 1024px) {
+    [data-align="right"].carousel-caption {
+      flex-direction: row !important;
+    }
+
+    [data-align="right"] .carousel-product-container {
+      justify-content: flex-start !important;
+    }
+
+    [data-align="center"].carousel-caption,
+    [data-align="only-center"].carousel-caption {
+      flex-direction: column !important;
+    }
+
+    [data-align="center"] > .carousel__content,
+    [data-align="only-center"] > .carousel__content {
+      align-items: center !important;
+    }
+
+    [data-align="center"] .carousel__heading,
+    [data-align="only-center"] .carousel__heading {
+      text-align: center !important;
+    }
+  }
+
+  @media screen and (min-width: 1440px) {
+    #carouselHomepage .carousel-title { font-size: 4.5rem; }
+  }
+
+  .imgSoldes {
+    height: clamp(200px, 20vw, 300px);
+    width: 100%;
+    object-fit: contain;
+  }
+
+  #carouselHomepage,
+  .carousel-inner,
+  .general-layout{
+    height: 100%;
   }
 `;
 
@@ -291,7 +444,7 @@ export function generatePreviewHTML(content: CarouselContent, frameId = ""): str
 ${PREVIEW_ROOT_VARS}
 ${cssStyle}
 ${previewCommentStyles}
-body { margin: 0; background: #fff; cursor: default; }
+body { margin: 0; background: #fff; cursor: default; height: 700px;}
 #carouselHomepage { position: relative; overflow: hidden; }
 .carousel-caption{left: 0;}
 </style>

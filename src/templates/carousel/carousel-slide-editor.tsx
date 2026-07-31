@@ -221,7 +221,7 @@ export function CarouselSlideEditor({
                 value={slide.titleText}
                 onChange={(e) => onUpdate({ titleText: e.target.value })}
                 rows={1}
-                className="h-8 min-h-8 flex-1 resize-none text-sm"
+                className="h-8 min-h-8 flex-1 resize-none text-sm bg-white"
               />
             ) : (
               <button

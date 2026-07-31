@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import type { CustomContent } from "@/types";
 import { generatePreviewHTML } from "./export";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 interface CustomPreviewProps {
   content: CustomContent;
@@ -11,15 +12,21 @@ interface CustomPreviewProps {
 export function CustomPreview({ content }: CustomPreviewProps) {
   const frameId = useId();
   const [iframeHeight, setIframeHeight] = useState(120);
+  const debouncedContent = useDebouncedValue(content, 400);
 
+  // Réaction instantanée (placeholder vide vs iframe) : basée sur le contenu
+  // en direct, pas sur la version debounced.
   const renderableBlocks = (content.blocks ?? []).filter((b) =>
     b.type === "image" ? !!b.imageUrl : !!b.text.trim(),
   );
 
   const srcDoc = useMemo(() => {
-    if (renderableBlocks.length === 0) return "";
-    return generatePreviewHTML(content, frameId);
-  }, [content, frameId, renderableBlocks.length]);
+    const debouncedRenderable = (debouncedContent.blocks ?? []).filter((b) =>
+      b.type === "image" ? !!b.imageUrl : !!b.text.trim(),
+    );
+    if (debouncedRenderable.length === 0) return "";
+    return generatePreviewHTML(debouncedContent, frameId);
+  }, [debouncedContent, frameId]);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {

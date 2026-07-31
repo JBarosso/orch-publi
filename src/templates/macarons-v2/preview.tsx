@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, useMemo } from "react";
 import type { MacaronItem } from "@/types";
 import { generatePreviewHTML } from "./export";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 interface MacaronsV2PreviewProps {
   items: MacaronItem[];
@@ -12,13 +13,17 @@ export function MacaronsV2Preview({ items }: MacaronsV2PreviewProps) {
   const frameId = useId();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(120);
+  const debouncedItems = useDebouncedValue(items, 400);
 
+  // Réaction instantanée (placeholder vide vs iframe) : basée sur les items
+  // en direct, pas sur la version debounced.
   const visibleItems = items.filter((item) => item.visible);
 
   const srcDoc = useMemo(() => {
-    if (visibleItems.length === 0) return "";
-    return generatePreviewHTML(items, frameId);
-  }, [items, frameId, visibleItems.length]);
+    const debouncedVisible = debouncedItems.filter((item) => item.visible);
+    if (debouncedVisible.length === 0) return "";
+    return generatePreviewHTML(debouncedItems, frameId);
+  }, [debouncedItems, frameId]);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {

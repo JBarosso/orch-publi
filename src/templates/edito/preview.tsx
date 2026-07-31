@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, useMemo } from "react";
 import type { EditoCard } from "@/types";
 import { generatePreviewHTML } from "./export";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 interface EditoPreviewProps {
   items: EditoCard[];
@@ -12,11 +13,12 @@ export function EditoPreview({ items }: EditoPreviewProps) {
   const frameId = useId();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(120);
+  const debouncedItems = useDebouncedValue(items, 400);
 
   const srcDoc = useMemo(() => {
-    if (items.length === 0) return "";
-    return generatePreviewHTML(items, frameId);
-  }, [items, frameId]);
+    if (debouncedItems.length === 0) return "";
+    return generatePreviewHTML(debouncedItems, frameId);
+  }, [debouncedItems, frameId]);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {

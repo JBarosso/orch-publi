@@ -210,7 +210,8 @@ export function generatePreviewHTML(items: MacaronItem[], frameId = ""): string 
 <style>
 ${PREVIEW_ROOT_VARS}
 ${cssStyle}
-.quickaccess-v2__list li{max-width: 200px;}
+.quickaccess-v2__list li {max-width: 200px;}
+.quickaccess-v2 {overflow: visible;}
 ${previewCommentStyles}
 body { margin: 0; background: #fff; cursor: default; }
 </style>
