@@ -114,6 +114,13 @@ export default function BriefEditorPage({
   const [carouselCapturedPosterFile, setCarouselCapturedPosterFile] = useState<File | null>(null);
   const [dirty, setDirty] = useState(false);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
+  // Action bloquée par des modifications non sauvegardées (supprimer/dupliquer
+  // une section, changer le statut...) : on la met de côté plutôt que de
+  // juste avertir par toast, pour pouvoir l'enchaîner après sauvegarde.
+  const [pendingGuardedAction, setPendingGuardedAction] = useState<{
+    label: string;
+    run: () => void | Promise<void>;
+  } | null>(null);
   const savedSectionsRef = useRef<string>("");
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [previewSections, setPreviewSections] = useState<Record<string, boolean>>({});
@@ -268,6 +275,25 @@ export default function BriefEditorPage({
     }
   };
 
+  // Exécute `run` directement si rien n'est en attente de sauvegarde, sinon
+  // ouvre le dialogue "sauvegarder d'abord" et met `run` de côté pour
+  // l'enchaîner juste après la sauvegarde.
+  const runGuarded = (label: string, run: () => void | Promise<void>) => {
+    if (dirty) {
+      setPendingGuardedAction({ label, run });
+    } else {
+      run();
+    }
+  };
+
+  const saveAndRunGuarded = async () => {
+    if (!pendingGuardedAction) return;
+    await handleSave();
+    const { run } = pendingGuardedAction;
+    setPendingGuardedAction(null);
+    await run();
+  };
+
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState("");
 
@@ -283,18 +309,16 @@ export default function BriefEditorPage({
     fetchBrief();
   };
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (dirty) {
-      toast.error("Sauvegardez vos modifications avant de changer le statut");
-      return;
-    }
-    await fetch(`/api/briefs/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
+  const handleStatusChange = (newStatus: string) => {
+    runGuarded("changer le statut", async () => {
+      await fetch(`/api/briefs/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      fetchBrief();
+      toast.success("Statut mis à jour");
     });
-    fetchBrief();
-    toast.success("Statut mis à jour");
   };
 
   const handleDirectDrop = useCallback(
@@ -411,91 +435,84 @@ export default function BriefEditorPage({
     })();
   }, [createOpen]);
 
-  const createSection = async () => {
+  const createSection = () => {
     if (!brief) return;
-    if (dirty) {
-      toast.error("Sauvegardez d'abord vos modifications avant de créer une section");
-      return;
-    }
-    const payload: Record<string, unknown> = { briefId: brief.id };
-    if (newSectionType.startsWith("tpl:")) {
-      payload.type = "custom";
-      payload.templateId = newSectionType.slice(4);
-    } else {
-      payload.type = newSectionType;
-    }
-    const res = await fetch("/api/sections", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      toast.error("Impossible de créer la section");
-      return;
-    }
     setCreateOpen(false);
-    await fetchBrief();
-    toast.success("Section créée");
-  };
-
-  const convertToTemplate = async (sectionId: string) => {
-    if (dirty) {
-      toast.error("Sauvegardez d'abord vos modifications avant de convertir en template");
-      return;
-    }
-    const res = await fetch("/api/templates", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromSectionId: sectionId }),
+    runGuarded("créer une section", async () => {
+      const payload: Record<string, unknown> = { briefId: brief.id };
+      if (newSectionType.startsWith("tpl:")) {
+        payload.type = "custom";
+        payload.templateId = newSectionType.slice(4);
+      } else {
+        payload.type = newSectionType;
+      }
+      const res = await fetch("/api/sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        toast.error("Impossible de créer la section");
+        return;
+      }
+      await fetchBrief();
+      toast.success("Section créée");
     });
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      toast.error(data?.error ?? "Impossible de convertir en template");
-      return;
-    }
-    const template = await res.json();
-    toast.success(
-      `Template « ${template.name} » créé en brouillon — publiez-le depuis l'onglet Templates`,
-      { duration: 6000 },
-    );
   };
 
-  const duplicateSection = async (sectionId: string) => {
-    if (dirty) {
-      toast.error("Sauvegardez d'abord vos modifications avant de dupliquer une section");
-      return;
-    }
-    const res = await fetch("/api/sections", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sourceSectionId: sectionId }),
+  const convertToTemplate = (sectionId: string) => {
+    runGuarded("convertir en template", async () => {
+      const res = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromSectionId: sectionId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ?? "Impossible de convertir en template");
+        return;
+      }
+      const template = await res.json();
+      toast.success(
+        `Template « ${template.name} » créé en brouillon — publiez-le depuis l'onglet Templates`,
+        { duration: 6000 },
+      );
     });
-    if (!res.ok) {
-      toast.error("Impossible de dupliquer la section");
-      return;
-    }
-    await fetchBrief();
-    toast.success("Section dupliquée");
   };
 
-  const deleteSection = async () => {
+  const duplicateSection = (sectionId: string) => {
+    runGuarded("dupliquer cette section", async () => {
+      const res = await fetch("/api/sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceSectionId: sectionId }),
+      });
+      if (!res.ok) {
+        toast.error("Impossible de dupliquer la section");
+        return;
+      }
+      await fetchBrief();
+      toast.success("Section dupliquée");
+    });
+  };
+
+  const deleteSection = () => {
     if (!pendingDeleteSectionId) return;
-    if (dirty) {
-      toast.error("Sauvegardez d'abord vos modifications avant de supprimer une section");
-      return;
-    }
-    const res = await fetch("/api/sections", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: pendingDeleteSectionId }),
-    });
-    if (!res.ok) {
-      toast.error("Impossible de supprimer la section");
-      return;
-    }
+    const sectionId = pendingDeleteSectionId;
     setPendingDeleteSectionId(null);
-    await fetchBrief();
-    toast.success("Section supprimée");
+    runGuarded("supprimer cette section", async () => {
+      const res = await fetch("/api/sections", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: sectionId }),
+      });
+      if (!res.ok) {
+        toast.error("Impossible de supprimer la section");
+        return;
+      }
+      await fetchBrief();
+      toast.success("Section supprimée");
+    });
   };
 
   const setPreviewPanelWidth = useCallback((targetPx: number) => {
@@ -537,6 +554,27 @@ export default function BriefEditorPage({
               Quitter sans sauvegarder
             </Button>
             <Button onClick={saveAndContinue} disabled={saving}>
+              {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              Sauvegarder et continuer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Action bloquée par des modifications non sauvegardées (supprimer,
+          dupliquer, changer le statut...) */}
+      <Dialog open={!!pendingGuardedAction} onOpenChange={() => setPendingGuardedAction(null)}>
+        <DialogContent className="w-fit max-w-[calc(100%-2rem)] sm:max-w-fit">
+          <DialogHeader>
+            <DialogTitle>Modifications non sauvegardées</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Vous avez des modifications en cours. Sauvegardez-les avant de {pendingGuardedAction?.label}.
+          </p>
+          <DialogFooter className="sm:flex-wrap">
+            <Button variant="outline" onClick={() => setPendingGuardedAction(null)}>
+              Annuler
+            </Button>
+            <Button onClick={saveAndRunGuarded} disabled={saving}>
               {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               Sauvegarder et continuer
             </Button>
