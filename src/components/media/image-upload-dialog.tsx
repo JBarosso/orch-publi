@@ -456,6 +456,7 @@ export function ImageUploadDialog({
                   cropShape={effCropShape}
                   aspect={effCropAspect}
                   objectFit="contain"
+                  restrictPosition={false}
                   style={{
                     containerStyle: { background: "#eee" },
                     mediaStyle: {},

@@ -94,7 +94,7 @@ export function ImgSousMenuItemEditor({
           )}
         </button>
 
-        <div className="min-w-[300px] flex-1 space-y-1.5">
+        <div className="min-w-75 flex-1 space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-muted-foreground/70 shrink-0">Semaine</span>
             <Input
