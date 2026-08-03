@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# extension packagée (générée depuis salesforce-extension/, pas versionnée)
+# /salesforce-extension.zip
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

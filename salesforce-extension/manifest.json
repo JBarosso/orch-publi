@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Orch-Publi — Capture programmations Salesforce",
+  "version": "1.0.0",
+  "description": "Capture les programmations (locales + dates) définies dans Salesforce Page Designer pour les importer dans le dashboard orch-publi sans double saisie.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyUoVJt6X1LW0Wf0ArIXfr38QM6M4ccXmGDi8dJHnSVaGwUUc1ByU5B6NO19KyhTE276lB7lsmUc9qDDeuoXsjF0BtOSDNtmog/VGYB5dY4x33Fz6LZEfhhjAc15XqslJn0De9H0+/LFOZAg72zmj7mHUavYqruqEivmQ/kfztGsoKUgRBot3DsLGU3KQmMECmVBS0to6O5lg7k8auARLkjiG2MZIIPEB1T5HPKBa0gFvKQ/5gs/XMOnkVZ2VyzriDauC6dMbX5ybURUUhQQlSVUbrIEzYNPVcqgoAsp68wBdmUjKx+22pZJhsfLl5Z1lT4Vm1u3FSOzKn5YDj2BzlwIDAQAB",
+  "permissions": ["storage", "sidePanel"],
+  "host_permissions": [
+    "https://staging-store-orchestra.demandware.net/*",
+    "https://fr.staging-orchestra.fr/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://staging-store-orchestra.demandware.net/*",
+        "https://fr.staging-orchestra.fr/*"
+      ],
+      "all_frames": true,
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:3000/*",
+      "http://localhost:*/*"
+    ]
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Programmations Salesforce"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

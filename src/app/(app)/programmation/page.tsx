@@ -1,13 +1,31 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BrushCleaning, CalendarDays, CalendarRange, Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  BrushCleaning,
+  CalendarDays,
+  CalendarRange,
+  Check,
+  Download,
+  Loader2,
+  Pencil,
+  Plus,
+  Puzzle,
+  Trash2,
+  X,
+} from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { toast } from "sonner";
 import type { ProgrammationBlock, ProgrammationCountry } from "@/types";
 import { PROGRAMMATION_COUNTRIES } from "@/types";
+import {
+  clearCapturedProgrammations,
+  getCapturedProgrammations,
+  mapLocalesToCountries,
+  parseSalesforceDate,
+} from "@/lib/salesforce-extension";
 
 // Comparaison directe de chaînes ISO (YYYY-MM-DD) : même piège de fuseau
 // horaire que formatDate ci-dessous, donc pas de new Date() ici non plus.
@@ -187,6 +205,7 @@ export default function ProgrammationPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmCleanOpen, setConfirmCleanOpen] = useState(false);
   const [cleaning, setCleaning] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const fetchBlocks = useCallback(async () => {
     const res = await fetch("/api/programmation");
@@ -281,6 +300,53 @@ export default function ProgrammationPage() {
     }
   };
 
+  const handleImportFromExtension = async () => {
+    setImporting(true);
+    try {
+      const captured = await getCapturedProgrammations();
+      if (captured.length === 0) {
+        toast.info("Aucune programmation à importer depuis l'extension");
+        return;
+      }
+
+      const creations = captured.flatMap((item) => {
+        const countries = mapLocalesToCountries(item.locales);
+        return countries.map((country) =>
+          fetch("/api/programmation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              country,
+              label: item.label,
+              startDate: parseSalesforceDate(item.displayFrom),
+              endDate: parseSalesforceDate(item.displayTo),
+            }),
+          }),
+        );
+      });
+
+      if (creations.length === 0) {
+        toast.error("Aucune locale importée n'a pu être associée à un pays (FR/BE/ES/GR)");
+        return;
+      }
+
+      const results = await Promise.all(creations);
+      const failed = results.filter((r) => !r.ok).length;
+      if (failed > 0) toast.error(`${failed} bloc(s) n'ont pas pu être créés`);
+      else toast.success(`${creations.length} programmation(s) importée(s)`);
+
+      // Ne vide l'extension que si l'import a réussi — sinon l'utilisateur
+      // perdrait ses captures sur une erreur réseau/API.
+      if (failed === 0) await clearCapturedProgrammations();
+
+      fetchBlocks();
+    } catch {
+      toast.error("Extension introuvable — installez-la puis réessayez (voir README)");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="p-6 lg:p-8">
       <div className="mb-8 flex items-start justify-between gap-3 flex-wrap">
@@ -293,16 +359,34 @@ export default function ProgrammationPage() {
             Tableau informatif — planifiez vos assets par pays, avec une période optionnelle.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={expiredBlocks.length === 0}
-          onClick={() => setConfirmCleanOpen(true)}
-        >
-          <BrushCleaning className="mr-1.5 h-3.5 w-3.5" />
-          Clean
-          {expiredBlocks.length > 0 && ` (${expiredBlocks.length})`}
-        </Button>
+        <div className="flex items-center gap-2">
+          <a
+            href="/salesforce-extension.zip"
+            download
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            <Puzzle className="mr-1.5 h-3.5 w-3.5" />
+            Télécharger l&apos;extension
+          </a>
+          <Button variant="outline" size="sm" disabled={importing} onClick={handleImportFromExtension}>
+            {importing ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Importer depuis l&apos;extension
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={expiredBlocks.length === 0}
+            onClick={() => setConfirmCleanOpen(true)}
+          >
+            <BrushCleaning className="mr-1.5 h-3.5 w-3.5" />
+            Clean
+            {expiredBlocks.length > 0 && ` (${expiredBlocks.length})`}
+          </Button>
+        </div>
       </div>
 
       {loading ? (

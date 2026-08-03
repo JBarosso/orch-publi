@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Programmations Salesforce</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Programmations</h1>
+      <label class="switch">
+        <input type="checkbox" id="toggle" />
+        <span class="slider"></span>
+      </label>
+    </header>
+    <p class="hint">
+      Cliquez sur <strong>Apply</strong> dans la popin Targeting de Salesforce pour capturer une
+      programmation — pas besoin de garder ce panneau ouvert.
+    </p>
+
+    <div class="toolbar">
+      <span id="count">0</span> enregistrée(s)
+      <button id="clean-btn" disabled>🧹 Clean</button>
+    </div>
+
+    <div id="list"></div>
+    <p id="empty">Aucune programmation capturée pour l'instant.</p>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>
