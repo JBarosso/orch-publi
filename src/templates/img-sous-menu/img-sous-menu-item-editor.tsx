@@ -83,7 +83,7 @@ export function ImgSousMenuItemEditor({
             "shrink-0 flex items-center justify-center overflow-hidden rounded border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
             isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
           )}
-          style={{ width: 180, height: 40 }}
+          style={{ width: 280, height: 64 }}
           title="563×125 px"
         >
           {item.imageUrl ? (

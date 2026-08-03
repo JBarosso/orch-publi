@@ -47,7 +47,7 @@ export function ImgSousMenuPreview({ items }: ImgSousMenuPreviewProps) {
       <iframe
         ref={iframeRef}
         srcDoc={srcDoc}
-        className="w-full border-0"
+        className="w-full border-0 p-1"
         style={{ height: iframeHeight }}
         sandbox="allow-scripts"
         title="Aperçu img sous menu"
