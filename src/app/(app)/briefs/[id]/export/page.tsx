@@ -18,6 +18,7 @@ import type {
   ArianeContent,
   GlobalHeaderContent,
   CustomContent,
+  ImgSousMenuContent,
 } from "@/types";
 import { StatusBadge } from "@/components/briefs/status-badge";
 import { validateMacaronsContent } from "@/templates/macarons/schema";
@@ -28,6 +29,7 @@ import { validateCarouselContent } from "@/templates/carousel/schema";
 import { validateArianeContent } from "@/templates/ariane/schema";
 import { validateGlobalHeaderContent } from "@/templates/global-header/schema";
 import { validateCustomContent } from "@/templates/custom/schema";
+import { validateImgSousMenuContent } from "@/templates/img-sous-menu/schema";
 
 function validateSectionContent(section: BriefSection): string[] {
   switch (section.type) {
@@ -48,6 +50,8 @@ function validateSectionContent(section: BriefSection): string[] {
       return validateGlobalHeaderContent(section.content as GlobalHeaderContent);
     case "custom":
       return validateCustomContent(section.content as CustomContent);
+    case "img_sous_menu":
+      return validateImgSousMenuContent((section.content as ImgSousMenuContent).items ?? []);
     default:
       return [];
   }
@@ -253,7 +257,8 @@ export default function ExportPage({
                   exp.type === "macarons_v2" ||
                   exp.type === "mea_v2" ||
                   exp.type === "edito" ||
-                  exp.type === "carousel") && (
+                  exp.type === "carousel" ||
+                  exp.type === "img_sous_menu") && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -269,29 +274,37 @@ export default function ExportPage({
                     Fichiers
                   </Button>
                 )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-lg"
-                  onClick={() => handleCopy(exp.html, exp.sectionId)}
-                >
-                  {copiedId === exp.sectionId ? (
-                    <>
-                      <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-                      Copié
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="mr-1.5 h-3.5 w-3.5" />
-                      Copier le code
-                    </>
-                  )}
-                </Button>
+                {exp.type !== "img_sous_menu" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-lg"
+                    onClick={() => handleCopy(exp.html, exp.sectionId)}
+                  >
+                    {copiedId === exp.sectionId ? (
+                      <>
+                        <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                        Copié
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-1.5 h-3.5 w-3.5" />
+                        Copier le code
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
-            <pre className="max-h-[480px] overflow-auto bg-muted/40 p-5 text-xs leading-relaxed text-foreground/80">
-              <code>{exp.html}</code>
-            </pre>
+            {exp.type === "img_sous_menu" ? (
+              <p className="px-5 py-4 text-xs text-muted-foreground">
+                Pas de HTML pour ce type de section — seuls les fichiers image sont à exporter.
+              </p>
+            ) : (
+              <pre className="max-h-[480px] overflow-auto bg-muted/40 p-5 text-xs leading-relaxed text-foreground/80">
+                <code>{exp.html}</code>
+              </pre>
+            )}
           </div>
         ))}
 

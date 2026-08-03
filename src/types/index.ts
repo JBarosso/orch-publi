@@ -9,7 +9,8 @@ export type SectionType =
   | "ariane"
   | "edito"
   | "carousel"
-  | "global_header";
+  | "global_header"
+  | "img_sous_menu";
 export type AssetType =
   | "macaron"
   | "mea"
@@ -21,7 +22,8 @@ export type AssetType =
   | "edito"
   | "carousel"
   | "carousel_title"
-  | "carousel_video";
+  | "carousel_video"
+  | "img_sous_menu";
 
 export type Locale = "FR" | "BEFR" | "BENL" | "GR" | "ES";
 
@@ -347,6 +349,27 @@ export interface EditoCard {
 
 export interface EditoContent {
   items: EditoCard[];
+}
+
+// --- Img sous menu (liste d'images pleine largeur, un lien chacune) ---
+
+export interface ImgSousMenuItem {
+  id: string;
+  // Informatif seulement : jamais exporté dans le HTML, juste pour s'y
+  // retrouver dans l'éditeur/preview (équivalent d'un "comment" ailleurs).
+  label: string;
+  imageUrl: string;
+  imageId: string;
+  imageWeek: number | null;
+  exportPosition: number | null;
+  linkType: "cgid" | "url" | "cid";
+  cgid: string;
+  cid: string;
+  link: string;
+}
+
+export interface ImgSousMenuContent {
+  items: ImgSousMenuItem[];
 }
 
 // --- Carousel héro (Bootstrap, v2-html/carousel.html) — 2 diapositives fixes,

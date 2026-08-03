@@ -1,4 +1,4 @@
-import type { CarouselContent, CustomContent, EditoContent, MacaronsContent, MeaContent, MeaV2Content } from "@/types";
+import type { CarouselContent, CustomContent, EditoContent, ImgSousMenuContent, MacaronsContent, MeaContent, MeaV2Content } from "@/types";
 
 // À la duplication d'un brief vers une AUTRE semaine, un item dont l'image
 // était "native" de la semaine source (imageWeek non renseigné, ou égal à la
@@ -91,6 +91,10 @@ export function freezeSectionContentWeek(
   }
   if (type === "edito") {
     const c = content as EditoContent;
+    return { ...c, items: freezePositionableListNoVisibleFilter(c?.items ?? [], originalWeek) };
+  }
+  if (type === "img_sous_menu") {
+    const c = content as ImgSousMenuContent;
     return { ...c, items: freezePositionableListNoVisibleFilter(c?.items ?? [], originalWeek) };
   }
   if (type === "carousel") {

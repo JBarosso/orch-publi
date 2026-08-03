@@ -10,5 +10,6 @@ export function normalizeTypeLabel(type: string): string {
   if (type === "edito") return "edito";
   if (type === "carousel") return "slider";
   if (type === "global_header") return "global header";
+  if (type === "img_sous_menu") return "img sous menu";
   return type;
 }

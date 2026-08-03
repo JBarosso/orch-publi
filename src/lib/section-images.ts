@@ -2,6 +2,7 @@ import type {
   CarouselContent,
   CustomContent,
   EditoContent,
+  ImgSousMenuContent,
   MacaronsContent,
   MeaContent,
   MeaV2Content,
@@ -51,6 +52,18 @@ function getEditoImages(content: EditoContent): ImageEntry[] {
       baseName: `edito-${item.exportPosition ?? index + 1}`,
       width: 300,
       height: 250,
+    }));
+}
+
+function getImgSousMenuImages(content: ImgSousMenuContent): ImageEntry[] {
+  return (content?.items ?? [])
+    .filter((i) => i.imageUrl)
+    .map((item, index) => ({
+      imageUrl: item.imageUrl,
+      imageWeek: item.imageWeek,
+      baseName: `img-sous-menu-${item.exportPosition ?? index + 1}`,
+      width: 563,
+      height: 125,
     }));
 }
 
@@ -161,5 +174,6 @@ export function getSectionImages(type: string, content: unknown): ImageEntry[] {
   if (type === "mea_v2") return getMeaV2Images(content as MeaV2Content);
   if (type === "edito") return getEditoImages(content as EditoContent);
   if (type === "carousel") return getCarouselImages(content as CarouselContent);
+  if (type === "img_sous_menu") return getImgSousMenuImages(content as ImgSousMenuContent);
   return [];
 }

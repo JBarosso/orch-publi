@@ -156,6 +156,15 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
     requireLabel: false,
     kind: "video",
   },
+  img_sous_menu: {
+    displayName: "Img sous menu",
+    targetWidth: 563,
+    targetHeight: 125,
+    cropShape: "rect",
+    cropAspect: 563 / 125,
+    outputFormat: "jpeg",
+    requireLabel: false,
+  },
 };
 
 const KNOWN_ASSET_TYPES: AssetType[] = [
@@ -169,6 +178,7 @@ const KNOWN_ASSET_TYPES: AssetType[] = [
   "carousel",
   "carousel_title",
   "carousel_video",
+  "img_sous_menu",
 ];
 
 export function resolveAssetType(type: unknown): AssetType {

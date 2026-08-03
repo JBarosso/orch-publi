@@ -89,6 +89,8 @@ export async function GET(request: NextRequest) {
   } else if (section.type === "global_header") {
     html = generateGlobalHeaderHTML(section.content as GlobalHeaderContent);
   }
+  // "img_sous_menu" : pas de HTML généré, uniquement les fichiers image
+  // (cf. section-images.ts) — html reste "".
 
   return NextResponse.json({ html: cleanExportedHtml(html), type: section.type });
 }

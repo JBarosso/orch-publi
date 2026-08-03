@@ -48,6 +48,8 @@ import { GlobalHeaderPreview } from "@/templates/global-header/preview";
 import { CustomEditor } from "@/templates/custom/editor";
 import { CustomPreview } from "@/templates/custom/preview";
 import { normalizeCustomContent } from "@/templates/custom/schema";
+import { ImgSousMenuEditor } from "@/templates/img-sous-menu/editor";
+import { ImgSousMenuPreview } from "@/templates/img-sous-menu/preview";
 import type {
   MeaItem,
   MeaContent,
@@ -58,6 +60,8 @@ import type {
   CarouselContent,
   GlobalHeaderContent,
   CustomTemplate,
+  ImgSousMenuItem,
+  ImgSousMenuContent,
 } from "@/types";
 import { StatusActions } from "@/components/editor/status-actions";
 import { StatusBadge } from "@/components/briefs/status-badge";
@@ -194,7 +198,7 @@ export default function BriefEditorPage({
   );
 
   const updateSectionItems = useCallback(
-    (sectionId: string, items: MacaronItem[] | MeaItem[] | EditoCard[]) => {
+    (sectionId: string, items: MacaronItem[] | MeaItem[] | EditoCard[] | ImgSousMenuItem[]) => {
       updateSection(sectionId, { content: { items } });
     },
     [updateSection],
@@ -406,7 +410,7 @@ export default function BriefEditorPage({
           }
           return section;
         }
-        const content = section.content as { items?: (MacaronItem | MeaItem | EditoCard)[] };
+        const content = section.content as { items?: (MacaronItem | MeaItem | EditoCard | ImgSousMenuItem)[] };
         // Nouvelle image sélectionnée/uploadée : redevient native de la
         // semaine courante (semaine + position figées repassent dynamiques).
         const items = (content.items ?? []).map((item) =>
@@ -595,6 +599,7 @@ export default function BriefEditorPage({
               { value: "edito", label: "Edito" },
               { value: "ariane", label: "Fil d'ariane" },
               { value: "global_header", label: "Global header" },
+              { value: "img_sous_menu", label: "Img sous menu" },
               { value: "macarons", label: "Macaron" },
               { value: "macarons_v2", label: "Macaron v2" },
               { value: "mea", label: "MEA" },
@@ -615,6 +620,7 @@ export default function BriefEditorPage({
               <SelectItem value="edito">Edito</SelectItem>
               <SelectItem value="ariane">Fil d&apos;ariane</SelectItem>
               <SelectItem value="global_header">Global header</SelectItem>
+              <SelectItem value="img_sous_menu">Img sous menu</SelectItem>
               <SelectItem value="macarons">Macaron</SelectItem>
               <SelectItem value="macarons_v2">Macaron v2</SelectItem>
               <SelectItem value="mea">MEA</SelectItem>
@@ -980,6 +986,22 @@ export default function BriefEditorPage({
                             handleDirectDrop({ sectionId: section.id, itemId, type: "edito" }, file)
                           }
                         />
+                      ) : section.type === "img_sous_menu" ? (
+                        <ImgSousMenuEditor
+                          items={((section.content as ImgSousMenuContent)?.items ?? [])}
+                          briefWeek={brief.week}
+                          onChange={(items) => updateSectionItems(section.id, items)}
+                          onOpenMediaLibrary={(itemId) =>
+                            setMediaTarget({
+                              sectionId: section.id,
+                              itemId,
+                              type: "img_sous_menu",
+                            })
+                          }
+                          onDropFile={(itemId, file) =>
+                            handleDirectDrop({ sectionId: section.id, itemId, type: "img_sous_menu" }, file)
+                          }
+                        />
                       ) : section.type === "carousel" ? (
                         <CarouselEditor
                           content={section.content as CarouselContent}
@@ -1136,6 +1158,16 @@ export default function BriefEditorPage({
                         {section.title || "Section"}
                       </p>
                       <EditoPreview items={((section.content as EditoContent)?.items ?? [])} />
+                    </div>
+                  );
+                }
+                if (section.type === "img_sous_menu") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <ImgSousMenuPreview items={((section.content as ImgSousMenuContent)?.items ?? [])} />
                     </div>
                   );
                 }
