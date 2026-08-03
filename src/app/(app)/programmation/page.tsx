@@ -1,12 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, CalendarRange, Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BrushCleaning, CalendarDays, CalendarRange, Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { toast } from "sonner";
 import type { ProgrammationBlock, ProgrammationCountry } from "@/types";
 import { PROGRAMMATION_COUNTRIES } from "@/types";
+
+// Comparaison directe de chaînes ISO (YYYY-MM-DD) : même piège de fuseau
+// horaire que formatDate ci-dessous, donc pas de new Date() ici non plus.
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function sortBlocks(blocks: ProgrammationBlock[]): ProgrammationBlock[] {
   return [...blocks].sort((a, b) => {
@@ -177,6 +185,8 @@ export default function ProgrammationPage() {
   const [blocks, setBlocks] = useState<ProgrammationBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmCleanOpen, setConfirmCleanOpen] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
 
   const fetchBlocks = useCallback(async () => {
     const res = await fetch("/api/programmation");
@@ -241,16 +251,58 @@ export default function ProgrammationPage() {
     fetchBlocks();
   };
 
+  const expiredBlocks = useMemo(() => {
+    const today = todayIso();
+    return blocks.filter((b) => b.endDate && b.endDate < today);
+  }, [blocks]);
+
+  const handleCleanExpired = async () => {
+    setCleaning(true);
+    try {
+      const results = await Promise.all(
+        expiredBlocks.map((b) =>
+          fetch("/api/programmation", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: b.id }),
+          }),
+        ),
+      );
+      const failed = results.filter((r) => !r.ok).length;
+      if (failed > 0) {
+        toast.error(`${failed} bloc(s) n'ont pas pu être supprimés`);
+      } else {
+        toast.success(`${expiredBlocks.length} programmation(s) passée(s) supprimée(s)`);
+      }
+      if (expiredBlocks.some((b) => b.id === editingId)) setEditingId(null);
+      fetchBlocks();
+    } finally {
+      setCleaning(false);
+    }
+  };
+
   return (
     <div className="p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
-          <CalendarRange className="h-6 w-6 text-primary" />
-          Programmation
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tableau informatif — planifiez vos assets par pays, avec une période optionnelle.
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
+            <CalendarRange className="h-6 w-6 text-primary" />
+            Programmation
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tableau informatif — planifiez vos assets par pays, avec une période optionnelle.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={expiredBlocks.length === 0}
+          onClick={() => setConfirmCleanOpen(true)}
+        >
+          <BrushCleaning className="mr-1.5 h-3.5 w-3.5" />
+          Clean
+          {expiredBlocks.length > 0 && ` (${expiredBlocks.length})`}
+        </Button>
       </div>
 
       {loading ? (
@@ -301,6 +353,18 @@ export default function ProgrammationPage() {
           })}
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={confirmCleanOpen}
+        onOpenChange={setConfirmCleanOpen}
+        title={`Supprimer ${expiredBlocks.length} programmation(s) passée(s) ?`}
+        description={
+          cleaning
+            ? "Suppression en cours..."
+            : "Tous les blocs dont la date de fin est déjà passée seront définitivement supprimés. Cette action est irréversible."
+        }
+        onConfirm={handleCleanExpired}
+      />
     </div>
   );
 }
