@@ -48,7 +48,7 @@ export function MeaV2FocusEditor({
   const appelPrix = focus.appelPrix;
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3">
+    <div className="flex flex-wrap items-start gap-3 rounded-lg border border-border/60 bg-card p-3">
       <div className="flex w-[150px] shrink-0 flex-col items-center gap-1.5">
         <span className="text-[10px] font-medium text-muted-foreground">Carte focus (5)</span>
 
