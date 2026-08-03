@@ -28,7 +28,7 @@ function formatDate(iso: string): string {
 
 function DateTag({ iso }: { iso: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-4 py-1 text-[14px] font-medium">
+    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-4 py-1 text-sm font-medium">
       <CalendarDays className="h-2.5 w-2.5" />
       {formatDate(iso)}
     </span>

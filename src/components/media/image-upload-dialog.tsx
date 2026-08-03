@@ -52,7 +52,11 @@ interface ImageUploadDialogProps {
   onClose: () => void;
 }
 
-// Client-side crop helper to ensure exact extraction with background fill
+// Crop client-side (WYSIWYG) : pixelCrop est exprimé dans le repère de
+// l'image d'origine et peut déborder de ses limites (x/y négatifs, zone plus
+// grande que l'image) quand l'utilisateur a dézoomé sous la taille du cadre
+// — nécessite restrictPosition={false} sur le Cropper. Les zones non
+// couvertes par l'image restent sur le fond blanc pré-rempli.
 async function getCroppedImg(
   imageSrc: string,
   pixelCrop: Area,
@@ -70,20 +74,15 @@ async function getCroppedImg(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("No 2d context");
 
-  // Output dimensions (use target dimensions if provided, else use crop area)
   canvas.width = targetWidth || pixelCrop.width;
   canvas.height = targetHeight || pixelCrop.height;
 
-  // Fill white backgound
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Calculate scales if we are resizing to targetWidth/Height
   const scaleX = canvas.width / pixelCrop.width;
   const scaleY = canvas.height / pixelCrop.height;
 
-  // Draw the image onto the canvas exactly as cropped
-  // pixelCrop.x/y is the boundary mapped to original image res.
   ctx.save();
   ctx.scale(scaleX, scaleY);
   ctx.drawImage(
@@ -173,7 +172,8 @@ export function ImageUploadDialog({
   // Recadrage à sauter dans les deux cas : upload libre ou vidéo (jamais de crop vidéo)
   const skipCrop = isFreeUpload || isVideo;
 
-  // Allow zoom out so image can be smaller than container
+  // Autorise le dézoom sous la taille du cadre : l'image peut être plus
+  // petite que la zone de crop (complétée en blanc à l'upload)
   const minZoom = 0.3;
 
   const loadFile = useCallback(
@@ -270,7 +270,7 @@ export function ImageUploadDialog({
       reader.onload = () => showImage(reader.result as string);
       reader.readAsDataURL(file);
     },
-    [spec, selectedType, allowTypeSelect, onFileSelected]
+    [spec, allowTypeSelect, onFileSelected]
   );
 
   useEffect(() => {

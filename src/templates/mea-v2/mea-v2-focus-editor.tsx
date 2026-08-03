@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Image as ImageIcon, Plus, TriangleAlert, Video, X } from "lucide-react";
+import { CheckCircle2, Image as ImageIcon, Video } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ButtonsEditor } from "@/components/editor/buttons-editor";
+import { LinkFields } from "@/components/editor/link-fields";
+import { WeekField } from "@/components/editor/week-field";
 import type { MeaV2FocusCard, MeaButton } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "./schema";
@@ -34,22 +37,14 @@ export function MeaV2FocusEditor({
   onOpenVideoUpload,
 }: MeaV2FocusEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
+  // Anciennes données sans champ buttons
   const buttons: MeaButton[] = focus.buttons ?? [createEmptyButton()];
-
-  const updateButton = (index: number, updates: Partial<MeaButton>) => {
-    onUpdate({ buttons: buttons.map((btn, i) => (i === index ? { ...btn, ...updates } : btn)) });
-  };
-  const addButton = () => onUpdate({ buttons: [...buttons, createEmptyButton()] });
-  const removeButton = (index: number) => {
-    if (buttons.length <= 1) return;
-    onUpdate({ buttons: buttons.filter((_, i) => i !== index) });
-  };
 
   const appelPrix = focus.appelPrix;
 
   return (
     <div className="flex flex-wrap items-start gap-3 rounded-lg border border-border/60 bg-card p-3">
-      <div className="flex w-[150px] shrink-0 flex-col items-center gap-1.5">
+      <div className="flex w-37.5 shrink-0 flex-col items-center gap-1.5">
         <span className="text-[10px] font-medium text-muted-foreground">Carte focus (5)</span>
 
         <Select
@@ -126,34 +121,13 @@ export function MeaV2FocusEditor({
         )}
       </div>
 
-      <div className="min-w-[320px] flex-1 space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground/70 shrink-0">
-            Semaine
-          </span>
-          <Input
-            type="number"
-            placeholder="Semaine"
-            value={focus.imageWeek ?? briefWeek}
-            onChange={(e) =>
-              onUpdate({ imageWeek: e.target.value ? Number(e.target.value) : null })
-            }
-            min={1}
-            max={53}
-            className="h-8 w-28 text-sm"
-          />
-          {focus.imageWeek != null && focus.imageWeek !== briefWeek && (
-            <span title="La semaine est différente de celle du brief">
-              <TriangleAlert className="h-4 w-4 shrink-0 text-amber-500" />
-            </span>
-          )}
-          <span
-            className="text-[10px] text-muted-foreground/50 truncate"
-            title={focus.imageId}
-          >
-            ID: {focus.imageId}
-          </span>
-        </div>
+      <div className="min-w-80 flex-1 space-y-2">
+        <WeekField
+          imageWeek={focus.imageWeek}
+          briefWeek={briefWeek}
+          imageId={focus.imageId}
+          onChange={(imageWeek) => onUpdate({ imageWeek })}
+        />
 
         <Input
           placeholder="Titre"
@@ -163,48 +137,21 @@ export function MeaV2FocusEditor({
         />
 
         <div className="flex items-center gap-2 rounded-md bg-muted/40 p-1.5">
-          <span className="text-[10px] text-muted-foreground shrink-0" title="Lien de toute la carte, indépendant des boutons">
+          <span
+            className="text-[10px] text-muted-foreground shrink-0"
+            title="Lien de toute la carte, indépendant des boutons"
+          >
             Lien carte
           </span>
-          <Select
-            value={focus.linkType}
-            items={{ cgid: "cgid", cid: "cid", url: "URL" }}
-            onValueChange={(v) => v && onUpdate({ linkType: v as "cgid" | "url" | "cid" })}
-          >
-            <SelectTrigger className="h-7 w-20 shrink-0 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="cgid">cgid</SelectItem>
-              <SelectItem value="cid">cid</SelectItem>
-              <SelectItem value="url">URL</SelectItem>
-            </SelectContent>
-          </Select>
-          {focus.linkType === "cgid" ? (
-            <Input
-              placeholder="ex: outlet"
-              value={focus.cgid}
-              onChange={(e) => onUpdate({ cgid: e.target.value })}
-              className="h-7 text-xs flex-1"
-            />
-          ) : focus.linkType === "cid" ? (
-            <Input
-              placeholder="ex: aide-faq"
-              value={focus.cid}
-              onChange={(e) => onUpdate({ cid: e.target.value })}
-              className="h-7 text-xs flex-1"
-            />
-          ) : (
-            <Input
-              placeholder="https://..."
-              value={focus.link}
-              onChange={(e) => onUpdate({ link: e.target.value })}
-              className="h-7 text-xs flex-1"
-            />
-          )}
+          <LinkFields
+            linkType={focus.linkType}
+            cgid={focus.cgid}
+            cid={focus.cid}
+            link={focus.link}
+            onChange={onUpdate}
+          />
         </div>
 
-        {/* Badge prix (appelPrix) */}
         <div className="space-y-1.5 rounded-md bg-muted/40 p-1.5">
           <div className="flex items-center gap-1.5">
             <Switch
@@ -246,73 +193,10 @@ export function MeaV2FocusEditor({
           )}
         </div>
 
-        <div className="space-y-1.5 pt-1 border-t">
-          {buttons.map((btn, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <Input
-                placeholder={`Bouton ${idx + 1}`}
-                value={btn.text}
-                onChange={(e) => updateButton(idx, { text: e.target.value })}
-                className="h-7 w-24 text-xs shrink-0"
-              />
-              <Select
-                value={btn.linkType}
-                items={{ cgid: "cgid", cid: "cid", url: "URL" }}
-                onValueChange={(v) => v && updateButton(idx, { linkType: v as "cgid" | "url" | "cid" })}
-              >
-                <SelectTrigger className="h-7 w-20 shrink-0 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cgid">cgid</SelectItem>
-                  <SelectItem value="cid">cid</SelectItem>
-                  <SelectItem value="url">URL</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {btn.linkType === "cgid" ? (
-                <Input
-                  placeholder="ex: outlet"
-                  value={btn.cgid}
-                  onChange={(e) => updateButton(idx, { cgid: e.target.value })}
-                  className="h-7 text-xs flex-1"
-                />
-              ) : btn.linkType === "cid" ? (
-                <Input
-                  placeholder="ex: aide-faq"
-                  value={btn.cid}
-                  onChange={(e) => updateButton(idx, { cid: e.target.value })}
-                  className="h-7 text-xs flex-1"
-                />
-              ) : (
-                <Input
-                  placeholder="https://..."
-                  value={btn.link}
-                  onChange={(e) => updateButton(idx, { link: e.target.value })}
-                  className="h-7 text-xs flex-1"
-                />
-              )}
-
-              {buttons.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeButton(idx)}
-                  className="text-muted-foreground/40 hover:text-destructive transition-colors p-0.5"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={addButton}
-            className="flex items-center gap-1 text-xs text-muted-foreground/60 hover:text-primary transition-colors"
-          >
-            <Plus className="h-3 w-3" />
-            <span>Ajouter un bouton</span>
-          </button>
-        </div>
+        <ButtonsEditor
+          buttons={buttons}
+          onChange={(next) => onUpdate({ buttons: next })}
+        />
 
         <div className="space-y-1">
           <span className="text-[11px] text-muted-foreground">commentaire</span>

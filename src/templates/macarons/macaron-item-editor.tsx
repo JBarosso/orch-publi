@@ -3,28 +3,14 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2, Image as ImageIcon, TriangleAlert } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { GripVertical, Trash2, Image as ImageIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
+import { LinkFields } from "@/components/editor/link-fields";
+import { WeekField } from "@/components/editor/week-field";
 import type { MacaronItem } from "@/types";
-import { sanitizeMacaronLabel } from "./schema";
 import { cn } from "@/lib/utils";
 import { useFileDrop } from "@/lib/use-file-drop";
 
@@ -90,7 +76,7 @@ export function MacaronItemEditor({
             onClick={onOpenMediaLibrary}
             {...dropHandlers}
             className={cn(
-              "shrink-0 flex h-[70px] w-[70px] items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
+              "shrink-0 flex size-17.5 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
               isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
             )}
           >
@@ -106,120 +92,52 @@ export function MacaronItemEditor({
             )}
           </button>
 
-          <div className="min-w-[300px] flex-1 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground/70 shrink-0">
-                Semaine
-              </span>
-              <Input
-                type="number"
-                placeholder="Semaine"
-                value={item.imageWeek ?? briefWeek}
-                onChange={(e) =>
-                  onUpdate({
-                    imageWeek: e.target.value
-                      ? Number(e.target.value)
-                      : null,
-                  })
-                }
-                min={1}
-                max={53}
-                className="h-8 w-28 text-sm"
-              />
-              {item.imageWeek != null && item.imageWeek !== briefWeek && (
-                <span
-                  title={
-                    item.exportPosition != null
-                      ? `Semaine différente de celle du brief — position figée à ${item.exportPosition} (déplacer l'item ne la change plus ; réuploader une image la défige)`
-                      : "La semaine est différente de celle du brief"
-                  }
-                  className="flex items-center gap-0.5"
-                >
-                  <TriangleAlert className="h-4 w-4 shrink-0 text-amber-500" />
-                  {item.exportPosition != null && (
-                    <span className="text-[9px] font-medium text-amber-600">
-                      #{item.exportPosition} figé
-                    </span>
-                  )}
-                </span>
-              )}
-              <span
-                className="text-[10px] text-muted-foreground/50 truncate"
-                title={item.imageId}
-              >
-                ID: {item.imageId}
-              </span>
-            </div>
-
-            <div className="flex items-start gap-2">
-              <Textarea
-                placeholder="Label (minuscules, Enter = saut de ligne)"
-                value={item.label}
-                onChange={(e) =>
-                  onUpdate({ label: sanitizeMacaronLabel(e.target.value) })
-                }
-                rows={2}
-                className="min-h-14 resize-none text-sm"
-              />
-            </div>
-
-          <div className="flex items-center gap-2">
-            <Select
-              value={item.linkType}
-              items={{ cgid: "cgid", cid: "cid", url: "URL" }}
-              onValueChange={(v) =>
-                v && onUpdate({ linkType: v as "cgid" | "url" | "cid" })
-              }
-            >
-              <SelectTrigger className="h-8 w-28 shrink-0 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cgid">cgid</SelectItem>
-                <SelectItem value="cid">cid</SelectItem>
-                <SelectItem value="url">URL</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {item.linkType === "cgid" ? (
-              <Input
-                placeholder="ex: outlet, collection-t-shirts"
-                value={item.cgid}
-                onChange={(e) => onUpdate({ cgid: e.target.value })}
-                className="h-8 text-sm"
-              />
-            ) : item.linkType === "cid" ? (
-              <Input
-                placeholder="ex: aide-faq, content-page-id"
-                value={item.cid}
-                onChange={(e) => onUpdate({ cid: e.target.value })}
-                className="h-8 text-sm"
-              />
-            ) : (
-              <Input
-                placeholder="https://..."
-                value={item.link}
-                onChange={(e) => onUpdate({ link: e.target.value })}
-                className="h-8 text-sm"
-              />
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-[11px] text-muted-foreground">commentaire</span>
-            <Textarea
-              placeholder="commentaire..."
-              value={item.comment ?? ""}
-              onChange={(e) => onUpdate({ comment: e.target.value })}
-              rows={2}
-              className={cn(
-                "min-h-10 resize-none text-sm",
-                (item.comment ?? "").trim()
-                  ? "border-red-500 border-l-[3px]! border-l-red-500! focus-visible:ring-2 focus-visible:ring-red-500/40"
-                  : "",
-              )}
+          <div className="min-w-75 flex-1 space-y-1.5">
+            <WeekField
+              imageWeek={item.imageWeek}
+              briefWeek={briefWeek}
+              imageId={item.imageId}
+              exportPosition={item.exportPosition}
+              onChange={(imageWeek) => onUpdate({ imageWeek })}
             />
-          </div>
+
+            <Textarea
+              placeholder="Label (minuscules, Enter = saut de ligne)"
+              value={item.label}
+              onChange={(e) => onUpdate({ label: e.target.value })}
+              rows={2}
+              className="min-h-14 resize-none text-sm"
+            />
+
+            <div className="flex items-center gap-2">
+              <LinkFields
+                linkType={item.linkType}
+                cgid={item.cgid}
+                cid={item.cid}
+                link={item.link}
+                onChange={onUpdate}
+                cgidPlaceholder="ex: outlet, collection-t-shirts"
+                cidPlaceholder="ex: aide-faq, content-page-id"
+                selectClassName="h-8 w-28 shrink-0 text-xs"
+                inputClassName="h-8 text-sm"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[11px] text-muted-foreground">commentaire</span>
+              <Textarea
+                placeholder="commentaire..."
+                value={item.comment ?? ""}
+                onChange={(e) => onUpdate({ comment: e.target.value })}
+                rows={2}
+                className={cn(
+                  "min-h-10 resize-none text-sm",
+                  (item.comment ?? "").trim()
+                    ? "border-red-500 border-l-[3px]! border-l-red-500! focus-visible:ring-2 focus-visible:ring-red-500/40"
+                    : "",
+                )}
+              />
+            </div>
           </div>
         </div>
 
@@ -243,30 +161,13 @@ export function MacaronItemEditor({
         </div>
       </div>
 
-      <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Supprimer ce macaron ?</DialogTitle>
-            <DialogDescription>
-              Cette action est irreversible. Le macaron sera définitivement supprimé.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="sm:flex-wrap">
-            <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setConfirmDeleteOpen(false);
-                onRemove();
-              }}
-            >
-              Supprimer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Supprimer ce macaron ?"
+        description="Cette action est irréversible. Le macaron sera définitivement supprimé."
+        onConfirm={onRemove}
+      />
     </>
   );
 }

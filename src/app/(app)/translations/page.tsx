@@ -295,10 +295,10 @@ export default function TranslationsPage() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border/60 bg-card shadow-sm">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="w-full min-w-225 text-sm">
             <thead>
               <tr className="border-b border-border/60 bg-muted/40 text-left">
-                <th className="w-[220px] px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="w-55 px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Clé
                 </th>
                 {LOCALES.map((locale) => (
@@ -309,7 +309,7 @@ export default function TranslationsPage() {
                     {locale.label}
                   </th>
                 ))}
-                <th className="w-[52px] px-3 py-2.5" />
+                <th className="w-13 px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>

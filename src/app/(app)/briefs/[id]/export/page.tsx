@@ -3,8 +3,9 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Copy, Check, Loader2, ImageDown, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, ImageDown, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CopyCodeButton } from "@/components/editor/copy-code-button";
 import { toast } from "sonner";
 import type {
   Brief,
@@ -73,7 +74,6 @@ export default function ExportPage({
   const [exports, setExports] = useState<
     { type: string; title: string; html: string; sectionId: string }[]
   >([]);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [downloadingImages, setDownloadingImages] = useState<string | null>(null);
   const [skippedCount, setSkippedCount] = useState(0);
   const [warnings, setWarnings] = useState<{ sectionId: string; title: string; message: string }[]>([]);
@@ -123,17 +123,11 @@ export default function ExportPage({
     load();
   }, [id, router]);
 
-  const handleCopy = async (html: string, sectionId: string) => {
-    await navigator.clipboard.writeText(html);
-    setCopiedId(sectionId);
-    toast.success("Code copié dans le presse-papier");
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const handleDownloadImages = async (sectionId: string) => {
-    setDownloadingImages(sectionId);
+  // key = sectionId ou "all" (pilote le spinner du bouton correspondant)
+  const handleDownloadImages = async (key: string, query: string, fallbackName: string) => {
+    setDownloadingImages(key);
     try {
-      const res = await fetch(`/api/export/images?sectionId=${sectionId}`);
+      const res = await fetch(`/api/export/images?${query}`);
       if (!res.ok) {
         const err = await res.json();
         toast.error(err.error || "Erreur lors du téléchargement");
@@ -145,36 +139,10 @@ export default function ExportPage({
       a.href = url;
       const disposition = res.headers.get("Content-Disposition");
       const match = disposition?.match(/filename="(.+)"/);
-      a.download = match?.[1] ?? "fichiers.zip";
+      a.download = match?.[1] ?? fallbackName;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Fichiers téléchargés");
-    } catch {
-      toast.error("Erreur lors du téléchargement");
-    } finally {
-      setDownloadingImages(null);
-    }
-  };
-
-  const handleDownloadAllImages = async () => {
-    setDownloadingImages("all");
-    try {
-      const res = await fetch(`/api/export/images?briefId=${id}`);
-      if (!res.ok) {
-        const err = await res.json();
-        toast.error(err.error || "Erreur lors du téléchargement");
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const disposition = res.headers.get("Content-Disposition");
-      const match = disposition?.match(/filename="(.+)"/);
-      a.download = match?.[1] ?? "tous-les-fichiers.zip";
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Tous les fichiers téléchargés");
     } catch {
       toast.error("Erreur lors du téléchargement");
     } finally {
@@ -206,7 +174,7 @@ export default function ExportPage({
         </div>
         <div>
           <Button
-            onClick={handleDownloadAllImages}
+            onClick={() => handleDownloadImages("all", `briefId=${id}`, "tous-les-fichiers.zip")}
             disabled={downloadingImages === "all" || exports.length === 0}
           >
             {downloadingImages === "all" ? (
@@ -264,7 +232,9 @@ export default function ExportPage({
                     size="sm"
                     className="rounded-lg"
                     disabled={downloadingImages === exp.sectionId}
-                    onClick={() => handleDownloadImages(exp.sectionId)}
+                    onClick={() =>
+                      handleDownloadImages(exp.sectionId, `sectionId=${exp.sectionId}`, "fichiers.zip")
+                    }
                   >
                     {downloadingImages === exp.sectionId ? (
                       <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -274,26 +244,7 @@ export default function ExportPage({
                     Fichiers
                   </Button>
                 )}
-                {exp.type !== "img_sous_menu" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-lg"
-                    onClick={() => handleCopy(exp.html, exp.sectionId)}
-                  >
-                    {copiedId === exp.sectionId ? (
-                      <>
-                        <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-                        Copié
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="mr-1.5 h-3.5 w-3.5" />
-                        Copier le code
-                      </>
-                    )}
-                  </Button>
-                )}
+                {exp.type !== "img_sous_menu" && <CopyCodeButton text={exp.html} />}
               </div>
             </div>
             {exp.type === "img_sous_menu" ? (
@@ -301,7 +252,7 @@ export default function ExportPage({
                 Pas de HTML pour ce type de section — seuls les fichiers image sont à exporter.
               </p>
             ) : (
-              <pre className="max-h-[480px] overflow-auto bg-muted/40 p-5 text-xs leading-relaxed text-foreground/80">
+              <pre className="max-h-120 overflow-auto bg-muted/40 p-5 text-xs leading-relaxed text-foreground/80">
                 <code>{exp.html}</code>
               </pre>
             )}

@@ -40,7 +40,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-background via-background to-secondary/40 p-4">
-      <div className="w-full max-w-[380px] space-y-8">
+      <div className="w-full max-w-95 space-y-8">
         <div className="text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-lg bg-primary shadow-lg shadow-primary/25">
             <Lock className="h-6 w-6 text-primary-foreground" />

@@ -70,7 +70,7 @@ export async function PUT(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const body = await request.json();
 
-  // Duplicate an existing section
+  // Duplication d'une section existante
   if (body.sourceSectionId) {
     const [source] = await db
       .select()
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(created, { status: 201 });
   }
 
-  // Create a new section
+  // Création d'une nouvelle section
   const { briefId, type, title, templateId } = body;
   if (!briefId || !type) {
     return NextResponse.json({ error: "briefId et type sont requis" }, { status: 400 });
@@ -170,7 +170,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Section introuvable" }, { status: 404 });
   }
 
-  // Reindex section order for this brief
+  // Réindexe l'ordre des sections du brief
   const sections = await db
     .select({ id: briefSections.id })
     .from(briefSections)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,9 @@ export function MediaLibraryDialog({
   const [typeOptions, setTypeOptions] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState(false);
-  const [dragCounter, setDragCounter] = useState(0);
+  // Compteur enter/leave (les enfants déclenchent aussi dragleave) — jamais
+  // rendu, donc une ref suffit ; seul `dragging` pilote l'affichage.
+  const dragCounterRef = useRef(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
@@ -91,17 +93,14 @@ export function MediaLibraryDialog({
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setDragCounter((c) => c + 1);
+    dragCounterRef.current += 1;
     setDragging(true);
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setDragCounter((c) => {
-      const next = c - 1;
-      if (next <= 0) setDragging(false);
-      return Math.max(0, next);
-    });
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) setDragging(false);
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -112,13 +111,13 @@ export function MediaLibraryDialog({
     (e: React.DragEvent) => {
       e.preventDefault();
       setDragging(false);
-      setDragCounter(0);
+      dragCounterRef.current = 0;
       const file = e.dataTransfer.files?.[0];
       if (file && (file.type.startsWith("image/") || file.type.startsWith("video/") || looksLikeMp4(file))) {
         onUploadNew(file, filterType || initialType);
       }
     },
-    [onUploadNew],
+    [onUploadNew, filterType, initialType],
   );
 
   return (

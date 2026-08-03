@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LinkFields } from "@/components/editor/link-fields";
 import { cn } from "@/lib/utils";
 import type { CustomBlock, CustomBlockType, CustomContent, CustomLayout } from "@/types";
 import { CUSTOM_BLOCK_LABELS, CUSTOM_LAYOUTS } from "@/types";
@@ -302,7 +303,7 @@ function CustomBlockEditor({
                 <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
               )}
             </button>
-            <div className="min-w-[220px] flex-1 space-y-1.5">
+            <div className="min-w-55 flex-1 space-y-1.5">
               <Input
                 placeholder="Texte alternatif (optionnel)"
                 value={block.text}
@@ -351,44 +352,17 @@ function CustomBlockEditor({
               className="h-8 text-sm"
             />
             <div className="flex items-center gap-2">
-              <Select
-                value={block.linkType}
-                items={{ cgid: "cgid", cid: "cid", url: "URL" }}
-                onValueChange={(v) =>
-                  v && onUpdate({ linkType: v as "cgid" | "url" | "cid" })
-                }
-              >
-                <SelectTrigger className="h-8 w-28 shrink-0 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cgid">cgid</SelectItem>
-                  <SelectItem value="cid">cid</SelectItem>
-                  <SelectItem value="url">URL</SelectItem>
-                </SelectContent>
-              </Select>
-              {block.linkType === "cgid" ? (
-                <Input
-                  placeholder="ex: outlet, collection-t-shirts"
-                  value={block.cgid}
-                  onChange={(e) => onUpdate({ cgid: e.target.value })}
-                  className="h-8 text-sm"
-                />
-              ) : block.linkType === "cid" ? (
-                <Input
-                  placeholder="ex: aide-faq, content-page-id"
-                  value={block.cid}
-                  onChange={(e) => onUpdate({ cid: e.target.value })}
-                  className="h-8 text-sm"
-                />
-              ) : (
-                <Input
-                  placeholder="https://..."
-                  value={block.link}
-                  onChange={(e) => onUpdate({ link: e.target.value })}
-                  className="h-8 text-sm"
-                />
-              )}
+              <LinkFields
+                linkType={block.linkType}
+                cgid={block.cgid}
+                cid={block.cid}
+                link={block.link}
+                onChange={onUpdate}
+                cgidPlaceholder="ex: outlet, collection-t-shirts"
+                cidPlaceholder="ex: aide-faq, content-page-id"
+                selectClassName="h-8 w-28 shrink-0 text-xs"
+                inputClassName="h-8 text-sm"
+              />
             </div>
           </div>
         )}

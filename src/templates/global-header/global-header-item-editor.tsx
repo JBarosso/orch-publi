@@ -8,13 +8,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { LinkFields } from "@/components/editor/link-fields";
 import type { GlobalHeaderItem, GlobalHeaderLibraryItem, Locale } from "@/types";
 import { cn } from "@/lib/utils";
 import { LibraryItemPicker } from "./library-item-picker";
@@ -149,47 +143,17 @@ export function GlobalHeaderItemEditor({
       />
 
       <div className="flex items-center gap-2 rounded-md bg-muted/40 p-1.5">
-        <Select
-          value={item.linkType}
-          items={{ cgid: "cgid", cid: "cid", url: "URL", none: "Aucun (texte simple)" }}
-          onValueChange={(v) => v && onUpdate({ linkType: v as GlobalHeaderItem["linkType"] })}
-        >
-          <SelectTrigger className="h-7 w-36 shrink-0 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="cgid">cgid</SelectItem>
-            <SelectItem value="cid">cid</SelectItem>
-            <SelectItem value="url">URL</SelectItem>
-            <SelectItem value="none">Aucun (texte simple)</SelectItem>
-          </SelectContent>
-        </Select>
-        {item.linkType === "cgid" ? (
-          <Input
-            placeholder="ex: soldes"
-            value={item.cgid}
-            onChange={(e) => onUpdate({ cgid: e.target.value })}
-            className="h-7 text-xs flex-1"
-          />
-        ) : item.linkType === "cid" ? (
-          <Input
-            placeholder="ex: alma"
-            value={item.cid}
-            onChange={(e) => onUpdate({ cid: e.target.value })}
-            className="h-7 text-xs flex-1"
-          />
-        ) : item.linkType === "url" ? (
-          <Input
-            placeholder="https://..."
-            value={item.link}
-            onChange={(e) => onUpdate({ link: e.target.value })}
-            className="h-7 text-xs flex-1"
-          />
-        ) : (
-          <span className="text-[10px] text-muted-foreground">
-            Message non cliquable (affiché dans un &lt;span&gt;)
-          </span>
-        )}
+        <LinkFields
+          linkType={item.linkType}
+          cgid={item.cgid}
+          cid={item.cid}
+          link={item.link}
+          onChange={onUpdate}
+          allowNone
+          cgidPlaceholder="ex: soldes"
+          cidPlaceholder="ex: alma"
+          selectClassName="h-7 w-36 shrink-0 text-xs"
+        />
       </div>
 
       <div className="space-y-1">

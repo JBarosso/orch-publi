@@ -22,10 +22,6 @@ function getButtonUrl(btn: MeaButton): string {
   return esc(btn.link.trim());
 }
 
-function getButtonUrlPreview(btn: MeaButton): string {
-  return "#";
-}
-
 const cssStyle = ` .site-container {
         width: 100%;
         max-width: 100%;

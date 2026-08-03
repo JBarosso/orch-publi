@@ -3,8 +3,9 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Copy, Check, Loader2, ImageDown } from "lucide-react";
+import { ArrowLeft, Loader2, ImageDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CopyCodeButton } from "@/components/editor/copy-code-button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { normalizeTypeLabel } from "@/lib/section-labels";
@@ -62,7 +63,6 @@ function ExportGroupeContent() {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<Group[]>([]);
   const [activeTab, setActiveTab] = useState<Record<string, string>>({});
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -128,13 +128,6 @@ function ExportGroupeContent() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [briefIds]);
-
-  const handleCopy = async (html: string, sectionId: string) => {
-    await navigator.clipboard.writeText(html);
-    setCopiedId(sectionId);
-    toast.success("Code copié dans le presse-papier");
-    setTimeout(() => setCopiedId(null), 2000);
-  };
 
   const downloadZip = async (key: string, sectionIds: string[], filenameHint: string) => {
     setDownloading(key);
@@ -230,26 +223,7 @@ function ExportGroupeContent() {
                       Fichiers ({group.tabs.length} tabs)
                     </Button>
                   )}
-                  {currentTab && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-lg"
-                      onClick={() => handleCopy(currentTab.html, currentTab.sectionId)}
-                    >
-                      {copiedId === currentTab.sectionId ? (
-                        <>
-                          <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-                          Copié
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="mr-1.5 h-3.5 w-3.5" />
-                          Copier le code
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  {currentTab && <CopyCodeButton text={currentTab.html} />}
                 </div>
               </div>
 
@@ -276,7 +250,7 @@ function ExportGroupeContent() {
               )}
 
               {currentTab && (
-                <pre className="max-h-[480px] overflow-auto bg-muted/40 p-5 text-xs leading-relaxed text-foreground/80">
+                <pre className="max-h-120 overflow-auto bg-muted/40 p-5 text-xs leading-relaxed text-foreground/80">
                   <code>{currentTab.html}</code>
                 </pre>
               )}

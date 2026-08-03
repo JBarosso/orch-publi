@@ -529,7 +529,7 @@ export default function BriefEditorPage({
       editor: leftPercent,
       preview: clampedRight,
     });
-  }, []);
+  }, [previewGroupRef]);
 
   if (loading || !brief) {
     return (
@@ -647,7 +647,7 @@ export default function BriefEditorPage({
           <DialogHeader>
             <DialogTitle>Supprimer cette section ?</DialogTitle>
             <DialogDescription>
-              Cette action est irreversible.
+              Cette action est irréversible.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -794,7 +794,7 @@ export default function BriefEditorPage({
                       onChange={(e) =>
                         updateSection(section.id, { title: e.target.value })
                       }
-                      className="h-8 w-full max-w-[320px]"
+                      className="h-8 w-full max-w-80"
                     />
                     <div className="flex items-center gap-1">
                       <span
