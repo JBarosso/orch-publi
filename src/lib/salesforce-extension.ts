@@ -19,8 +19,8 @@ export interface CapturedProgrammation {
 // n'ont pas de correspondance univoque et sont ignorées à l'import.
 const LOCALE_TO_COUNTRY: Record<string, ProgrammationCountry> = {
   "French (France)": "FR",
-  "French (Belgium)": "BE",
-  "Dutch (Belgium)": "BE",
+  "French (Belgium)": "BEFR",
+  "Dutch (Belgium)": "BENL",
   "Spanish (Spain)": "ES",
   "Greek (Greece)": "GR",
 };

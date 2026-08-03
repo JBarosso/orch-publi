@@ -14,12 +14,19 @@ function textOf(el) {
   return (el?.textContent || "").trim();
 }
 
+// "* Content Asset ID" (astérisque de champ requis) doit matcher
+// "Content Asset ID" — comparaison stricte trop fragile face à ce genre de
+// décoration (astérisque, icône d'info accolée au label).
+function normalizeLabel(str) {
+  return (str || "").replace(/[*]/g, "").trim();
+}
+
 // Résout la valeur d'un input à partir du texte de son <label>, en gérant
 // le cas label[for=id] et le cas où label + input partagent juste un
 // conteneur parent proche (pattern le plus courant dans ce genre d'UI).
 function getFieldValueByLabel(root, labelText) {
   const labels = [...root.querySelectorAll("label")];
-  const label = labels.find((l) => textOf(l) === labelText);
+  const label = labels.find((l) => normalizeLabel(textOf(l)).startsWith(labelText));
   if (!label) return null;
 
   if (label.htmlFor) {
@@ -36,19 +43,35 @@ function getFieldValueByLabel(root, labelText) {
   return null;
 }
 
-// Les locales sélectionnées sont rendues comme des "pills" retirables dans
-// un groupe identifié par aria-label="Selected Options:" (distinct de la
-// liste complète des choix disponibles, qui reste dans le DOM même fermée).
-function getSelectedLocales(dialog) {
-  const group = dialog.querySelector('[aria-label="Selected Options:"]');
-  if (!group) return [];
-  return [...group.querySelectorAll('[role="option"]')]
-    .map((opt) => {
-      const clone = opt.cloneNode(true);
+// Les locales sélectionnées sont rendues dans un <ul class="slds-listbox
+// slds-listbox_horizontal slds-listbox_inline"> — le combo SLDS standard
+// pour la rangée de pills d'un multi-select (distinct de
+// slds-listbox_vertical, utilisé par la liste déroulante complète des
+// choix). Confirmé par inspection DOM directe.
+function extractLocalesFrom(root) {
+  const locales = [];
+  root.querySelectorAll("ul.slds-listbox_horizontal.slds-listbox_inline").forEach((ul) => {
+    ul.querySelectorAll(":scope > li").forEach((li) => {
+      const clone = li.cloneNode(true);
       clone.querySelectorAll("button, [aria-hidden='true']").forEach((n) => n.remove());
-      return textOf(clone);
-    })
-    .filter(Boolean);
+      const text = textOf(clone);
+      if (text) locales.push(text);
+    });
+  });
+  return locales;
+}
+
+// Le repère "dialog" (trouvé en remontant depuis le bouton Apply jusqu'au
+// premier ancêtre contenant le label "Display From") peut être plus étroit
+// que prévu : Locales est plus haut dans la popin que Schedules, donc cet
+// ancêtre minimal peut satisfaire "contient Display From" avant d'englober
+// aussi la section Locales. On tente le scope précis d'abord, puis on
+// retombe sur tout le document — cette classe SLDS est assez spécifique
+// (rangée de pills d'un multi-select) pour ne pas risquer de faux positif.
+function getSelectedLocales(dialog) {
+  const scoped = extractLocalesFrom(dialog);
+  if (scoped.length > 0) return scoped;
+  return extractLocalesFrom(document);
 }
 
 function findTargetingDialog(applyButton) {
@@ -73,7 +96,7 @@ function hasTargetingHeading(el) {
 }
 
 function hasLabel(el, labelText) {
-  return [...el.querySelectorAll("label")].some((l) => textOf(l) === labelText);
+  return [...el.querySelectorAll("label")].some((l) => normalizeLabel(textOf(l)).startsWith(labelText));
 }
 
 function captureFromDialog(dialog) {
@@ -101,7 +124,14 @@ function captureFromDialog(dialog) {
 
     chrome.storage.local.get([STORAGE_KEY], (res) => {
       const list = res[STORAGE_KEY] || [];
-      list.push(entry);
+      // Un même composant (identifié par son Content Asset ID) déjà capturé
+      // est mis à jour en place plutôt que dupliqué en carte séparée.
+      const existingIndex = list.findIndex((p) => p.label === entry.label);
+      if (existingIndex >= 0) {
+        list[existingIndex] = { ...entry, id: list[existingIndex].id };
+      } else {
+        list.push(entry);
+      }
       chrome.storage.local.set({ [STORAGE_KEY]: list });
     });
   });

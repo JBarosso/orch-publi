@@ -394,7 +394,7 @@ export default function ProgrammationPage() {
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           {PROGRAMMATION_COUNTRIES.map((c) => {
             const columnBlocks = sortBlocks(blocks.filter((b) => b.country === c.value));
             return (

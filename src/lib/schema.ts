@@ -125,7 +125,8 @@ export const globalHeaderItems = pgTable("global_header_items", {
 // d'asset + période optionnelle) rangés en colonnes par pays.
 export const programmationCountryEnum = pgEnum("programmation_country", [
   "FR",
-  "BE",
+  "BEFR",
+  "BENL",
   "ES",
   "GR",
 ]);

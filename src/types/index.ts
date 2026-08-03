@@ -72,11 +72,13 @@ export interface BriefSection {
 // --- Programmation : tableau informatif, blocs (nom d'asset + période
 // optionnelle) rangés en colonnes par pays. ---
 
-export type ProgrammationCountry = "FR" | "BE" | "ES" | "GR";
+// Aligné sur Locale (BE distingue déjà FR/NL partout ailleurs dans l'appli)
+export type ProgrammationCountry = "FR" | "BEFR" | "BENL" | "ES" | "GR";
 
 export const PROGRAMMATION_COUNTRIES: { value: ProgrammationCountry; label: string }[] = [
   { value: "FR", label: "FR" },
-  { value: "BE", label: "BE" },
+  { value: "BEFR", label: "BE FR" },
+  { value: "BENL", label: "BE NL" },
   { value: "ES", label: "ES" },
   { value: "GR", label: "GR" },
 ];

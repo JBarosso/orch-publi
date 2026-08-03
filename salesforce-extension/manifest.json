@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Orch-Publi — Capture programmations Salesforce",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Capture les programmations (locales + dates) définies dans Salesforce Page Designer pour les importer dans le dashboard orch-publi sans double saisie.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyUoVJt6X1LW0Wf0ArIXfr38QM6M4ccXmGDi8dJHnSVaGwUUc1ByU5B6NO19KyhTE276lB7lsmUc9qDDeuoXsjF0BtOSDNtmog/VGYB5dY4x33Fz6LZEfhhjAc15XqslJn0De9H0+/LFOZAg72zmj7mHUavYqruqEivmQ/kfztGsoKUgRBot3DsLGU3KQmMECmVBS0to6O5lg7k8auARLkjiG2MZIIPEB1T5HPKBa0gFvKQ/5gs/XMOnkVZ2VyzriDauC6dMbX5ybURUUhQQlSVUbrIEzYNPVcqgoAsp68wBdmUjKx+22pZJhsfLl5Z1lT4Vm1u3FSOzKn5YDj2BzlwIDAQAB",
   "permissions": ["storage", "sidePanel"],
