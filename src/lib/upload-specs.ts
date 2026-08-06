@@ -165,6 +165,27 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
     outputFormat: "jpeg",
     requireLabel: false,
   },
+  cat_banner_desktop: {
+    displayName: "Cat banner - Desktop",
+    // Upload libre : aucune dimension imposée ("on touche rien"), export en
+    // jpg uniquement (poids optimisé via le pipeline sharp existant).
+    outputFormat: "jpeg",
+    requireLabel: false,
+  },
+  cat_banner_mobile: {
+    displayName: "Cat banner - Mobile",
+    outputFormat: "jpeg",
+    requireLabel: false,
+  },
+  miniature_offre: {
+    displayName: "Miniature offre",
+    targetWidth: 301,
+    targetHeight: 301,
+    cropShape: "rect",
+    cropAspect: 1,
+    outputFormat: "jpeg",
+    requireLabel: false,
+  },
 };
 
 const KNOWN_ASSET_TYPES: AssetType[] = [
@@ -179,6 +200,9 @@ const KNOWN_ASSET_TYPES: AssetType[] = [
   "carousel_title",
   "carousel_video",
   "img_sous_menu",
+  "cat_banner_desktop",
+  "cat_banner_mobile",
+  "miniature_offre",
 ];
 
 export function resolveAssetType(type: unknown): AssetType {

@@ -10,7 +10,9 @@ export type SectionType =
   | "edito"
   | "carousel"
   | "global_header"
-  | "img_sous_menu";
+  | "img_sous_menu"
+  | "cat_banner"
+  | "miniature_offre";
 export type AssetType =
   | "macaron"
   | "mea"
@@ -23,7 +25,10 @@ export type AssetType =
   | "carousel"
   | "carousel_title"
   | "carousel_video"
-  | "img_sous_menu";
+  | "img_sous_menu"
+  | "cat_banner_desktop"
+  | "cat_banner_mobile"
+  | "miniature_offre";
 
 export type Locale = "FR" | "BEFR" | "BENL" | "GR" | "ES";
 
@@ -372,6 +377,41 @@ export interface ImgSousMenuItem {
 
 export interface ImgSousMenuContent {
   items: ImgSousMenuItem[];
+}
+
+// --- Cat banner (bannière catégorie desktop/mobile, un lien chacune) ---
+
+export interface CatBannerItem {
+  id: string;
+  // Sert à la fois d'alt (tel quel) et de base du nom de fichier exporté
+  // (slugifié : sans accents, espaces -> "-").
+  label: string;
+  url: string;
+  desktopImageUrl: string;
+  desktopImageId: string;
+  mobileImageUrl: string;
+  mobileImageId: string;
+  imageWeek: number | null;
+  exportPosition: number | null;
+}
+
+export interface CatBannerContent {
+  items: CatBannerItem[];
+}
+
+// --- Miniature offre (liste d'images carrées 301x301, informatif) ---
+
+export interface MiniatureOffreItem {
+  id: string;
+  label: string;
+  imageUrl: string;
+  imageId: string;
+  imageWeek: number | null;
+  exportPosition: number | null;
+}
+
+export interface MiniatureOffreContent {
+  items: MiniatureOffreItem[];
 }
 
 // --- Carousel héro (Bootstrap, v2-html/carousel.html) — 2 diapositives fixes,

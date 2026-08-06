@@ -50,6 +50,10 @@ import { CustomPreview } from "@/templates/custom/preview";
 import { normalizeCustomContent } from "@/templates/custom/schema";
 import { ImgSousMenuEditor } from "@/templates/img-sous-menu/editor";
 import { ImgSousMenuPreview } from "@/templates/img-sous-menu/preview";
+import { CatBannerEditor } from "@/templates/cat-banner/editor";
+import { CatBannerPreview } from "@/templates/cat-banner/preview";
+import { MiniatureOffreEditor } from "@/templates/miniature-offre/editor";
+import { MiniatureOffrePreview } from "@/templates/miniature-offre/preview";
 import type {
   MeaItem,
   MeaContent,
@@ -62,6 +66,10 @@ import type {
   CustomTemplate,
   ImgSousMenuItem,
   ImgSousMenuContent,
+  CatBannerItem,
+  CatBannerContent,
+  MiniatureOffreItem,
+  MiniatureOffreContent,
 } from "@/types";
 import { StatusActions } from "@/components/editor/status-actions";
 import { StatusBadge } from "@/components/briefs/status-badge";
@@ -198,7 +206,16 @@ export default function BriefEditorPage({
   );
 
   const updateSectionItems = useCallback(
-    (sectionId: string, items: MacaronItem[] | MeaItem[] | EditoCard[] | ImgSousMenuItem[]) => {
+    (
+      sectionId: string,
+      items:
+        | MacaronItem[]
+        | MeaItem[]
+        | EditoCard[]
+        | ImgSousMenuItem[]
+        | CatBannerItem[]
+        | MiniatureOffreItem[],
+    ) => {
       updateSection(sectionId, { content: { items } });
     },
     [updateSection],
@@ -410,7 +427,29 @@ export default function BriefEditorPage({
           }
           return section;
         }
-        const content = section.content as { items?: (MacaronItem | MeaItem | EditoCard | ImgSousMenuItem)[] };
+        if (section.type === "cat_banner") {
+          const content = section.content as CatBannerContent;
+          const slotMatch = /^(.+):(desktop|mobile)$/.exec(target.itemId);
+          if (slotMatch) {
+            const [, itemId, slot] = slotMatch;
+            const field = slot === "desktop" ? "desktopImageUrl" : "mobileImageUrl";
+            return {
+              ...section,
+              content: {
+                ...content,
+                items: content.items.map((item) =>
+                  item.id === itemId
+                    ? { ...item, [field]: url, imageWeek: null, exportPosition: null }
+                    : item,
+                ),
+              },
+            };
+          }
+          return section;
+        }
+        const content = section.content as {
+          items?: (MacaronItem | MeaItem | EditoCard | ImgSousMenuItem | MiniatureOffreItem)[];
+        };
         // Nouvelle image sélectionnée/uploadée : redevient native de la
         // semaine courante (semaine + position figées repassent dynamiques).
         const items = (content.items ?? []).map((item) =>
@@ -596,6 +635,7 @@ export default function BriefEditorPage({
           <Select
             value={newSectionType}
             items={[
+              { value: "cat_banner", label: "Cat banner" },
               { value: "edito", label: "Edito" },
               { value: "ariane", label: "Fil d'ariane" },
               { value: "global_header", label: "Global header" },
@@ -604,6 +644,7 @@ export default function BriefEditorPage({
               { value: "macarons_v2", label: "Macaron v2" },
               { value: "mea", label: "MEA" },
               { value: "mea_v2", label: "MEA v2" },
+              { value: "miniature_offre", label: "Miniature offre" },
               { value: "custom", label: "Section personnalisée (vierge)" },
               { value: "carousel", label: "Slider" },
               ...publishedTemplates.map((template) => ({
@@ -617,6 +658,7 @@ export default function BriefEditorPage({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="w-fit min-w-(--anchor-width)">
+              <SelectItem value="cat_banner">Cat banner</SelectItem>
               <SelectItem value="edito">Edito</SelectItem>
               <SelectItem value="ariane">Fil d&apos;ariane</SelectItem>
               <SelectItem value="global_header">Global header</SelectItem>
@@ -625,6 +667,7 @@ export default function BriefEditorPage({
               <SelectItem value="macarons_v2">Macaron v2</SelectItem>
               <SelectItem value="mea">MEA</SelectItem>
               <SelectItem value="mea_v2">MEA v2</SelectItem>
+              <SelectItem value="miniature_offre">Miniature offre</SelectItem>
               <SelectItem value="custom">Section personnalisée (vierge)</SelectItem>
               <SelectItem value="carousel">Slider</SelectItem>
               {publishedTemplates.map((template) => (
@@ -1002,6 +1045,45 @@ export default function BriefEditorPage({
                             handleDirectDrop({ sectionId: section.id, itemId, type: "img_sous_menu" }, file)
                           }
                         />
+                      ) : section.type === "cat_banner" ? (
+                        <CatBannerEditor
+                          items={((section.content as CatBannerContent)?.items ?? [])}
+                          briefWeek={brief.week}
+                          onChange={(items) => updateSectionItems(section.id, items)}
+                          onOpenMediaLibrary={(target) =>
+                            setMediaTarget({
+                              sectionId: section.id,
+                              itemId: target,
+                              type: target.endsWith(":desktop") ? "cat_banner_desktop" : "cat_banner_mobile",
+                            })
+                          }
+                          onDropFile={(target, file) =>
+                            handleDirectDrop(
+                              {
+                                sectionId: section.id,
+                                itemId: target,
+                                type: target.endsWith(":desktop") ? "cat_banner_desktop" : "cat_banner_mobile",
+                              },
+                              file,
+                            )
+                          }
+                        />
+                      ) : section.type === "miniature_offre" ? (
+                        <MiniatureOffreEditor
+                          items={((section.content as MiniatureOffreContent)?.items ?? [])}
+                          briefWeek={brief.week}
+                          onChange={(items) => updateSectionItems(section.id, items)}
+                          onOpenMediaLibrary={(itemId) =>
+                            setMediaTarget({
+                              sectionId: section.id,
+                              itemId,
+                              type: "miniature_offre",
+                            })
+                          }
+                          onDropFile={(itemId, file) =>
+                            handleDirectDrop({ sectionId: section.id, itemId, type: "miniature_offre" }, file)
+                          }
+                        />
                       ) : section.type === "carousel" ? (
                         <CarouselEditor
                           content={section.content as CarouselContent}
@@ -1168,6 +1250,26 @@ export default function BriefEditorPage({
                         {section.title || "Section"}
                       </p>
                       <ImgSousMenuPreview items={((section.content as ImgSousMenuContent)?.items ?? [])} />
+                    </div>
+                  );
+                }
+                if (section.type === "cat_banner") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <CatBannerPreview items={((section.content as CatBannerContent)?.items ?? [])} />
+                    </div>
+                  );
+                }
+                if (section.type === "miniature_offre") {
+                  return (
+                    <div key={section.id} className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/80">
+                        {section.title || "Section"}
+                      </p>
+                      <MiniatureOffrePreview items={((section.content as MiniatureOffreContent)?.items ?? [])} />
                     </div>
                   );
                 }

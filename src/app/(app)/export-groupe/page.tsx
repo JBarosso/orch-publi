@@ -36,6 +36,8 @@ const IMAGE_SECTION_TYPES = new Set([
   "mea_v2",
   "edito",
   "carousel",
+  "cat_banner",
+  "miniature_offre",
 ]);
 
 export default function ExportGroupePage() {

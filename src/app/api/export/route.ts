@@ -13,9 +13,11 @@ import { generateArianeHTML } from "@/templates/ariane/export";
 import { generateEditoHTML } from "@/templates/edito/export";
 import { generateCarouselHTML } from "@/templates/carousel/export";
 import { generateGlobalHeaderHTML } from "@/templates/global-header/export";
+import { generateCatBannerHTML } from "@/templates/cat-banner/export";
 import type {
   ArianeContent,
   CarouselContent,
+  CatBannerContent,
   EditoContent,
   GlobalHeaderContent,
   MacaronsContent,
@@ -88,9 +90,12 @@ export async function GET(request: NextRequest) {
     html = generateCarouselHTML(section.content as CarouselContent, ctx);
   } else if (section.type === "global_header") {
     html = generateGlobalHeaderHTML(section.content as GlobalHeaderContent);
+  } else if (section.type === "cat_banner") {
+    const content = section.content as CatBannerContent;
+    html = generateCatBannerHTML(content?.items ?? [], ctx);
   }
-  // "img_sous_menu" : pas de HTML généré, uniquement les fichiers image
-  // (cf. section-images.ts) — html reste "".
+  // "img_sous_menu"/"miniature_offre" : pas de HTML généré, uniquement les
+  // fichiers image (cf. section-images.ts) — html reste "".
 
   return NextResponse.json({ html: cleanExportedHtml(html), type: section.type });
 }

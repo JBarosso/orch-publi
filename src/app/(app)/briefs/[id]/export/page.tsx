@@ -20,6 +20,8 @@ import type {
   GlobalHeaderContent,
   CustomContent,
   ImgSousMenuContent,
+  CatBannerContent,
+  MiniatureOffreContent,
 } from "@/types";
 import { StatusBadge } from "@/components/briefs/status-badge";
 import { validateMacaronsContent } from "@/templates/macarons/schema";
@@ -31,6 +33,10 @@ import { validateArianeContent } from "@/templates/ariane/schema";
 import { validateGlobalHeaderContent } from "@/templates/global-header/schema";
 import { validateCustomContent } from "@/templates/custom/schema";
 import { validateImgSousMenuContent } from "@/templates/img-sous-menu/schema";
+import { validateCatBannerContent } from "@/templates/cat-banner/schema";
+import { validateMiniatureOffreContent } from "@/templates/miniature-offre/schema";
+import { generateCatBannerItemHTML } from "@/templates/cat-banner/export";
+import { cmsLocalePath } from "@/lib/utils";
 
 function validateSectionContent(section: BriefSection): string[] {
   switch (section.type) {
@@ -53,6 +59,10 @@ function validateSectionContent(section: BriefSection): string[] {
       return validateCustomContent(section.content as CustomContent);
     case "img_sous_menu":
       return validateImgSousMenuContent((section.content as ImgSousMenuContent).items ?? []);
+    case "cat_banner":
+      return validateCatBannerContent((section.content as CatBannerContent).items ?? []);
+    case "miniature_offre":
+      return validateMiniatureOffreContent((section.content as MiniatureOffreContent).items ?? []);
     default:
       return [];
   }
@@ -72,7 +82,7 @@ export default function ExportPage({
   const [brief, setBrief] = useState<BriefWithSections | null>(null);
   const [loading, setLoading] = useState(true);
   const [exports, setExports] = useState<
-    { type: string; title: string; html: string; sectionId: string }[]
+    { type: string; title: string; html: string; sectionId: string; content: unknown }[]
   >([]);
   const [downloadingImages, setDownloadingImages] = useState<string | null>(null);
   const [skippedCount, setSkippedCount] = useState(0);
@@ -114,6 +124,7 @@ export default function ExportPage({
             title: section.title || exportData.type,
             html: exportData.html,
             sectionId: section.id,
+            content: section.content,
           };
         }),
       );
@@ -226,7 +237,9 @@ export default function ExportPage({
                   exp.type === "mea_v2" ||
                   exp.type === "edito" ||
                   exp.type === "carousel" ||
-                  exp.type === "img_sous_menu") && (
+                  exp.type === "img_sous_menu" ||
+                  exp.type === "cat_banner" ||
+                  exp.type === "miniature_offre") && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -244,13 +257,46 @@ export default function ExportPage({
                     Fichiers
                   </Button>
                 )}
-                {exp.type !== "img_sous_menu" && <CopyCodeButton text={exp.html} />}
+                {exp.type !== "img_sous_menu" &&
+                  exp.type !== "miniature_offre" &&
+                  exp.type !== "cat_banner" && <CopyCodeButton text={exp.html} />}
               </div>
             </div>
-            {exp.type === "img_sous_menu" ? (
+            {exp.type === "img_sous_menu" || exp.type === "miniature_offre" ? (
               <p className="px-5 py-4 text-xs text-muted-foreground">
                 Pas de HTML pour ce type de section — seuls les fichiers image sont à exporter.
               </p>
+            ) : exp.type === "cat_banner" ? (
+              <div className="divide-y divide-border/60">
+                {((exp.content as CatBannerContent)?.items ?? []).map((item) => (
+                  <div key={item.id} className="px-5 py-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {item.label || "Sans nom"}
+                      </span>
+                      <CopyCodeButton
+                        text={generateCatBannerItemHTML(item, {
+                          year: brief.year,
+                          week: brief.week,
+                          locale: cmsLocalePath(brief.locale),
+                        })}
+                      />
+                    </div>
+                    <pre className="max-h-60 overflow-auto rounded-md bg-muted/40 p-3 text-xs leading-relaxed text-foreground/80">
+                      <code>
+                        {generateCatBannerItemHTML(item, {
+                          year: brief.year,
+                          week: brief.week,
+                          locale: cmsLocalePath(brief.locale),
+                        })}
+                      </code>
+                    </pre>
+                  </div>
+                ))}
+                {((exp.content as CatBannerContent)?.items ?? []).length === 0 && (
+                  <p className="px-5 py-4 text-xs text-muted-foreground">Aucune bannière.</p>
+                )}
+              </div>
             ) : (
               <pre className="max-h-120 overflow-auto bg-muted/40 p-5 text-xs leading-relaxed text-foreground/80">
                 <code>{exp.html}</code>

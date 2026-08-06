@@ -36,8 +36,11 @@ export async function buildZipBuffer(groups: ZipGroup[]): Promise<Buffer> {
   for (const group of groups) {
     for (const img of group.images) {
       const imgWk = String(img.imageWeek ?? group.week).padStart(2, "0");
-      // Chemin CMS : locale en minuscule, "be" pour BEFR/BENL (doit matcher le <img src> exporté)
-      const subFolder = `${group.folderPrefix ? `${group.folderPrefix}/` : ""}homepage/${group.year}/wk${imgWk}/${cmsLocalePath(group.locale)}`;
+      // Chemin CMS : locale en minuscule, "be" pour BEFR/BENL (doit matcher le
+      // <img src> exporté). Racine "homepage" par défaut, surchageable par
+      // template (ex: "banner" pour cat-banner) via img.folder.
+      const folder = img.folder ?? "homepage";
+      const subFolder = `${group.folderPrefix ? `${group.folderPrefix}/` : ""}${folder}/${group.year}/wk${imgWk}/${cmsLocalePath(group.locale)}`;
 
       try {
         const buffer = await readAsset(img.imageUrl);
@@ -59,18 +62,21 @@ export async function buildZipBuffer(groups: ZipGroup[]): Promise<Buffer> {
           .flatten({ background: { r: 255, g: 255, b: 255 } })
           .jpeg({ quality: 85 })
           .toBuffer();
-
-        const webpPipeline = sharp(buffer);
-        if (img.width && img.height) {
-          webpPipeline.resize(img.width, img.height, { fit: "cover" });
-        }
-        const webpBuffer = await webpPipeline
-          .flatten({ background: { r: 255, g: 255, b: 255 } })
-          .webp({ quality: 85 })
-          .toBuffer();
-
         archive.append(jpgBuffer, { name: `${subFolder}/${img.baseName}.jpg` });
-        archive.append(webpBuffer, { name: `${subFolder}/${img.baseName}.webp` });
+
+        // jpgOnly (cat-banner) : pas de <picture>/<source webp> côté HTML,
+        // donc pas de variante webp inutile dans le zip.
+        if (!img.jpgOnly) {
+          const webpPipeline = sharp(buffer);
+          if (img.width && img.height) {
+            webpPipeline.resize(img.width, img.height, { fit: "cover" });
+          }
+          const webpBuffer = await webpPipeline
+            .flatten({ background: { r: 255, g: 255, b: 255 } })
+            .webp({ quality: 85 })
+            .toBuffer();
+          archive.append(webpBuffer, { name: `${subFolder}/${img.baseName}.webp` });
+        }
       } catch (err) {
         console.error(`Failed to process image for ${img.baseName}:`, err);
       }

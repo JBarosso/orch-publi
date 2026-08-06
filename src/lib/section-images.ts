@@ -1,12 +1,15 @@
 import type {
   CarouselContent,
+  CatBannerContent,
   CustomContent,
   EditoContent,
   ImgSousMenuContent,
   MacaronsContent,
   MeaContent,
   MeaV2Content,
+  MiniatureOffreContent,
 } from "@/types";
+import { slugify } from "@/templates/cat-banner/schema";
 
 export interface ImageEntry {
   imageUrl: string;
@@ -17,6 +20,10 @@ export interface ImageEntry {
   height: number | null;
   // Vidéo (carte focus MEA v2, slide carousel) : copiée telle quelle dans le zip, pas de sharp
   isVideo?: boolean;
+  // Racine du chemin CMS — "homepage" par défaut si absent (cf. build-zip.ts)
+  folder?: string;
+  // N'exporte que le .jpg, pas de variante .webp (cat-banner : pas de <picture>)
+  jpgOnly?: boolean;
 }
 
 function getMacaronImages(content: MacaronsContent): ImageEntry[] {
@@ -64,6 +71,49 @@ function getImgSousMenuImages(content: ImgSousMenuContent): ImageEntry[] {
       baseName: `img-sous-menu-${item.exportPosition ?? index + 1}`,
       width: 563,
       height: 125,
+    }));
+}
+
+function getCatBannerImages(content: CatBannerContent): ImageEntry[] {
+  const entries: ImageEntry[] = [];
+  (content?.items ?? []).forEach((item) => {
+    const slug = slugify(item.label);
+    if (item.desktopImageUrl) {
+      entries.push({
+        imageUrl: item.desktopImageUrl,
+        imageWeek: item.imageWeek,
+        baseName: `banner-desktop-${slug}`,
+        width: null,
+        height: null,
+        folder: "banner",
+        jpgOnly: true,
+      });
+    }
+    if (item.mobileImageUrl) {
+      entries.push({
+        imageUrl: item.mobileImageUrl,
+        imageWeek: item.imageWeek,
+        baseName: `banner-mobile-${slug}`,
+        width: null,
+        height: null,
+        folder: "banner",
+        jpgOnly: true,
+      });
+    }
+  });
+  return entries;
+}
+
+function getMiniatureOffreImages(content: MiniatureOffreContent): ImageEntry[] {
+  return (content?.items ?? [])
+    .filter((i) => i.imageUrl)
+    .map((item, index) => ({
+      imageUrl: item.imageUrl,
+      imageWeek: item.imageWeek,
+      baseName: `miniature-offre-${item.exportPosition ?? index + 1}`,
+      width: 301,
+      height: 301,
+      jpgOnly: true,
     }));
 }
 
@@ -175,5 +225,7 @@ export function getSectionImages(type: string, content: unknown): ImageEntry[] {
   if (type === "edito") return getEditoImages(content as EditoContent);
   if (type === "carousel") return getCarouselImages(content as CarouselContent);
   if (type === "img_sous_menu") return getImgSousMenuImages(content as ImgSousMenuContent);
+  if (type === "cat_banner") return getCatBannerImages(content as CatBannerContent);
+  if (type === "miniature_offre") return getMiniatureOffreImages(content as MiniatureOffreContent);
   return [];
 }
