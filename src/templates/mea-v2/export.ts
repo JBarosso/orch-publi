@@ -1,7 +1,18 @@
 import type { MeaV2Content, MeaV2Card, MeaV2FocusCard, MeaButton } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
+import { getPricingHTML, type ClubIconConfig } from "../mea/export";
 import { focusCardHasContent } from "./schema";
+
+// Même bibliothèque CDN que ico-club (icons/), même bucket de hash -
+// hypothèse raisonnable faute d'URL confirmée ; à corriger si le hash diffère
+// réellement (ponytail: preview-only, l'export CMS n'est pas concerné).
+const LABEL_CLUB_ICON: ClubIconConfig = {
+  exportPath: "icons/label-club.svg",
+  stagingUrl:
+    "https://fr.shop-orchestra.com/on/demandware.static/-/Library-Sites-OrchestraSharedLibrary/default/dwe6daf39c/icons/label-club.svg",
+  alt: "Club",
+};
 
 interface ExportContext {
   year: number;
@@ -136,6 +147,83 @@ const cssStyle = `
     overflow-wrap: break-word;
   }
 
+  /* ponytail: apparence approximative pour badge/marque/titre marketing/prix
+     — pas de CSS de référence fournie pour ces classes côté CMS v2 (contrairement
+     au reste de ce bloc, calqué sur v2-html/style.html), à ajuster si besoin une
+     fois le rendu réel comparé. N'affecte que la preview locale : l'export CMS
+     n'émet aucun <style>. */
+  .hp-cat-header-mea__title.marketing {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    text-transform: none;
+  }
+
+  .hp-cat-header-mea__marque {
+    pointer-events: none;
+    height: 32px;
+    max-width: 60%;
+    object-fit: contain;
+    position: absolute;
+    z-index: 2;
+    top: 16px;
+    left: clamp(1rem, 3.113vw - 0.492rem, 1.5rem);
+  }
+
+  .hp-cat-header-mea__badge {
+    display: inline-block;
+    background-color: var(--o-club-primary, #e32638);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: var(--o-radius-sm, 4px);
+    padding: 3px 8px;
+    margin-bottom: 6px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .hp-cat-header-mea__container .mea-prices {
+    font-size: 13px;
+    margin-bottom: 6px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .hp-cat-header-mea__container .mea__club {
+    font-weight: 700;
+  }
+
+  .hp-cat-header-mea__container .mea__club::before {
+    content: "/";
+    display: inline-block;
+    margin: 0 2px;
+    font-weight: 400;
+  }
+
+  .hp-cat-header-mea__container .mea__club--no-slash::before {
+    content: none;
+  }
+
+  .hp-cat-header-mea__container .mea__club-label {
+    margin-left: 4px;
+  }
+
+  .hp-cat-header-mea__container .mea__club-label-txt {
+    background-color: #e32638;
+    color: #fff;
+    font-weight: 900;
+    border-radius: 2px;
+    font-size: 10px;
+    padding: 2px 4px;
+    display: inline-block;
+  }
+
+  .hp-cat-header-mea__container .mea__club-label-img {
+    height: 18px;
+  }
+
   .hp-cat-header-mea__buttons {
     display: flex;
     align-items: center;
@@ -254,6 +342,42 @@ const cssStyle = `
   }
 `;
 
+// Même bucket CDN que le logo marque MEA v1, réutilisé uniquement quand le
+// chemin pointe vers la bibliothèque "logo-puericulture/" - un chemin de
+// campagne (ex: homepage/2026/wk32/fr/logo-x.png) n'a pas d'équivalent CDN
+// connu, on retombe sur le domaine racine en preview (ponytail: best-effort,
+// peut 404 en preview si l'asset n'est pas encore déployé côté CMS ; l'export
+// CMS lui-même n'est pas affecté).
+const BRAND_LOGO_LIBRARY_PREFIX = "logo-puericulture/";
+const BRAND_LOGO_LIBRARY_STAGING_BASE =
+  "https://fr.shop-orchestra.com/on/demandware.static/-/Library-Sites-OrchestraSharedLibrary/default/dw5f0e0dfb/logo-puericulture/";
+
+function getBrandLogoSrc(path: string, isPreview: boolean): string {
+  if (!isPreview) return `${path}?$staticlink$`;
+  if (path.startsWith(BRAND_LOGO_LIBRARY_PREFIX)) {
+    return `${BRAND_LOGO_LIBRARY_STAGING_BASE}${path.slice(BRAND_LOGO_LIBRARY_PREFIX.length)}`;
+  }
+  return `https://fr.shop-orchestra.com/${path}`;
+}
+
+function getBrandLogoHTML(card: MeaV2Card, isPreview: boolean): string {
+  const dnone = card.showBrandLogo ? "" : " d-none";
+  const path = card.brandLogoPath || "logo-puericulture/svg/premaman-blc.svg";
+  const src = getBrandLogoSrc(path, isPreview);
+  return `          <img src="${esc(src)}" alt="Logo marque" class="hp-cat-header-mea__marque${dnone}">\n`;
+}
+
+function getBadgeHTML(card: MeaV2Card): string {
+  const dnone = card.showBadge ? "" : " d-none";
+  return `          <span class="hp-cat-header-mea__badge${dnone}">${esc(card.badgeText ?? "")}</span>\n`;
+}
+
+function getMarketingTitleHTML(card: MeaV2Card): string {
+  const dnone = card.showMarketingTitle ? "" : " d-none";
+  const text = esc(card.marketingTitle ?? "").replace(/\\n/g, "<br/>");
+  return `          <h3 class="hp-cat-header-mea__title marketing${dnone}">${text}</h3>\n`;
+}
+
 function getCardLinkUrl(card: MeaV2Card): string {
   if (card.linkType === "cgid")
     return `$url('Search-Show','cgid','${esc(card.cgid.trim().replace(/\s/g, ""))}')$`;
@@ -312,7 +436,8 @@ function regularCardHTML(card: MeaV2Card, index: number, ctx: ExportContext): st
           <img src="${imgPath}.jpg?$staticlink$" alt="" class="hp-cat-header-mea__img" width="1000" height="600" aria-hidden="true" />
         </picture>
         <div class="hp-cat-header-mea__container">
-          <h3 class="hp-cat-header-mea__title">${plainTitle}</h3>
+${getBrandLogoHTML(card, false)}${getBadgeHTML(card)}${getMarketingTitleHTML(card)}          <h3 class="hp-cat-header-mea__title">${plainTitle}</h3>
+${getPricingHTML(card, false, LABEL_CLUB_ICON)}
           <div class="hp-cat-header-mea__buttons">
 ${buttonsHTML(card.buttons, false)}
           </div>
@@ -393,7 +518,8 @@ ${commentHtml}
           <img src="${esc(card.imageUrl || "")}" alt="" class="hp-cat-header-mea__img" aria-hidden="true" />
         </picture>
         <div class="hp-cat-header-mea__container">
-          <h3 class="hp-cat-header-mea__title">${plainTitle}</h3>
+${getBrandLogoHTML(card, true)}${getBadgeHTML(card)}${getMarketingTitleHTML(card)}          <h3 class="hp-cat-header-mea__title">${plainTitle}</h3>
+${getPricingHTML(card, true, LABEL_CLUB_ICON)}
           <div class="hp-cat-header-mea__buttons">
 ${buttonsHTML(card.buttons, true)}
           </div>
@@ -447,6 +573,7 @@ ${PREVIEW_ROOT_VARS}
 ${cssStyle}
 ${previewCommentStyles}
 body { margin: 0; background: #fff; cursor: default; }
+.d-none { display: none !important; }
 </style>
 </head>
 <body>

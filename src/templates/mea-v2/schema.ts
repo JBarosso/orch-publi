@@ -17,6 +17,21 @@ export function createEmptyMeaV2Card(id: string): MeaV2Card {
     imageUrl: "",
     imageId: uuidv4().slice(0, 8),
     imageWeek: null,
+    showBrandLogo: false,
+    brandLogoPath: "logo-puericulture/svg/premaman-blc.svg",
+    showBadge: false,
+    badgeText: "",
+    showMarketingTitle: false,
+    marketingTitle: "",
+    pricingMode: "standard",
+    showPrePrice: true,
+    prePriceText: "À partir de",
+    initialPrice: "",
+    customPriceText: "",
+    clubPrice: "",
+    showClubLabel: true,
+    clubLabelText: "Promo*",
+    showClubIcon: true,
   };
 }
 

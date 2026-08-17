@@ -403,13 +403,53 @@ function getBrandLogoHTML(item: MeaItem, isPreview: boolean): string {
   return `                <img src="${esc(src)}" alt="Logo marque" class="mea__marque${dnone}">\n`;
 }
 
-function getPricingHTML(item: MeaItem, isPreview: boolean): string {
+export interface ClubIconConfig {
+  exportPath: string; // ex: "icons/ico-club.svg"
+  stagingUrl: string; // CDN complet utilisé en preview
+  alt: string;
+}
+
+const DEFAULT_CLUB_ICON: ClubIconConfig = {
+  exportPath: "icons/ico-club.svg",
+  stagingUrl:
+    "https://fr.shop-orchestra.com/on/demandware.static/-/Library-Sites-OrchestraSharedLibrary/default/dwe6daf39c/icons/ico-club.svg",
+  alt: "Club Orchestra",
+};
+
+// item typé en structurel (pas MeaItem) pour être réutilisable par MeaV2Card,
+// qui porte les mêmes champs de prix.
+export function getPricingHTML(
+  item: Pick<
+    MeaItem,
+    | "pricingMode"
+    | "showPrePrice"
+    | "prePriceText"
+    | "initialPrice"
+    | "customPriceText"
+    | "clubPrice"
+    | "showClubLabel"
+    | "clubLabelText"
+    | "showClubIcon"
+  >,
+  isPreview: boolean,
+  clubIcon: ClubIconConfig = DEFAULT_CLUB_ICON,
+): string {
   const mode = item.pricingMode ?? "standard";
+  // Anciennes données (MeaV2Card légataire) : ces champs texte n'existaient
+  // pas avant l'ajout de la gestion prix sur MEA v2, contrairement à MeaItem
+  // (v1) où createEmptyMea les initialise toujours à "". Sans ce garde, dès
+  // qu'un des deux prix devient renseigné, le code dépasse le early-return et
+  // appelle .trim()/esc() sur le champ frère resté undefined -> crash.
+  const prePriceText = item.prePriceText ?? "";
+  const initialPrice = item.initialPrice ?? "";
+  const customPriceText = item.customPriceText ?? "";
+  const clubPrice = item.clubPrice ?? "";
+  const clubLabelText = item.clubLabelText ?? "";
 
   // Custom mode: only prePrice text visible
   if (mode === "custom") {
     let html = `                <div class="mea-prices">\n`;
-    html += `                    <span class="mea-prices__prePrice">${esc(item.customPriceText ?? "")}</span>\n`;
+    html += `                    <span class="mea-prices__prePrice">${esc(customPriceText)}</span>\n`;
     html += `                    <span class="mea__initial-price d-none" price-type="initial"></span>\n`;
     html += `                    <span class="mea__club d-none" price-type="club"></span>\n`;
     html += `                </div>`;
@@ -418,7 +458,7 @@ function getPricingHTML(item: MeaItem, isPreview: boolean): string {
 
   // Strikethrough mode: initial price struck through, club price bold, NO "/" separator
   if (mode === "strikethrough") {
-    if (!item.initialPrice && !item.clubPrice) {
+    if (!initialPrice && !clubPrice) {
       return `                <div class="mea-prices d-none"></div>`;
     }
     const clubLabelClass = item.showClubLabel ? "" : " d-none";
@@ -426,19 +466,17 @@ function getPricingHTML(item: MeaItem, isPreview: boolean): string {
 
     let html = `                <div class="mea-prices">\n`;
     html += `                    <span class="mea-prices__prePrice d-none"></span>\n`;
-    if (item.initialPrice) {
-      html += `                    <span class="mea__initial-price" price-type="initial" style="text-decoration: line-through;">${esc(item.initialPrice)}</span>\n`;
+    if (initialPrice) {
+      html += `                    <span class="mea__initial-price" price-type="initial" style="text-decoration: line-through;">${esc(initialPrice)}</span>\n`;
     }
-    if (item.clubPrice) {
+    if (clubPrice) {
       // mea__club--no-slash removes the ::before "/"
       html += `                    <span class="mea__club mea__club--no-slash" price-type="club" style="font-size: 1.2em;">\n`;
-      html += `                        <span class="mea__club-price">${esc(item.clubPrice)}</span>\n`;
+      html += `                        <span class="mea__club-price">${esc(clubPrice)}</span>\n`;
       html += `                        <span class="mea__club-label">\n`;
-      html += `                            <div class="mea__club-label-txt${clubLabelClass}">${esc(item.clubLabelText)}</div>\n`;
-      const clubIconSrc = isPreview
-        ? "https://fr.shop-orchestra.com/on/demandware.static/-/Library-Sites-OrchestraSharedLibrary/default/dwe6daf39c/icons/ico-club.svg"
-        : "icons/ico-club.svg?$staticlink$";
-      html += `                            <img src="${clubIconSrc}" alt="Club Orchestra" class="mea__club-label-img${clubIconClass}">\n`;
+      html += `                            <div class="mea__club-label-txt${clubLabelClass}">${esc(clubLabelText)}</div>\n`;
+      const clubIconSrc = isPreview ? clubIcon.stagingUrl : `${clubIcon.exportPath}?$staticlink$`;
+      html += `                            <img src="${clubIconSrc}" alt="${esc(clubIcon.alt)}" class="mea__club-label-img${clubIconClass}">\n`;
       html += `                        </span>\n`;
       html += `                    </span>\n`;
     }
@@ -447,7 +485,7 @@ function getPricingHTML(item: MeaItem, isPreview: boolean): string {
   }
 
   // Standard mode
-  if (!item.initialPrice && !item.clubPrice) {
+  if (!initialPrice && !clubPrice) {
     return `                <div class="mea-prices d-none"></div>`;
   }
 
@@ -455,24 +493,22 @@ function getPricingHTML(item: MeaItem, isPreview: boolean): string {
   const clubLabelClass = item.showClubLabel ? "" : " d-none";
   const clubIconClass = item.showClubIcon ? "" : " d-none";
 
-  const hasInitial = !!item.initialPrice.trim();
-  const hasClub = !!item.clubPrice.trim();
+  const hasInitial = !!initialPrice.trim();
+  const hasClub = !!clubPrice.trim();
 
   let html = `                <div class="mea-prices">\n`;
-  html += `                    <span class="mea-prices__prePrice${prePriceClass}">${esc(item.prePriceText)}</span>\n`;
-  html += `                    <span class="mea__initial-price${hasInitial ? "" : " d-none"}" price-type="initial">${esc(item.initialPrice)}</span>\n`;
+  html += `                    <span class="mea-prices__prePrice${prePriceClass}">${esc(prePriceText)}</span>\n`;
+  html += `                    <span class="mea__initial-price${hasInitial ? "" : " d-none"}" price-type="initial">${esc(initialPrice)}</span>\n`;
 
   // If no initial price, add no-slash class to remove the "/" separator
   const noSlashClass = hasInitial ? "" : " mea__club--no-slash";
   html += `                    <span class="mea__club${hasClub ? "" : " d-none"}${noSlashClass}" price-type="club">\n`;
-  html += `                        <span class="mea__club-price">${esc(item.clubPrice)}</span>\n`;
+  html += `                        <span class="mea__club-price">${esc(clubPrice)}</span>\n`;
   html += `                        <span class="mea__club-label">\n`;
-  html += `                            <div class="mea__club-label-txt${clubLabelClass}">${esc(item.clubLabelText)}</div>\n`;
+  html += `                            <div class="mea__club-label-txt${clubLabelClass}">${esc(clubLabelText)}</div>\n`;
 
-  const clubIconSrc = isPreview
-    ? "https://fr.shop-orchestra.com/on/demandware.static/-/Library-Sites-OrchestraSharedLibrary/default/dwe6daf39c/icons/ico-club.svg"
-    : "icons/ico-club.svg?$staticlink$";
-  html += `                            <img src="${clubIconSrc}" alt="Club Orchestra" class="mea__club-label-img${clubIconClass}">\n`;
+  const clubIconSrc = isPreview ? clubIcon.stagingUrl : `${clubIcon.exportPath}?$staticlink$`;
+  html += `                            <img src="${clubIconSrc}" alt="${esc(clubIcon.alt)}" class="mea__club-label-img${clubIconClass}">\n`;
 
   html += `                        </span>\n`;
   html += `                    </span>\n`;

@@ -283,6 +283,31 @@ export interface MeaV2Card {
   imageUrl: string;
   imageId: string;
   imageWeek: number | null;
+
+  // Logo marque : chemin CMS complet (pas de préfixe imposé, contrairement à
+  // MeaItem.brandLogoPath) pour couvrir aussi bien la bibliothèque
+  // "logo-puericulture/..." qu'un logo de campagne ponctuel ailleurs.
+  showBrandLogo: boolean;
+  brandLogoPath: string;
+
+  // Badge texte (hp-cat-header-mea__badge, ex: "Best Price")
+  showBadge: boolean;
+  badgeText: string;
+
+  // Titre marketing secondaire, affiché au-dessus du titre principal
+  showMarketingTitle: boolean;
+  marketingTitle: string;
+
+  // Prix — même système que MeaItem (v1)
+  pricingMode: MeaPricingMode;
+  showPrePrice: boolean;
+  prePriceText: string;
+  initialPrice: string;
+  customPriceText: string;
+  clubPrice: string;
+  showClubLabel: boolean;
+  clubLabelText: string;
+  showClubIcon: boolean;
 }
 
 export interface MeaV2AppelPrix {

@@ -3,10 +3,18 @@
 import { Image as ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ButtonsEditor } from "@/components/editor/buttons-editor";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
-import type { MeaV2Card, MeaButton } from "@/types";
+import type { MeaV2Card, MeaButton, MeaPricingMode } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "./schema";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -29,8 +37,17 @@ export function MeaV2CardEditor({
   onDropFile,
 }: MeaV2CardEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
-  // Anciennes données sans champ buttons
+  // Anciennes données sans les champs prix/badge/marque (ajoutés après coup) :
+  // mêmes defaults que createEmptyMeaV2Card, résolus ici pour ne jamais passer
+  // undefined à un Switch/Input contrôlé.
   const buttons: MeaButton[] = card.buttons ?? [createEmptyButton()];
+  const showBrandLogo = card.showBrandLogo ?? false;
+  const showBadge = card.showBadge ?? false;
+  const showMarketingTitle = card.showMarketingTitle ?? false;
+  const pricingMode = card.pricingMode ?? "standard";
+  const showPrePrice = card.showPrePrice ?? true;
+  const showClubLabel = card.showClubLabel ?? true;
+  const showClubIcon = card.showClubIcon ?? true;
 
   return (
     <div className="flex flex-wrap items-start gap-3 rounded-lg border border-border/60 bg-card p-3">
@@ -63,12 +80,169 @@ export function MeaV2CardEditor({
           onChange={(imageWeek) => onUpdate({ imageWeek })}
         />
 
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 border rounded-md px-2 h-8">
+            <span className="text-[10px] text-muted-foreground">Logo Marque</span>
+            <Switch
+              checked={showBrandLogo}
+              onCheckedChange={(c) => onUpdate({ showBrandLogo: c })}
+              className="scale-75"
+            />
+            {showBrandLogo && (
+              <Input
+                placeholder="logo-puericulture/svg/marque.svg"
+                value={card.brandLogoPath ?? ""}
+                onChange={(e) => onUpdate({ brandLogoPath: e.target.value })}
+                className="h-6 w-48 text-xs px-1"
+              />
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 border rounded-md px-2 h-8">
+            <span className="text-[10px] text-muted-foreground">Badge</span>
+            <Switch
+              checked={showBadge}
+              onCheckedChange={(c) => onUpdate({ showBadge: c })}
+              className="scale-75"
+            />
+            {showBadge && (
+              <Input
+                placeholder="Best Price"
+                value={card.badgeText ?? ""}
+                onChange={(e) => onUpdate({ badgeText: e.target.value })}
+                className="h-6 w-28 text-xs px-1"
+              />
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 border rounded-md px-2 h-8">
+            <span className="text-[10px] text-muted-foreground">Titre marketing</span>
+            <Switch
+              checked={showMarketingTitle}
+              onCheckedChange={(c) => onUpdate({ showMarketingTitle: c })}
+              className="scale-75"
+            />
+            {showMarketingTitle && (
+              <Input
+                placeholder="Jeu concours"
+                value={card.marketingTitle ?? ""}
+                onChange={(e) => onUpdate({ marketingTitle: e.target.value })}
+                className="h-6 w-32 text-xs px-1"
+              />
+            )}
+          </div>
+        </div>
+
         <Input
           placeholder="Titre"
           value={card.title}
           onChange={(e) => onUpdate({ title: e.target.value })}
           className="h-9 text-sm font-semibold"
         />
+
+        <div className="flex items-center gap-2 bg-muted/40 p-1.5 rounded-md flex-wrap">
+          <Select
+            value={pricingMode}
+            items={{ custom: "Custom", strikethrough: "Prix barré", standard: "Standard" }}
+            onValueChange={(v) => onUpdate({ pricingMode: v as MeaPricingMode })}
+          >
+            <SelectTrigger className="h-7 flex-1 text-xs">
+              <SelectValue placeholder="Mode prix" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="custom">Custom</SelectItem>
+              <SelectItem value="strikethrough">Prix barré</SelectItem>
+              <SelectItem value="standard">Standard</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {pricingMode === "standard" && (
+            <>
+              <div className="flex items-center gap-1">
+                <Switch
+                  checked={showPrePrice}
+                  onCheckedChange={(c) => onUpdate({ showPrePrice: c })}
+                  className="scale-75"
+                />
+                {showPrePrice && (
+                  <Input
+                    placeholder="À partir de"
+                    value={card.prePriceText ?? ""}
+                    onChange={(e) => onUpdate({ prePriceText: e.target.value })}
+                    className="h-7 w-24 text-xs px-1"
+                  />
+                )}
+              </div>
+              <Input
+                placeholder="Prix initial"
+                value={card.initialPrice ?? ""}
+                onChange={(e) => onUpdate({ initialPrice: e.target.value })}
+                className="h-7 w-24 text-xs"
+              />
+              <Input
+                placeholder="Prix Club"
+                value={card.clubPrice ?? ""}
+                onChange={(e) => onUpdate({ clubPrice: e.target.value })}
+                className="h-7 w-24 text-xs"
+              />
+            </>
+          )}
+
+          {pricingMode === "strikethrough" && (
+            <>
+              <Input
+                placeholder="Prix barré"
+                value={card.initialPrice ?? ""}
+                onChange={(e) => onUpdate({ initialPrice: e.target.value })}
+                className="h-7 w-32 text-xs"
+              />
+              <Input
+                placeholder="Prix club"
+                value={card.clubPrice ?? ""}
+                onChange={(e) => onUpdate({ clubPrice: e.target.value })}
+                className="h-7 w-32 text-xs font-bold"
+              />
+            </>
+          )}
+
+          {pricingMode === "custom" && (
+            <Input
+              placeholder="Texte libre"
+              value={card.customPriceText ?? ""}
+              onChange={(e) => onUpdate({ customPriceText: e.target.value })}
+              className="h-7 flex-1 text-xs"
+            />
+          )}
+        </div>
+
+        {(pricingMode === "standard" || pricingMode === "strikethrough") && (
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground">Club Txt</span>
+              <Switch
+                checked={showClubLabel}
+                onCheckedChange={(c) => onUpdate({ showClubLabel: c })}
+                className="scale-75"
+              />
+              {showClubLabel && (
+                <Input
+                  placeholder="Promo*"
+                  value={card.clubLabelText ?? ""}
+                  onChange={(e) => onUpdate({ clubLabelText: e.target.value })}
+                  className="h-6 w-20 text-xs px-1"
+                />
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground">Club Logo</span>
+              <Switch
+                checked={showClubIcon}
+                onCheckedChange={(c) => onUpdate({ showClubIcon: c })}
+                className="scale-75"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 rounded-md bg-muted/40 p-1.5">
           <span
