@@ -16,12 +16,15 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ImportCmsDialog } from "@/components/editor/import-cms-dialog";
 import { v4 as uuidv4 } from "uuid";
 import type { MacaronItem } from "@/types";
 import { createEmptyMacaron } from "./schema";
 import { MacaronItemEditor } from "./macaron-item-editor";
+import { parseQuickaccessV2HTML } from "../macarons-v2/import";
 
 interface MacaronsEditorProps {
   items: MacaronItem[];
@@ -31,6 +34,9 @@ interface MacaronsEditorProps {
   onChange: (items: MacaronItem[]) => void;
   onOpenMediaLibrary: (itemId: string) => void;
   onDropFile?: (itemId: string, file: File) => void;
+  // "v2" ajoute l'import depuis le code CMS (quickaccess v2 uniquement — le
+  // parseur cible les classes .quickaccess-v2-item, absentes du HTML v1).
+  variant?: "v1" | "v2";
 }
 
 export function MacaronsEditor({
@@ -39,8 +45,10 @@ export function MacaronsEditor({
   onChange,
   onOpenMediaLibrary,
   onDropFile,
+  variant = "v1",
 }: MacaronsEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -92,17 +100,53 @@ export function MacaronsEditor({
     onChange(items.filter((item) => item.id !== id));
   };
 
+  const handleImport = (html: string) => {
+    const hasContent = items.some((i) => i.label.trim() || i.imageUrl || i.link.trim() || i.cgid.trim() || i.cid.trim());
+    if (hasContent && !window.confirm("Remplacer les macarons actuels par ceux importés du CMS ?")) {
+      return;
+    }
+    try {
+      const { items: imported, issueCount } = parseQuickaccessV2HTML(html, briefWeek);
+      onChange(imported);
+      setImportOpen(false);
+      toast.success(
+        issueCount > 0
+          ? `${imported.length} macarons importés, ${issueCount} à vérifier (voir commentaires).`
+          : `${imported.length} macarons importés.`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Échec de l'import");
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">
           Macarons ({items.length})
         </h3>
-        <Button variant="outline" size="sm" onClick={addItem}>
-          <Plus className="mr-1 h-3 w-3" />
-          Ajouter
-        </Button>
+        <div className="flex items-center gap-2">
+          {variant === "v2" && (
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload className="mr-1 h-3 w-3" />
+              Importer du CMS
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={addItem}>
+            <Plus className="mr-1 h-3 w-3" />
+            Ajouter
+          </Button>
+        </div>
       </div>
+
+      {variant === "v2" && (
+        <ImportCmsDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          description="Colle le code HTML d'une section quickaccess v2 déjà exportée vers le CMS : les tuiles sont reconstruites automatiquement, les champs non reconnus sont signalés dans leur commentaire."
+          onImport={handleImport}
+        />
+      )}
 
       <DndContext
         sensors={sensors}

@@ -970,6 +970,7 @@ export default function BriefEditorPage({
                         />
                       ) : section.type === "macarons_v2" ? (
                         <MacaronsEditor
+                          variant="v2"
                           items={((section.content as MacaronsContent)?.items ?? [])}
                           briefWeek={brief.week}
                           briefYear={brief.year}

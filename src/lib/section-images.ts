@@ -26,49 +26,58 @@ export interface ImageEntry {
   jpgOnly?: boolean;
 }
 
+// Fige la position AVANT de retirer les items sans image, pour qu'elle
+// corresponde à l'ordre réel dans le template (celui utilisé par le HTML
+// généré), pas à l'ordre parmi les seuls items déjà renseignés — sinon le
+// nom de fichier exporté ne correspond plus à la position affichée dès qu'un
+// item sans image précède un item rempli.
+function withPosition<T>(items: T[]): { item: T; position: number }[] {
+  return items.map((item, index) => ({ item, position: index + 1 }));
+}
+
 function getMacaronImages(content: MacaronsContent): ImageEntry[] {
-  return (content?.items ?? [])
-    .filter((i) => i.visible && i.imageUrl)
-    .map((item, index) => ({
+  return withPosition((content?.items ?? []).filter((i) => i.visible))
+    .filter(({ item }) => item.imageUrl)
+    .map(({ item, position }) => ({
       imageUrl: item.imageUrl,
       imageWeek: item.imageWeek,
-      baseName: `quickaccess-${item.exportPosition ?? index + 1}`,
+      baseName: `quickaccess-${item.exportPosition ?? position}`,
       width: 70,
       height: 70,
     }));
 }
 
 function getMeaImages(content: MeaContent): ImageEntry[] {
-  return (content?.items ?? [])
-    .filter((i) => i.visible && i.imageUrl)
-    .map((item, index) => ({
+  return withPosition((content?.items ?? []).filter((i) => i.visible))
+    .filter(({ item }) => item.imageUrl)
+    .map(({ item, position }) => ({
       imageUrl: item.imageUrl,
       imageWeek: item.imageWeek,
-      baseName: `mea-${item.exportPosition ?? index + 1}`,
+      baseName: `mea-${item.exportPosition ?? position}`,
       width: 600,
       height: 400,
     }));
 }
 
 function getEditoImages(content: EditoContent): ImageEntry[] {
-  return (content?.items ?? [])
-    .filter((i) => i.imageUrl)
-    .map((item, index) => ({
+  return withPosition(content?.items ?? [])
+    .filter(({ item }) => item.imageUrl)
+    .map(({ item, position }) => ({
       imageUrl: item.imageUrl,
       imageWeek: item.imageWeek,
-      baseName: `edito-${item.exportPosition ?? index + 1}`,
+      baseName: `edito-${item.exportPosition ?? position}`,
       width: 300,
       height: 250,
     }));
 }
 
 function getImgSousMenuImages(content: ImgSousMenuContent): ImageEntry[] {
-  return (content?.items ?? [])
-    .filter((i) => i.imageUrl)
-    .map((item, index) => ({
+  return withPosition(content?.items ?? [])
+    .filter(({ item }) => item.imageUrl)
+    .map(({ item, position }) => ({
       imageUrl: item.imageUrl,
       imageWeek: item.imageWeek,
-      baseName: `img-sous-menu-${item.exportPosition ?? index + 1}`,
+      baseName: `img-sous-menu-${item.exportPosition ?? position}`,
       width: 563,
       height: 125,
     }));
@@ -105,12 +114,12 @@ function getCatBannerImages(content: CatBannerContent): ImageEntry[] {
 }
 
 function getMiniatureOffreImages(content: MiniatureOffreContent): ImageEntry[] {
-  return (content?.items ?? [])
-    .filter((i) => i.imageUrl)
-    .map((item, index) => ({
+  return withPosition(content?.items ?? [])
+    .filter(({ item }) => item.imageUrl)
+    .map(({ item, position }) => ({
       imageUrl: item.imageUrl,
       imageWeek: item.imageWeek,
-      baseName: `miniature-offre-${item.exportPosition ?? index + 1}`,
+      baseName: `miniature-offre-${item.exportPosition ?? position}`,
       width: 301,
       height: 301,
       jpgOnly: true,
@@ -130,24 +139,24 @@ function getCustomImages(content: CustomContent): ImageEntry[] {
 }
 
 function getMacaronsV2Images(content: MacaronsContent): ImageEntry[] {
-  return (content?.items ?? [])
-    .filter((i) => i.visible && i.imageUrl)
-    .map((item, index) => ({
+  return withPosition((content?.items ?? []).filter((i) => i.visible))
+    .filter(({ item }) => item.imageUrl)
+    .map(({ item, position }) => ({
       imageUrl: item.imageUrl,
       imageWeek: item.imageWeek,
-      baseName: `quickaccess-${item.exportPosition ?? index + 1}`,
+      baseName: `quickaccess-${item.exportPosition ?? position}`,
       width: 200,
       height: 300,
     }));
 }
 
 function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
-  const entries: ImageEntry[] = (content?.cards ?? [])
-    .filter((c) => c.imageUrl)
-    .map((card, index) => ({
+  const entries: ImageEntry[] = withPosition(content?.cards ?? [])
+    .filter(({ item }) => item.imageUrl)
+    .map(({ item: card, position }) => ({
       imageUrl: card.imageUrl,
       imageWeek: card.imageWeek,
-      baseName: `mea-${index + 1}`,
+      baseName: `mea-${position}`,
       width: 1000,
       height: 600,
     }));
