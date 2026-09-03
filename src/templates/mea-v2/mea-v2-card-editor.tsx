@@ -48,6 +48,8 @@ export function MeaV2CardEditor({
   const showPrePrice = card.showPrePrice ?? true;
   const showClubLabel = card.showClubLabel ?? true;
   const showClubIcon = card.showClubIcon ?? true;
+  const isGlobalImage = card.isGlobalImage ?? false;
+  const globalFileName = card.globalFileName ?? "";
 
   return (
     <div className="flex flex-wrap items-start gap-3 rounded-lg border border-border/60 bg-card p-3">
@@ -78,6 +80,11 @@ export function MeaV2CardEditor({
           briefWeek={briefWeek}
           imageId={card.imageId}
           onChange={(imageWeek) => onUpdate({ imageWeek })}
+          global={{
+            isGlobalImage,
+            globalFileName,
+            onChange: onUpdate,
+          }}
         />
 
         <div className="flex items-center gap-2 flex-wrap">

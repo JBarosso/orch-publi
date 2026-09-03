@@ -10,6 +10,7 @@ import type {
   MiniatureOffreContent,
 } from "@/types";
 import { slugify } from "@/templates/cat-banner/schema";
+import { resolveImageBaseName } from "@/lib/cms-image-path";
 
 export interface ImageEntry {
   imageUrl: string;
@@ -24,6 +25,9 @@ export interface ImageEntry {
   folder?: string;
   // N'exporte que le .jpg, pas de variante .webp (cat-banner : pas de <picture>)
   jpgOnly?: boolean;
+  // Image "globale" (quickaccess v2, MEA v2) : omet le segment locale dans le
+  // chemin CMS du zip (doit matcher buildCmsImagePath côté export HTML).
+  noLocale?: boolean;
 }
 
 // Fige la position AVANT de retirer les items sans image, pour qu'elle
@@ -144,9 +148,10 @@ function getMacaronsV2Images(content: MacaronsContent): ImageEntry[] {
     .map(({ item, position }) => ({
       imageUrl: item.imageUrl,
       imageWeek: item.imageWeek,
-      baseName: `quickaccess-${item.exportPosition ?? position}`,
+      baseName: resolveImageBaseName(item, `quickaccess-${item.exportPosition ?? position}`),
       width: 200,
       height: 300,
+      noLocale: item.isGlobalImage,
     }));
 }
 
@@ -156,9 +161,10 @@ function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
     .map(({ item: card, position }) => ({
       imageUrl: card.imageUrl,
       imageWeek: card.imageWeek,
-      baseName: `mea-${position}`,
+      baseName: resolveImageBaseName(card, `mea-${position}`),
       width: 1000,
       height: 600,
+      noLocale: card.isGlobalImage,
     }));
 
   const focus = content?.focus;
@@ -167,18 +173,20 @@ function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
     entries.push({
       imageUrl: focus.imageUrl,
       imageWeek: focus.imageWeek,
-      baseName: "mea-5",
+      baseName: resolveImageBaseName(focus, "mea-5"),
       width: 600,
       height: 700,
+      noLocale: focus.isGlobalImage,
     });
   }
   if (focus?.mediaType === "video" && focus.videoUrl) {
     entries.push({
       imageUrl: focus.videoUrl,
       imageWeek: focus.imageWeek,
-      baseName: "mea-5",
+      baseName: resolveImageBaseName(focus, "mea-5"),
       width: null,
       height: null,
+      noLocale: focus.isGlobalImage,
       isVideo: true,
     });
   }

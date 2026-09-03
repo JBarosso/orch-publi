@@ -40,7 +40,8 @@ export async function buildZipBuffer(groups: ZipGroup[]): Promise<Buffer> {
       // <img src> exporté). Racine "homepage" par défaut, surchageable par
       // template (ex: "banner" pour cat-banner) via img.folder.
       const folder = img.folder ?? "homepage";
-      const subFolder = `${group.folderPrefix ? `${group.folderPrefix}/` : ""}${folder}/${group.year}/wk${imgWk}/${cmsLocalePath(group.locale)}`;
+      const localeSegment = img.noLocale ? "" : `/${cmsLocalePath(group.locale)}`;
+      const subFolder = `${group.folderPrefix ? `${group.folderPrefix}/` : ""}${folder}/${group.year}/wk${imgWk}${localeSegment}`;
 
       try {
         const buffer = await readAsset(img.imageUrl);

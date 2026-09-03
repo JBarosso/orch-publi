@@ -6,6 +6,7 @@ import {
   parseCmsImagePath,
   parseCmsLink,
   parseHtmlFragment,
+  resolveGlobalImageFields,
   textOf,
   type ParsedCmsImagePath,
 } from "@/lib/parse-cms-html";
@@ -105,7 +106,12 @@ function imageWeekFrom(imagePath: ParsedCmsImagePath | null, briefWeek: number):
   return imagePath && imagePath.week !== briefWeek ? imagePath.week : null;
 }
 
-function parseRegularCard(doc: Document, node: Element, briefWeek: number): { card: MeaV2Card; issueCount: number } {
+function parseRegularCard(
+  doc: Document,
+  node: Element,
+  index: number,
+  briefWeek: number,
+): { card: MeaV2Card; issueCount: number } {
   const base = createEmptyMeaV2Card(uuidv4());
   const issues: string[] = [];
 
@@ -114,6 +120,7 @@ function parseRegularCard(doc: Document, node: Element, briefWeek: number): { ca
 
   const imagePath = parseCmsImagePath(node.querySelector(".hp-cat-header-mea__picture img")?.getAttribute("src"));
   if (!imagePath) issues.push("chemin d'image non reconnu — image à resélectionner");
+  const { isGlobalImage, globalFileName } = resolveGlobalImageFields(imagePath, `mea-${index + 1}`);
 
   const link = parseCmsLink(node.querySelector(".hp-cat-header__link")?.getAttribute("href"));
   if (isEmptyCmsLink(link)) issues.push("lien de la carte introuvable");
@@ -135,6 +142,8 @@ function parseRegularCard(doc: Document, node: Element, briefWeek: number): { ca
     cid: link.cid,
     link: link.link,
     imageWeek: imageWeekFrom(imagePath, briefWeek),
+    isGlobalImage,
+    globalFileName,
     showBrandLogo: logoEl ? !hasClass(logoEl, "d-none") : base.showBrandLogo,
     brandLogoPath: logoEl ? (logoEl.getAttribute("src") ?? "").split("?")[0] : base.brandLogoPath,
     showBadge: badgeEl ? !hasClass(badgeEl, "d-none") : base.showBadge,
@@ -169,6 +178,7 @@ function parseFocusCard(doc: Document, node: Element | null, briefWeek: number):
     : parseCmsImagePath(node.querySelector(".hp-cat-header-mea__picture img")?.getAttribute("src"));
   if (!imagePath) issues.push("chemin d'image/vignette non reconnu — média à resélectionner");
   if (isVideo) issues.push("vidéo à réuploader (le fichier n'est pas récupérable depuis le code CMS)");
+  const { isGlobalImage, globalFileName } = resolveGlobalImageFields(imagePath, "mea-5");
 
   const appelPrixEl = node.querySelector(".hp-cat-header-mea__appelPrix");
 
@@ -181,6 +191,8 @@ function parseFocusCard(doc: Document, node: Element | null, briefWeek: number):
     cid: link.cid,
     link: link.link,
     imageWeek: imageWeekFrom(imagePath, briefWeek),
+    isGlobalImage,
+    globalFileName,
     mediaType: isVideo ? "video" : "image",
     appelPrix: appelPrixEl
       ? {
@@ -219,7 +231,7 @@ export function parseMeaV2HTML(html: string, briefWeek: number): ImportMeaV2Resu
   const cards: MeaV2Card[] = [];
   for (let i = 0; i < 4; i += 1) {
     if (regularNodes[i]) {
-      const { card, issueCount: n } = parseRegularCard(doc, regularNodes[i], briefWeek);
+      const { card, issueCount: n } = parseRegularCard(doc, regularNodes[i], i, briefWeek);
       cards.push(card);
       issueCount += n;
     } else {

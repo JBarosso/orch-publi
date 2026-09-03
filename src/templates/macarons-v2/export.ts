@@ -1,6 +1,7 @@
 import type { MacaronItem } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
+import { buildCmsImagePath } from "@/lib/cms-image-path";
 
 // CSS scopé au nouveau design "Macaron v2" (v2-html/quickaccess.html +
 // v2-html/style.html). Coexiste avec le CSS des macarons v1 (quickaccess-list),
@@ -137,12 +138,16 @@ export function generateQuickaccessV2HTML(
 
   const itemsHTML = visibleItems
     .map((item, index) => {
-      const wk = String(item.imageWeek ?? ctx.week).padStart(2, "0");
       // Pas de "-v2" dans l'URL : "-v2" ne concerne que le nom du template
       // côté outil, l'export CMS suit le même schéma que quickaccess v1 —
       // nommage par position (parmi les items visibles), pas par imageId.
       // exportPosition fige le numéro pour les items venant d'une autre semaine.
-      const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/quickaccess-${item.exportPosition ?? index + 1}`;
+      const imgPath = buildCmsImagePath(
+        item,
+        ctx,
+        item.imageWeek,
+        `quickaccess-${item.exportPosition ?? index + 1}`,
+      );
       const plainLabel = esc(item.label.replace(/\n/g, " "));
 
       return `    <li>

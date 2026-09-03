@@ -22,6 +22,8 @@ interface MacaronItemEditorProps {
   onRemove: () => void;
   onOpenMediaLibrary: () => void;
   onDropFile?: (file: File) => void;
+  // "v2" ajoute le toggle "image globale" (chemin CMS sans locale), absent en v1.
+  variant?: "v1" | "v2";
 }
 
 export function MacaronItemEditor({
@@ -32,6 +34,7 @@ export function MacaronItemEditor({
   onRemove,
   onOpenMediaLibrary,
   onDropFile,
+  variant = "v1",
 }: MacaronItemEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -99,6 +102,18 @@ export function MacaronItemEditor({
               imageId={item.imageId}
               exportPosition={item.exportPosition}
               onChange={(imageWeek) => onUpdate({ imageWeek })}
+              global={
+                variant === "v2"
+                  ? {
+                      // Anciennes données sans ces champs (ajoutés après coup) :
+                      // défauts explicites pour ne jamais passer undefined à un
+                      // Switch/Input contrôlé.
+                      isGlobalImage: item.isGlobalImage ?? false,
+                      globalFileName: item.globalFileName ?? "",
+                      onChange: onUpdate,
+                    }
+                  : undefined
+              }
             />
 
             <Textarea

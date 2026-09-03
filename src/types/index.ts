@@ -136,6 +136,12 @@ export interface MacaronItem {
   // null = natif de la semaine du brief : la position suit son index actuel.
   exportPosition: number | null;
   visible: boolean;
+  // Image "globale" (quickaccess v2 uniquement, UI masquée en v1) : chemin CMS
+  // sans segment locale (homepage/{year}/wk{week}/{nom} au lieu de
+  // .../{locale}/{nom}). globalFileName remplace le nom par défaut
+  // (quickaccess-{N}) quand renseigné — seul le nom change, .jpg/.webp restent.
+  isGlobalImage: boolean;
+  globalFileName: string;
 }
 
 export interface MacaronsContent {
@@ -283,6 +289,11 @@ export interface MeaV2Card {
   imageUrl: string;
   imageId: string;
   imageWeek: number | null;
+  // Image "globale" : chemin CMS sans segment locale
+  // (homepage/{year}/wk{week}/{nom} au lieu de .../{locale}/{nom}).
+  // globalFileName remplace le nom par défaut (mea-{N}) quand renseigné.
+  isGlobalImage: boolean;
+  globalFileName: string;
 
   // Logo marque : chemin CMS complet (pas de préfixe imposé, contrairement à
   // MeaItem.brandLogoPath) pour couvrir aussi bien la bibliothèque

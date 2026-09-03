@@ -39,6 +39,8 @@ export function MeaV2FocusEditor({
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   // Anciennes données sans champ buttons
   const buttons: MeaButton[] = focus.buttons ?? [createEmptyButton()];
+  const isGlobalImage = focus.isGlobalImage ?? false;
+  const globalFileName = focus.globalFileName ?? "";
 
   const appelPrix = focus.appelPrix;
 
@@ -127,6 +129,11 @@ export function MeaV2FocusEditor({
           briefWeek={briefWeek}
           imageId={focus.imageId}
           onChange={(imageWeek) => onUpdate({ imageWeek })}
+          global={{
+            isGlobalImage,
+            globalFileName,
+            onChange: onUpdate,
+          }}
         />
 
         <Input

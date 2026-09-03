@@ -165,6 +165,7 @@ export function MacaronsEditor({
                 item={item}
                 isActive={item.id === activeId}
                 briefWeek={briefWeek}
+                variant={variant}
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
                 onOpenMediaLibrary={() => onOpenMediaLibrary(item.id)}

@@ -1,6 +1,7 @@
 import type { MeaV2Content, MeaV2Card, MeaV2FocusCard, MeaButton } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
+import { buildCmsImagePath } from "@/lib/cms-image-path";
 import { getPricingHTML, type ClubIconConfig } from "../mea/export";
 import { focusCardHasContent } from "./schema";
 
@@ -423,10 +424,9 @@ function appelPrixHTML(focus: MeaV2FocusCard, preview: boolean): string {
 }
 
 function regularCardHTML(card: MeaV2Card, index: number, ctx: ExportContext): string {
-  const wk = String(card.imageWeek ?? ctx.week).padStart(2, "0");
   // Pas de "-v2" dans l'URL : "-v2" ne concerne que le nom du template côté
   // outil, l'export CMS suit le même schéma que mea v1 (mea-1, mea-2...).
-  const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/mea-${index + 1}`;
+  const imgPath = buildCmsImagePath(card, ctx, card.imageWeek, `mea-${index + 1}`);
   const plainTitle = esc(card.title.replace(/\n/g, " "));
 
   return `      <div class="hp-cat-header-mea hp-cat-header-mea--${index + 1}">
@@ -447,8 +447,7 @@ ${buttonsHTML(card.buttons, false)}
 }
 
 function focusCardHTML(focus: MeaV2FocusCard, ctx: ExportContext): string {
-  const wk = String(focus.imageWeek ?? ctx.week).padStart(2, "0");
-  const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/mea-5`;
+  const imgPath = buildCmsImagePath(focus, ctx, focus.imageWeek, "mea-5");
   const plainTitle = esc(focus.title.replace(/\n/g, " "));
 
   const mediaHTML =

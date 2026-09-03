@@ -6,6 +6,7 @@ import {
   parseCmsImagePath,
   parseCmsLink,
   parseHtmlFragment,
+  resolveGlobalImageFields,
   textOf,
 } from "@/lib/parse-cms-html";
 
@@ -29,11 +30,16 @@ export function parseQuickaccessV2HTML(html: string, briefWeek: number): ImportQ
 
   let issueCount = 0;
 
-  const items: MacaronItem[] = nodes.map((node) => {
+  const items: MacaronItem[] = nodes.map((node, index) => {
     const label = textOf(node.querySelector(".quickaccess-v2-item__label"));
     const link = parseCmsLink(node.getAttribute("href"));
     const imagePath = parseCmsImagePath(node.querySelector("img")?.getAttribute("src"));
-    const { imageWeek, exportPosition } = freezeImportedPosition(imagePath, briefWeek);
+    const listPosition = index + 1;
+    const { imageWeek, exportPosition } = freezeImportedPosition(imagePath, briefWeek, listPosition);
+    const { isGlobalImage, globalFileName } = resolveGlobalImageFields(
+      imagePath,
+      `quickaccess-${exportPosition ?? listPosition}`,
+    );
 
     const issues: string[] = [];
     if (!label) issues.push("libellé introuvable");
@@ -54,6 +60,8 @@ export function parseQuickaccessV2HTML(html: string, briefWeek: number): ImportQ
       imageWeek,
       exportPosition,
       visible: true,
+      isGlobalImage,
+      globalFileName,
     };
   });
 
