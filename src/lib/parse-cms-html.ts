@@ -3,6 +3,9 @@
 // les items d'un template à partir du DOM. Basé sur DOMParser (natif
 // navigateur) : ces fonctions ne tournent que côté client.
 
+import { LOCALES } from "@/types";
+import { cmsLocalePath } from "@/lib/utils";
+
 export interface ParsedCmsLink {
   linkType: "cgid" | "cid" | "url";
   cgid: string;
@@ -23,38 +26,62 @@ export function parseCmsLink(href: string | null | undefined): ParsedCmsLink {
 }
 
 export interface ParsedCmsImagePath {
-  year: number;
-  week: number;
+  // null quand le chemin est personnalisé : il ne porte alors ni année ni
+  // semaine (cf. customPath).
+  year: number | null;
+  week: number | null;
   // null = chemin "global" (pas de segment locale) — cf. isGlobalImage.
   locale: string | null;
   // Nom de fichier sans extension, ex: "quickaccess-4" ou "mon-nom-custom".
   baseName: string;
+  // Dossier personnalisé (tout ce qui précède le segment langue), vide quand
+  // le chemin suit le défaut homepage/{année}/wk{semaine}.
+  customPath: string;
 }
 
-const CMS_IMAGE_PATH_WITH_LOCALE_RE = /homepage\/(\d{4})\/wk(\d{1,2})\/([a-z]{2,5})\/([a-z0-9-]+)\.(?:jpg|jpeg|png|webp|mp4)/i;
-const CMS_IMAGE_PATH_GLOBAL_RE = /homepage\/(\d{4})\/wk(\d{1,2})\/([a-z0-9-]+)\.(?:jpg|jpeg|png|webp|mp4)/i;
+const CMS_IMAGE_FILE_RE = /^(.*)\/([A-Za-z0-9_-]+)\.(?:jpg|jpeg|png|webp|mp4)$/i;
+const CMS_DEFAULT_FOLDER_RE = /(?:^|\/)homepage\/(\d{4})\/wk(\d{1,2})$/i;
+
+// Segments de langue possibles dans un chemin CMS (cf. cmsLocalePath : BEFR
+// et BENL partagent le dossier "be").
+const CMS_LOCALE_SEGMENTS = new Set(LOCALES.map((l) => cmsLocalePath(l.value)));
 
 // Ne récupère jamais l'image elle-même (elle vit déjà côté CMS, pas dans
-// notre médiathèque) : juste de quoi figer semaine + position (et détecter le
-// cas "image globale", cf. isGlobalImage) pour que le prochain export
-// continue de pointer vers le fichier CMS existant. Essaie d'abord le format
-// avec segment locale, puis le format global (une image globale n'a qu'un
-// seul "/" entre wk{semaine} et le nom de fichier, donc ne matche jamais le
-// premier motif — pas d'ambiguïté entre les deux).
+// notre médiathèque) : juste de quoi figer semaine + position et détecter les
+// cas "image globale" / "chemin personnalisé", pour que le prochain export
+// continue de pointer vers le fichier CMS existant.
+//
+// Le segment langue est reconnu par sa valeur (fr, be, es, gr) et non par sa
+// position : c'est le seul moyen de distinguer ".../campagne/fr/img.jpg" (avec
+// langue) de ".../campagne/img.jpg" (image globale) quand le préfixe est
+// libre. Un dossier personnalisé qui s'appellerait exactement comme une locale
+// serait donc pris pour la langue — cas jugé improbable.
 export function parseCmsImagePath(src: string | null | undefined): ParsedCmsImagePath | null {
-  const value = src ?? "";
-  const withLocale = value.match(CMS_IMAGE_PATH_WITH_LOCALE_RE);
-  if (withLocale) {
+  // Retire "?$staticlink$" et consorts
+  const value = (src ?? "").trim().split("?")[0];
+  const match = value.match(CMS_IMAGE_FILE_RE);
+  if (!match) return null;
+
+  const segments = match[1].split("/").filter(Boolean);
+  const baseName = match[2];
+  if (segments.length === 0) return null;
+
+  const last = segments[segments.length - 1].toLowerCase();
+  const hasLocale = CMS_LOCALE_SEGMENTS.has(last);
+  const folder = (hasLocale ? segments.slice(0, -1) : segments).join("/");
+  const locale = hasLocale ? last : null;
+
+  const defaultFolder = folder.match(CMS_DEFAULT_FOLDER_RE);
+  if (defaultFolder) {
     return {
-      year: Number(withLocale[1]),
-      week: Number(withLocale[2]),
-      locale: withLocale[3].toLowerCase(),
-      baseName: withLocale[4],
+      year: Number(defaultFolder[1]),
+      week: Number(defaultFolder[2]),
+      locale,
+      baseName,
+      customPath: "",
     };
   }
-  const global = value.match(CMS_IMAGE_PATH_GLOBAL_RE);
-  if (!global) return null;
-  return { year: Number(global[1]), week: Number(global[2]), locale: null, baseName: global[3] };
+  return { year: null, week: null, locale, baseName, customPath: folder };
 }
 
 // Position par défaut (ex: "quickaccess-4" -> 4) quand le nom suit le
@@ -95,10 +122,35 @@ export function freezeImportedPosition(
   briefWeek: number,
   listPosition: number,
 ): { imageWeek: number | null; exportPosition: number | null } {
-  if (!imagePath || imagePath.week === briefWeek) {
+  // week === null : chemin personnalisé, la semaine n'y figure pas — rien à
+  // figer, l'item suit la semaine du brief.
+  if (!imagePath || imagePath.week === null || imagePath.week === briefWeek) {
     return { imageWeek: null, exportPosition: null };
   }
   return { imageWeek: imagePath.week, exportPosition: trailingPosition(imagePath.baseName) ?? listPosition };
+}
+
+/** Chemin personnalisé détecté dans le HTML importé, prêt à poser sur l'item. */
+export function resolveImportedCustomPath(
+  imagePath: ParsedCmsImagePath | null,
+): { useCustomPath: boolean; customPath: string } {
+  const customPath = imagePath?.customPath ?? "";
+  return customPath ? { useCustomPath: true, customPath } : { useCustomPath: false, customPath: "" };
+}
+
+/**
+ * Chemin personnalisé commun à toutes les images importées, à remonter au
+ * niveau de la section (les items le laissent alors vide et en héritent) —
+ * on obtient l'état qu'un humain aurait saisi, modifiable en un seul endroit.
+ * Vide si les chemins diffèrent : chaque item garde alors le sien.
+ */
+export function sharedCustomPath(
+  items: { useCustomPath: boolean; customPath: string }[],
+): string {
+  const used = items.filter((i) => i.useCustomPath && i.customPath);
+  if (used.length === 0) return "";
+  const first = used[0].customPath;
+  return used.every((i) => i.customPath === first) ? first : "";
 }
 
 /**

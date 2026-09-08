@@ -5,6 +5,7 @@ import { Upload } from "lucide-react";
 import { toast } from "sonner";
 import type { MeaV2Content, MeaV2Card, MeaV2FocusCard } from "@/types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ImportCmsDialog } from "@/components/editor/import-cms-dialog";
 import { MeaV2CardEditor } from "./mea-v2-card-editor";
 import { MeaV2FocusEditor } from "./mea-v2-focus-editor";
@@ -33,6 +34,7 @@ export function MeaV2Editor({
   const [importOpen, setImportOpen] = useState(false);
   const cards = content.cards ?? [];
   const focus = content.focus;
+  const sectionCustomPath = content.customPath ?? "";
 
   const updateCard = (index: number, updates: Partial<MeaV2Card>) => {
     onChange({
@@ -67,10 +69,19 @@ export function MeaV2Editor({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">
-          MEA v2 (4 cartes + 1 carte focus)
-        </h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            MEA v2 (4 cartes + 1 carte focus)
+          </h3>
+          <Input
+            placeholder="Chemin custom de la section (ex: landing-pages/fille/campagne)"
+            value={sectionCustomPath}
+            onChange={(e) => onChange({ ...content, customPath: e.target.value })}
+            className="h-7 w-80 text-xs"
+            title="Remplace homepage/{année}/wk{semaine} pour les cartes dont le toggle « Chemin custom » est actif"
+          />
+        </div>
         <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
           <Upload className="mr-1 h-3 w-3" />
           Importer du CMS
@@ -94,6 +105,7 @@ export function MeaV2Editor({
             onUpdate={(updates) => updateCard(i, updates)}
             onOpenMediaLibrary={() => onOpenMediaLibrary(`card-${i}`)}
             onDropFile={onDropFile ? (file) => onDropFile(`card-${i}`, file) : undefined}
+            sectionCustomPath={sectionCustomPath}
           />
         ))}
       </div>
@@ -106,6 +118,7 @@ export function MeaV2Editor({
           onOpenMediaLibrary={() => onOpenMediaLibrary("focus")}
           onDropFile={onDropFile ? (file) => onDropFile("focus", file) : undefined}
           onOpenVideoUpload={onOpenVideoUpload}
+          sectionCustomPath={sectionCustomPath}
         />
       )}
     </div>

@@ -26,6 +26,8 @@ interface MeaV2CardEditorProps {
   onUpdate: (updates: Partial<MeaV2Card>) => void;
   onOpenMediaLibrary: () => void;
   onDropFile?: (file: File) => void;
+  /** Chemin custom de la section, hérité par la carte qui n'en définit pas. */
+  sectionCustomPath?: string;
 }
 
 export function MeaV2CardEditor({
@@ -35,6 +37,7 @@ export function MeaV2CardEditor({
   onUpdate,
   onOpenMediaLibrary,
   onDropFile,
+  sectionCustomPath = "",
 }: MeaV2CardEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   // Anciennes données sans les champs prix/badge/marque (ajoutés après coup) :
@@ -50,6 +53,8 @@ export function MeaV2CardEditor({
   const showClubIcon = card.showClubIcon ?? true;
   const isGlobalImage = card.isGlobalImage ?? false;
   const globalFileName = card.globalFileName ?? "";
+  const useCustomPath = card.useCustomPath ?? false;
+  const customPath = card.customPath ?? "";
 
   return (
     <div className="flex flex-wrap items-start gap-3 rounded-lg border border-border/60 bg-card p-3">
@@ -80,9 +85,12 @@ export function MeaV2CardEditor({
           briefWeek={briefWeek}
           imageId={card.imageId}
           onChange={(imageWeek) => onUpdate({ imageWeek })}
-          global={{
+          imagePath={{
             isGlobalImage,
             globalFileName,
+            useCustomPath,
+            customPath,
+            sectionCustomPath,
             onChange: onUpdate,
           }}
         />

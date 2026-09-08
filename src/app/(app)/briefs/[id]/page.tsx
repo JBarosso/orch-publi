@@ -193,10 +193,17 @@ export default function BriefEditorPage({
   }, [fetchBrief]);
 
   const updateSection = useCallback(
-    (sectionId: string, updates: Partial<BriefSection>) => {
+    (
+      sectionId: string,
+      // Forme fonction quand la mise à jour dépend de la section courante
+      // (ex: fusionner dans content sans écraser ses autres clés).
+      updates: Partial<BriefSection> | ((section: BriefSection) => Partial<BriefSection>),
+    ) => {
       setSections((prev) => {
         const next = prev.map((section) =>
-          section.id === sectionId ? { ...section, ...updates } : section,
+          section.id === sectionId
+            ? { ...section, ...(typeof updates === "function" ? updates(section) : updates) }
+            : section,
         );
         setDirty(serializeSections(next) !== savedSectionsRef.current);
         return next;
@@ -216,7 +223,11 @@ export default function BriefEditorPage({
         | CatBannerItem[]
         | MiniatureOffreItem[],
     ) => {
-      updateSection(sectionId, { content: { items } });
+      // Fusion (et pas remplacement) : le content porte aussi des réglages de
+      // section à côté des items, ex. customPath en quickaccess v2.
+      updateSection(sectionId, (section) => ({
+        content: { ...(section.content as Record<string, unknown>), items },
+      }));
     },
     [updateSection],
   );
@@ -975,6 +986,12 @@ export default function BriefEditorPage({
                           briefWeek={brief.week}
                           briefYear={brief.year}
                           briefLocale={brief.locale}
+                          sectionCustomPath={(section.content as MacaronsContent)?.customPath ?? ""}
+                          onSectionCustomPathChange={(customPath) =>
+                            updateSection(section.id, (s) => ({
+                              content: { ...(s.content as MacaronsContent), customPath },
+                            }))
+                          }
                           onChange={(items) => updateSectionItems(section.id, items)}
                           onOpenMediaLibrary={(itemId) =>
                             setMediaTarget({

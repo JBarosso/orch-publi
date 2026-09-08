@@ -7,6 +7,8 @@ import {
   parseCmsLink,
   parseHtmlFragment,
   resolveGlobalImageFields,
+  resolveImportedCustomPath,
+  sharedCustomPath,
   textOf,
   type ParsedCmsImagePath,
 } from "@/lib/parse-cms-html";
@@ -121,6 +123,7 @@ function parseRegularCard(
   const imagePath = parseCmsImagePath(node.querySelector(".hp-cat-header-mea__picture img")?.getAttribute("src"));
   if (!imagePath) issues.push("chemin d'image non reconnu — image à resélectionner");
   const { isGlobalImage, globalFileName } = resolveGlobalImageFields(imagePath, `mea-${index + 1}`);
+  const { useCustomPath, customPath } = resolveImportedCustomPath(imagePath);
 
   const link = parseCmsLink(node.querySelector(".hp-cat-header__link")?.getAttribute("href"));
   if (isEmptyCmsLink(link)) issues.push("lien de la carte introuvable");
@@ -144,6 +147,8 @@ function parseRegularCard(
     imageWeek: imageWeekFrom(imagePath, briefWeek),
     isGlobalImage,
     globalFileName,
+    useCustomPath,
+    customPath,
     showBrandLogo: logoEl ? !hasClass(logoEl, "d-none") : base.showBrandLogo,
     brandLogoPath: logoEl ? (logoEl.getAttribute("src") ?? "").split("?")[0] : base.brandLogoPath,
     showBadge: badgeEl ? !hasClass(badgeEl, "d-none") : base.showBadge,
@@ -179,6 +184,7 @@ function parseFocusCard(doc: Document, node: Element | null, briefWeek: number):
   if (!imagePath) issues.push("chemin d'image/vignette non reconnu — média à resélectionner");
   if (isVideo) issues.push("vidéo à réuploader (le fichier n'est pas récupérable depuis le code CMS)");
   const { isGlobalImage, globalFileName } = resolveGlobalImageFields(imagePath, "mea-5");
+  const { useCustomPath, customPath } = resolveImportedCustomPath(imagePath);
 
   const appelPrixEl = node.querySelector(".hp-cat-header-mea__appelPrix");
 
@@ -193,6 +199,8 @@ function parseFocusCard(doc: Document, node: Element | null, briefWeek: number):
     imageWeek: imageWeekFrom(imagePath, briefWeek),
     isGlobalImage,
     globalFileName,
+    useCustomPath,
+    customPath,
     mediaType: isVideo ? "video" : "image",
     appelPrix: appelPrixEl
       ? {
@@ -251,5 +259,13 @@ export function parseMeaV2HTML(html: string, briefWeek: number): ImportMeaV2Resu
   const { focus, issueCount: focusIssues } = parseFocusCard(doc, focusNode, briefWeek);
   issueCount += focusIssues;
 
-  return { content: { cards, focus }, issueCount };
+  // Chemin identique partout -> il vit au niveau de la section, les cartes en héritent.
+  const customPath = sharedCustomPath([...cards, focus]);
+  if (customPath) {
+    [...cards, focus].forEach((card) => {
+      if (card.useCustomPath) card.customPath = "";
+    });
+  }
+
+  return { content: { cards, focus, customPath }, issueCount };
 }

@@ -133,6 +133,7 @@ function getHref(item: MacaronItem): string {
 export function generateQuickaccessV2HTML(
   items: MacaronItem[],
   ctx: ExportContext,
+  sectionCustomPath?: string | null,
 ): string {
   const visibleItems = items.filter((item) => item.visible);
 
@@ -147,6 +148,7 @@ export function generateQuickaccessV2HTML(
         ctx,
         item.imageWeek,
         `quickaccess-${item.exportPosition ?? index + 1}`,
+        sectionCustomPath,
       );
       const plainLabel = esc(item.label.replace(/\n/g, " "));
 

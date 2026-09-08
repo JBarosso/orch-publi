@@ -19,6 +19,8 @@ export function createEmptyMeaV2Card(id: string): MeaV2Card {
     imageWeek: null,
     isGlobalImage: false,
     globalFileName: "",
+    useCustomPath: false,
+    customPath: "",
     showBrandLogo: false,
     brandLogoPath: "logo-puericulture/svg/premaman-blc.svg",
     showBadge: false,

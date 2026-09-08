@@ -142,10 +142,18 @@ export interface MacaronItem {
   // (quickaccess-{N}) quand renseigné — seul le nom change, .jpg/.webp restent.
   isGlobalImage: boolean;
   globalFileName: string;
+  // Chemin CMS personnalisé : remplace tout ce qui précède le segment langue
+  // (homepage/{année}/wk{semaine} par défaut). Toggle actif + champ vide =
+  // on hérite du chemin défini au niveau de la section.
+  useCustomPath: boolean;
+  customPath: string;
 }
 
 export interface MacaronsContent {
   items: MacaronItem[];
+  // Chemin CMS personnalisé partagé par les items de la section (quickaccess
+  // v2) — chaque item peut le surcharger. Absent des contenus créés avant.
+  customPath?: string;
 }
 
 export type MeaOverlayType = "none" | "label" | "text";
@@ -294,6 +302,11 @@ export interface MeaV2Card {
   // globalFileName remplace le nom par défaut (mea-{N}) quand renseigné.
   isGlobalImage: boolean;
   globalFileName: string;
+  // Chemin CMS personnalisé : remplace tout ce qui précède le segment langue
+  // (homepage/{année}/wk{semaine} par défaut). Toggle actif + champ vide =
+  // on hérite du chemin défini au niveau de la section.
+  useCustomPath: boolean;
+  customPath: string;
 
   // Logo marque : chemin CMS complet (pas de préfixe imposé, contrairement à
   // MeaItem.brandLogoPath) pour couvrir aussi bien la bibliothèque
@@ -340,6 +353,9 @@ export interface MeaV2Content {
   // Toujours 4 cartes : la grille CSS (nth-child(3n+1)) suppose ce nombre exact.
   cards: MeaV2Card[];
   focus: MeaV2FocusCard;
+  // Chemin CMS personnalisé partagé par les cartes de la section — chaque
+  // carte peut le surcharger. Absent des contenus créés avant.
+  customPath?: string;
 }
 
 // --- Fil d'ariane (breadcrumb catégorie, pas d'image) ---

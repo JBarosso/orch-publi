@@ -26,6 +26,8 @@ interface MeaV2FocusEditorProps {
   onOpenMediaLibrary: () => void;
   onDropFile?: (file: File) => void;
   onOpenVideoUpload: () => void;
+  /** Chemin custom de la section, hérité par la carte qui n'en définit pas. */
+  sectionCustomPath?: string;
 }
 
 export function MeaV2FocusEditor({
@@ -35,12 +37,15 @@ export function MeaV2FocusEditor({
   onOpenMediaLibrary,
   onDropFile,
   onOpenVideoUpload,
+  sectionCustomPath = "",
 }: MeaV2FocusEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   // Anciennes données sans champ buttons
   const buttons: MeaButton[] = focus.buttons ?? [createEmptyButton()];
   const isGlobalImage = focus.isGlobalImage ?? false;
   const globalFileName = focus.globalFileName ?? "";
+  const useCustomPath = focus.useCustomPath ?? false;
+  const customPath = focus.customPath ?? "";
 
   const appelPrix = focus.appelPrix;
 
@@ -129,9 +134,12 @@ export function MeaV2FocusEditor({
           briefWeek={briefWeek}
           imageId={focus.imageId}
           onChange={(imageWeek) => onUpdate({ imageWeek })}
-          global={{
+          imagePath={{
             isGlobalImage,
             globalFileName,
+            useCustomPath,
+            customPath,
+            sectionCustomPath,
             onChange: onUpdate,
           }}
         />

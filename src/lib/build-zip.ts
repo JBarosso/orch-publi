@@ -41,7 +41,10 @@ export async function buildZipBuffer(groups: ZipGroup[]): Promise<Buffer> {
       // template (ex: "banner" pour cat-banner) via img.folder.
       const folder = img.folder ?? "homepage";
       const localeSegment = img.noLocale ? "" : `/${cmsLocalePath(group.locale)}`;
-      const subFolder = `${group.folderPrefix ? `${group.folderPrefix}/` : ""}${folder}/${group.year}/wk${imgWk}${localeSegment}`;
+      // Chemin personnalisé : remplace "{folder}/{année}/wk{semaine}" (la
+      // semaine n'en fait alors plus partie, cf. resolveCmsFolder).
+      const baseFolder = img.customFolder || `${folder}/${group.year}/wk${imgWk}`;
+      const subFolder = `${group.folderPrefix ? `${group.folderPrefix}/` : ""}${baseFolder}${localeSegment}`;
 
       try {
         const buffer = await readAsset(img.imageUrl);

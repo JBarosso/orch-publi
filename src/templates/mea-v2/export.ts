@@ -423,10 +423,15 @@ function appelPrixHTML(focus: MeaV2FocusCard, preview: boolean): string {
         </div>\n`;
 }
 
-function regularCardHTML(card: MeaV2Card, index: number, ctx: ExportContext): string {
+function regularCardHTML(
+  card: MeaV2Card,
+  index: number,
+  ctx: ExportContext,
+  sectionCustomPath?: string | null,
+): string {
   // Pas de "-v2" dans l'URL : "-v2" ne concerne que le nom du template côté
   // outil, l'export CMS suit le même schéma que mea v1 (mea-1, mea-2...).
-  const imgPath = buildCmsImagePath(card, ctx, card.imageWeek, `mea-${index + 1}`);
+  const imgPath = buildCmsImagePath(card, ctx, card.imageWeek, `mea-${index + 1}`, sectionCustomPath);
   const plainTitle = esc(card.title.replace(/\n/g, " "));
 
   return `      <div class="hp-cat-header-mea hp-cat-header-mea--${index + 1}">
@@ -446,8 +451,12 @@ ${buttonsHTML(card.buttons, false)}
       </div>`;
 }
 
-function focusCardHTML(focus: MeaV2FocusCard, ctx: ExportContext): string {
-  const imgPath = buildCmsImagePath(focus, ctx, focus.imageWeek, "mea-5");
+function focusCardHTML(
+  focus: MeaV2FocusCard,
+  ctx: ExportContext,
+  sectionCustomPath?: string | null,
+): string {
+  const imgPath = buildCmsImagePath(focus, ctx, focus.imageWeek, "mea-5", sectionCustomPath);
   const plainTitle = esc(focus.title.replace(/\n/g, " "));
 
   const mediaHTML =
@@ -487,7 +496,7 @@ ${buttonsHTML(focus.buttons, false)}
 
 export function generateMeaV2HTML(content: MeaV2Content, ctx: ExportContext): string {
   const cardsHTML = (content.cards ?? [])
-    .map((card, i) => regularCardHTML(card, i, ctx))
+    .map((card, i) => regularCardHTML(card, i, ctx, content.customPath))
     .join("\n\n");
 
   // Carte focus optionnelle : générée dès qu'au moins un champ est renseigné
@@ -500,7 +509,7 @@ export function generateMeaV2HTML(content: MeaV2Content, ctx: ExportContext): st
     <div class="hp-cat-header-meas">
 ${cardsHTML}
     </div>
-${hasFocus ? focusCardHTML(content.focus, ctx) : ""}
+${hasFocus ? focusCardHTML(content.focus, ctx, content.customPath) : ""}
   </div>
 </div>`;
 }

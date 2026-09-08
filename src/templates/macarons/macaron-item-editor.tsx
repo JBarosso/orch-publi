@@ -22,8 +22,11 @@ interface MacaronItemEditorProps {
   onRemove: () => void;
   onOpenMediaLibrary: () => void;
   onDropFile?: (file: File) => void;
-  // "v2" ajoute le toggle "image globale" (chemin CMS sans locale), absent en v1.
+  // "v2" ajoute les toggles de chemin CMS (image globale, chemin custom),
+  // absents en v1.
   variant?: "v1" | "v2";
+  /** Chemin custom de la section, hérité par l'item qui n'en définit pas. */
+  sectionCustomPath?: string;
 }
 
 export function MacaronItemEditor({
@@ -35,6 +38,7 @@ export function MacaronItemEditor({
   onOpenMediaLibrary,
   onDropFile,
   variant = "v1",
+  sectionCustomPath = "",
 }: MacaronItemEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -102,7 +106,7 @@ export function MacaronItemEditor({
               imageId={item.imageId}
               exportPosition={item.exportPosition}
               onChange={(imageWeek) => onUpdate({ imageWeek })}
-              global={
+              imagePath={
                 variant === "v2"
                   ? {
                       // Anciennes données sans ces champs (ajoutés après coup) :
@@ -110,6 +114,9 @@ export function MacaronItemEditor({
                       // Switch/Input contrôlé.
                       isGlobalImage: item.isGlobalImage ?? false,
                       globalFileName: item.globalFileName ?? "",
+                      useCustomPath: item.useCustomPath ?? false,
+                      customPath: item.customPath ?? "",
+                      sectionCustomPath,
                       onChange: onUpdate,
                     }
                   : undefined

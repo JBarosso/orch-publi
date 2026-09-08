@@ -17,6 +17,8 @@ export function createEmptyMacaron(id: string): MacaronItem {
     visible: true,
     isGlobalImage: false,
     globalFileName: "",
+    useCustomPath: false,
+    customPath: "",
   };
 }
 

@@ -19,6 +19,7 @@ import {
 import { Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ImportCmsDialog } from "@/components/editor/import-cms-dialog";
 import { v4 as uuidv4 } from "uuid";
 import type { MacaronItem } from "@/types";
@@ -34,9 +35,13 @@ interface MacaronsEditorProps {
   onChange: (items: MacaronItem[]) => void;
   onOpenMediaLibrary: (itemId: string) => void;
   onDropFile?: (itemId: string, file: File) => void;
-  // "v2" ajoute l'import depuis le code CMS (quickaccess v2 uniquement — le
-  // parseur cible les classes .quickaccess-v2-item, absentes du HTML v1).
+  // "v2" ajoute l'import depuis le code CMS et les réglages de chemin CMS
+  // (quickaccess v2 uniquement — le parseur cible les classes
+  // .quickaccess-v2-item, absentes du HTML v1).
   variant?: "v1" | "v2";
+  /** Chemin CMS custom de la section, hérité par les items qui l'activent. */
+  sectionCustomPath?: string;
+  onSectionCustomPathChange?: (path: string) => void;
 }
 
 export function MacaronsEditor({
@@ -46,6 +51,8 @@ export function MacaronsEditor({
   onOpenMediaLibrary,
   onDropFile,
   variant = "v1",
+  sectionCustomPath = "",
+  onSectionCustomPathChange,
 }: MacaronsEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -106,8 +113,11 @@ export function MacaronsEditor({
       return;
     }
     try {
-      const { items: imported, issueCount } = parseQuickaccessV2HTML(html, briefWeek);
+      const { items: imported, customPath, issueCount } = parseQuickaccessV2HTML(html, briefWeek);
       onChange(imported);
+      // Toujours réappliqué (même vide) : l'import remplace la section entière,
+      // un chemin resté de l'import précédent serait trompeur.
+      onSectionCustomPathChange?.(customPath);
       setImportOpen(false);
       toast.success(
         issueCount > 0
@@ -121,10 +131,21 @@ export function MacaronsEditor({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">
-          Macarons ({items.length})
-        </h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Macarons ({items.length})
+          </h3>
+          {variant === "v2" && onSectionCustomPathChange && (
+            <Input
+              placeholder="Chemin custom de la section (ex: landing-pages/fille/campagne)"
+              value={sectionCustomPath}
+              onChange={(e) => onSectionCustomPathChange(e.target.value)}
+              className="h-7 w-80 text-xs"
+              title="Remplace homepage/{année}/wk{semaine} pour les items dont le toggle « Chemin custom » est actif"
+            />
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {variant === "v2" && (
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
@@ -166,6 +187,7 @@ export function MacaronsEditor({
                 isActive={item.id === activeId}
                 briefWeek={briefWeek}
                 variant={variant}
+                sectionCustomPath={sectionCustomPath}
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
                 onOpenMediaLibrary={() => onOpenMediaLibrary(item.id)}

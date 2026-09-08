@@ -7,11 +7,15 @@ import {
   parseCmsLink,
   parseHtmlFragment,
   resolveGlobalImageFields,
+  resolveImportedCustomPath,
+  sharedCustomPath,
   textOf,
 } from "@/lib/parse-cms-html";
 
 export interface ImportQuickaccessV2Result {
   items: MacaronItem[];
+  /** Chemin custom commun à toutes les tuiles, à poser sur la section. */
+  customPath: string;
   issueCount: number;
 }
 
@@ -40,6 +44,7 @@ export function parseQuickaccessV2HTML(html: string, briefWeek: number): ImportQ
       imagePath,
       `quickaccess-${exportPosition ?? listPosition}`,
     );
+    const { useCustomPath, customPath } = resolveImportedCustomPath(imagePath);
 
     const issues: string[] = [];
     if (!label) issues.push("libellé introuvable");
@@ -62,8 +67,18 @@ export function parseQuickaccessV2HTML(html: string, briefWeek: number): ImportQ
       visible: true,
       isGlobalImage,
       globalFileName,
+      useCustomPath,
+      customPath,
     };
   });
 
-  return { items, issueCount };
+  // Chemin identique partout -> il vit au niveau de la section, les tuiles en héritent.
+  const customPath = sharedCustomPath(items);
+  if (customPath) {
+    items.forEach((item) => {
+      if (item.useCustomPath) item.customPath = "";
+    });
+  }
+
+  return { items, customPath, issueCount };
 }

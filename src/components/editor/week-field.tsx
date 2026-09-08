@@ -4,10 +4,20 @@ import { TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
-interface GlobalImageProps {
+interface ImagePathProps {
   isGlobalImage: boolean;
   globalFileName: string;
-  onChange: (updates: { isGlobalImage?: boolean; globalFileName?: string }) => void;
+  useCustomPath: boolean;
+  customPath: string;
+  /** Chemin de la section, hérité quand l'item n'en définit pas — affiché en
+   * placeholder pour que l'utilisateur voie ce qui sera réellement utilisé. */
+  sectionCustomPath: string;
+  onChange: (updates: {
+    isGlobalImage?: boolean;
+    globalFileName?: string;
+    useCustomPath?: boolean;
+    customPath?: string;
+  }) => void;
 }
 
 interface WeekFieldProps {
@@ -19,10 +29,11 @@ interface WeekFieldProps {
    * Ne passer la prop que pour les templates qui figent (macarons, MEA,
    * edito, img sous menu) — undefined pour carousel/MEA v2. */
   exportPosition?: number | null;
-  /** Toggle "image globale" (chemin CMS sans segment locale) + nom de fichier
-   * personnalisé. Ne passer que pour les templates qui la supportent
-   * (quickaccess v2, MEA v2) — omis partout ailleurs. */
-  global?: GlobalImageProps;
+  /** Réglages de chemin CMS de l'image : toggle "globale" (sans segment
+   * locale) + nom de fichier, et toggle "chemin custom" + chemin. Ne passer
+   * que pour les templates qui les supportent (quickaccess v2, MEA v2) —
+   * omis partout ailleurs. */
+  imagePath?: ImagePathProps;
 }
 
 /**
@@ -36,7 +47,7 @@ export function WeekField({
   imageId,
   onChange,
   exportPosition,
-  global,
+  imagePath,
 }: WeekFieldProps) {
   return (
     <div className="space-y-1">
@@ -76,25 +87,50 @@ export function WeekField({
         >
           ID: {imageId}
         </span>
-        {global && (
-          <span
-            className="flex items-center gap-1"
-            title="Image partagée entre langues : le chemin CMS omet le segment locale"
-          >
-            <Switch
-              checked={global.isGlobalImage}
-              onCheckedChange={(checked) => global.onChange({ isGlobalImage: checked })}
-              className="scale-75"
-            />
-            <span className="text-[10px] text-muted-foreground/70">Global</span>
-          </span>
+        {imagePath && (
+          <>
+            <span
+              className="flex items-center gap-1"
+              title="Image partagée entre langues : le chemin CMS omet le segment locale"
+            >
+              <Switch
+                checked={imagePath.isGlobalImage}
+                onCheckedChange={(checked) => imagePath.onChange({ isGlobalImage: checked })}
+                className="scale-75"
+              />
+              <span className="text-[10px] text-muted-foreground/70">Global</span>
+            </span>
+            <span
+              className="flex items-center gap-1"
+              title="Remplace homepage/{année}/wk{semaine} par un chemin choisi, avant le segment langue"
+            >
+              <Switch
+                checked={imagePath.useCustomPath}
+                onCheckedChange={(checked) => imagePath.onChange({ useCustomPath: checked })}
+                className="scale-75"
+              />
+              <span className="text-[10px] text-muted-foreground/70">Chemin custom</span>
+            </span>
+          </>
         )}
       </div>
-      {global?.isGlobalImage && (
+      {imagePath?.isGlobalImage && (
         <Input
           placeholder="Nom de fichier (vide = nom par défaut)"
-          value={global.globalFileName}
-          onChange={(e) => global.onChange({ globalFileName: e.target.value })}
+          value={imagePath.globalFileName}
+          onChange={(e) => imagePath.onChange({ globalFileName: e.target.value })}
+          className="h-7 text-xs"
+        />
+      )}
+      {imagePath?.useCustomPath && (
+        <Input
+          placeholder={
+            imagePath.sectionCustomPath.trim()
+              ? `Chemin de la section : ${imagePath.sectionCustomPath.trim()}`
+              : "Chemin custom (ex: landing-pages/fille/campagne)"
+          }
+          value={imagePath.customPath}
+          onChange={(e) => imagePath.onChange({ customPath: e.target.value })}
           className="h-7 text-xs"
         />
       )}

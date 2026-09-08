@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     html = generateCustomHTML(normalizeCustomContent(section.content), ctx);
   } else if (section.type === "macarons_v2") {
     const content = section.content as MacaronsContent;
-    html = generateQuickaccessV2HTML(content?.items ?? [], ctx);
+    html = generateQuickaccessV2HTML(content?.items ?? [], ctx, content?.customPath);
   } else if (section.type === "mea_v2") {
     const content = section.content as MeaV2Content;
     html = generateMeaV2HTML(content, ctx);

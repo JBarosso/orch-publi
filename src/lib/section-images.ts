@@ -10,7 +10,7 @@ import type {
   MiniatureOffreContent,
 } from "@/types";
 import { slugify } from "@/templates/cat-banner/schema";
-import { resolveImageBaseName } from "@/lib/cms-image-path";
+import { resolveCustomFolder, resolveImageBaseName } from "@/lib/cms-image-path";
 
 export interface ImageEntry {
   imageUrl: string;
@@ -28,6 +28,10 @@ export interface ImageEntry {
   // Image "globale" (quickaccess v2, MEA v2) : omet le segment locale dans le
   // chemin CMS du zip (doit matcher buildCmsImagePath côté export HTML).
   noLocale?: boolean;
+  // Chemin personnalisé (quickaccess v2, MEA v2) remplaçant
+  // "{folder}/{année}/wk{semaine}" — doit matcher resolveCmsFolder côté
+  // export HTML. Absent = chemin par défaut.
+  customFolder?: string;
 }
 
 // Fige la position AVANT de retirer les items sans image, pour qu'elle
@@ -143,6 +147,7 @@ function getCustomImages(content: CustomContent): ImageEntry[] {
 }
 
 function getMacaronsV2Images(content: MacaronsContent): ImageEntry[] {
+  const sectionPath = content?.customPath;
   return withPosition((content?.items ?? []).filter((i) => i.visible))
     .filter(({ item }) => item.imageUrl)
     .map(({ item, position }) => ({
@@ -152,10 +157,12 @@ function getMacaronsV2Images(content: MacaronsContent): ImageEntry[] {
       width: 200,
       height: 300,
       noLocale: item.isGlobalImage,
+      customFolder: resolveCustomFolder(item, sectionPath) || undefined,
     }));
 }
 
 function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
+  const sectionPath = content?.customPath;
   const entries: ImageEntry[] = withPosition(content?.cards ?? [])
     .filter(({ item }) => item.imageUrl)
     .map(({ item: card, position }) => ({
@@ -165,9 +172,11 @@ function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
       width: 1000,
       height: 600,
       noLocale: card.isGlobalImage,
+      customFolder: resolveCustomFolder(card, sectionPath) || undefined,
     }));
 
   const focus = content?.focus;
+  const focusFolder = focus ? resolveCustomFolder(focus, sectionPath) || undefined : undefined;
   if (focus?.imageUrl) {
     // Vignette (poster) : toujours exportée en image, même en mode vidéo
     entries.push({
@@ -177,6 +186,7 @@ function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
       width: 600,
       height: 700,
       noLocale: focus.isGlobalImage,
+      customFolder: focusFolder,
     });
   }
   if (focus?.mediaType === "video" && focus.videoUrl) {
@@ -187,6 +197,7 @@ function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
       width: null,
       height: null,
       noLocale: focus.isGlobalImage,
+      customFolder: focusFolder,
       isVideo: true,
     });
   }
