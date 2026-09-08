@@ -131,8 +131,8 @@ export function MacaronsEditor({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-6">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
           <h3 className="text-sm font-medium text-muted-foreground">
             Macarons ({items.length})
           </h3>
@@ -141,7 +141,7 @@ export function MacaronsEditor({
               placeholder="Chemin custom de la section (ex: landing-pages/fille/campagne)"
               value={sectionCustomPath}
               onChange={(e) => onSectionCustomPathChange(e.target.value)}
-              className="h-7 w-80 text-xs"
+              className="h-7 flex-1 text-xs"
               title="Remplace homepage/{année}/wk{semaine} pour les items dont le toggle « Chemin custom » est actif"
             />
           )}
