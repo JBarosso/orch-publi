@@ -3,6 +3,8 @@
 import { TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { resolveCmsFolder } from "@/lib/cms-image-path";
+import { cmsLocalePath } from "@/lib/utils";
 
 interface ImagePathProps {
   isGlobalImage: boolean;
@@ -12,6 +14,9 @@ interface ImagePathProps {
   /** Chemin de la section, hérité quand l'item n'en définit pas — affiché en
    * placeholder pour que l'utilisateur voie ce qui sera réellement utilisé. */
   sectionCustomPath: string;
+  /** Année et langue du brief : servent à afficher le dossier CMS résolu. */
+  briefYear: number;
+  briefLocale: string;
   onChange: (updates: {
     isGlobalImage?: boolean;
     globalFileName?: string;
@@ -49,6 +54,26 @@ export function WeekField({
   exportPosition,
   imagePath,
 }: WeekFieldProps) {
+  // Dossier CMS réellement utilisé, affiché uniquement quand l'item s'écarte
+  // du défaut (image globale, chemin personnalisé, ou semaine différente de
+  // celle du brief). Dans le cas normal la ligne resterait identique pour
+  // tous les items : ce serait du bruit. Passe par le même résolveur que
+  // l'export, donc ne peut pas diverger de ce qui sera réellement généré.
+  const deviates =
+    !!imagePath &&
+    (imagePath.isGlobalImage ||
+      imagePath.useCustomPath ||
+      (imageWeek != null && imageWeek !== briefWeek));
+
+  const resolvedFolder = !deviates
+    ? ""
+    : `${resolveCmsFolder(
+        imagePath,
+        imagePath.sectionCustomPath,
+        { year: imagePath.briefYear, week: briefWeek },
+        imageWeek,
+      )}${imagePath.isGlobalImage ? "" : `/${cmsLocalePath(imagePath.briefLocale)}`}/`;
+
   return (
     <div className="space-y-1">
       <div className="flex flex-wrap items-center gap-2">
@@ -133,6 +158,14 @@ export function WeekField({
           onChange={(e) => imagePath.onChange({ customPath: e.target.value })}
           className="h-7 text-xs"
         />
+      )}
+      {resolvedFolder && (
+        <p
+          className="truncate font-mono text-[10px] text-muted-foreground/70"
+          title={`Dossier CMS où sera déposée l'image : ${resolvedFolder}`}
+        >
+          → {resolvedFolder}
+        </p>
       )}
     </div>
   );

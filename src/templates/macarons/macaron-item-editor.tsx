@@ -27,6 +27,8 @@ interface MacaronItemEditorProps {
   variant?: "v1" | "v2";
   /** Chemin custom de la section, hérité par l'item qui n'en définit pas. */
   sectionCustomPath?: string;
+  briefYear?: number;
+  briefLocale?: string;
 }
 
 export function MacaronItemEditor({
@@ -39,6 +41,8 @@ export function MacaronItemEditor({
   onDropFile,
   variant = "v1",
   sectionCustomPath = "",
+  briefYear = new Date().getFullYear(),
+  briefLocale = "fr",
 }: MacaronItemEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -117,6 +121,8 @@ export function MacaronItemEditor({
                       useCustomPath: item.useCustomPath ?? false,
                       customPath: item.customPath ?? "",
                       sectionCustomPath,
+                      briefYear,
+                      briefLocale,
                       onChange: onUpdate,
                     }
                   : undefined

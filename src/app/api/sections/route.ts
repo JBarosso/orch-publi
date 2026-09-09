@@ -2,14 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { briefSections, customTemplates } from "@/lib/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
-import {
-  cloneBlocksWithNewIds,
-  createEmptyCustomContent,
-} from "@/templates/custom/schema";
-import { createEmptyMeaV2Content } from "@/templates/mea-v2/schema";
-import { createEmptyArianeContent } from "@/templates/ariane/schema";
-import { createEmptyCarouselContent } from "@/templates/carousel/schema";
-import { createEmptyGlobalHeaderContent } from "@/templates/global-header/schema";
+import { cloneBlocksWithNewIds } from "@/templates/custom/schema";
+import { createEmptySectionContent } from "@/templates/registry";
 import { normalizeTypeLabel } from "@/lib/section-labels";
 import type { CustomBlock, CustomLayout } from "@/types";
 
@@ -103,36 +97,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "briefId et type sont requis" }, { status: 400 });
   }
 
-  let content: unknown = { items: [] };
+  let content: unknown = createEmptySectionContent(type);
   let templateName: string | null = null;
 
-  if (type === "custom") {
-    if (templateId) {
-      // Instanciation d'un template : snapshot figé (aucun lien conservé)
-      const [template] = await db
-        .select()
-        .from(customTemplates)
-        .where(eq(customTemplates.id, templateId));
-      if (!template) {
-        return NextResponse.json({ error: "Template introuvable" }, { status: 404 });
-      }
-      content = {
-        layout: template.layout as CustomLayout,
-        comment: "",
-        blocks: cloneBlocksWithNewIds(template.blocks as CustomBlock[]),
-      };
-      templateName = template.name;
-    } else {
-      content = createEmptyCustomContent();
+  // Seule exception au contenu par défaut du registre : instancier un template
+  // personnalisé enregistré, copié en snapshot figé (aucun lien conservé).
+  if (type === "custom" && templateId) {
+    const [template] = await db
+      .select()
+      .from(customTemplates)
+      .where(eq(customTemplates.id, templateId));
+    if (!template) {
+      return NextResponse.json({ error: "Template introuvable" }, { status: 404 });
     }
-  } else if (type === "mea_v2") {
-    content = createEmptyMeaV2Content();
-  } else if (type === "ariane") {
-    content = createEmptyArianeContent();
-  } else if (type === "carousel") {
-    content = createEmptyCarouselContent();
-  } else if (type === "global_header") {
-    content = createEmptyGlobalHeaderContent();
+    content = {
+      layout: template.layout as CustomLayout,
+      comment: "",
+      blocks: cloneBlocksWithNewIds(template.blocks as CustomBlock[]),
+    };
+    templateName = template.name;
   }
 
   const nextOrder = await getNextOrder(briefId);

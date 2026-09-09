@@ -26,6 +26,8 @@ interface MeaV2EditorProps {
 export function MeaV2Editor({
   content,
   briefWeek,
+  briefYear,
+  briefLocale,
   onChange,
   onOpenMediaLibrary,
   onDropFile,
@@ -106,6 +108,8 @@ export function MeaV2Editor({
             onOpenMediaLibrary={() => onOpenMediaLibrary(`card-${i}`)}
             onDropFile={onDropFile ? (file) => onDropFile(`card-${i}`, file) : undefined}
             sectionCustomPath={sectionCustomPath}
+            briefYear={briefYear}
+            briefLocale={briefLocale}
           />
         ))}
       </div>
@@ -119,6 +123,8 @@ export function MeaV2Editor({
           onDropFile={onDropFile ? (file) => onDropFile("focus", file) : undefined}
           onOpenVideoUpload={onOpenVideoUpload}
           sectionCustomPath={sectionCustomPath}
+          briefYear={briefYear}
+          briefLocale={briefLocale}
         />
       )}
     </div>

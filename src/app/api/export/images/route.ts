@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
 import { eq } from "drizzle-orm";
-import { getSectionImages, type ImageEntry } from "@/lib/section-images";
+import { getSectionImages } from "@/templates/registry";
+import type { ImageEntry } from "@/lib/section-images";
 import { buildZipBuffer } from "@/lib/build-zip";
 
 export async function GET(request: NextRequest) {

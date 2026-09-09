@@ -3,27 +3,7 @@ import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { cleanExportedHtml, cmsLocalePath } from "@/lib/utils";
-import { generateMacaronsHTML } from "@/templates/macarons/export";
-import { generateMeaHTML } from "@/templates/mea/export";
-import { generateCustomHTML } from "@/templates/custom/export";
-import { normalizeCustomContent } from "@/templates/custom/schema";
-import { generateQuickaccessV2HTML } from "@/templates/macarons-v2/export";
-import { generateMeaV2HTML } from "@/templates/mea-v2/export";
-import { generateArianeHTML } from "@/templates/ariane/export";
-import { generateEditoHTML } from "@/templates/edito/export";
-import { generateCarouselHTML } from "@/templates/carousel/export";
-import { generateGlobalHeaderHTML } from "@/templates/global-header/export";
-import { generateCatBannerHTML } from "@/templates/cat-banner/export";
-import type {
-  ArianeContent,
-  CarouselContent,
-  CatBannerContent,
-  EditoContent,
-  GlobalHeaderContent,
-  MacaronsContent,
-  MeaContent,
-  MeaV2Content,
-} from "@/types";
+import { generateSectionHTML } from "@/templates/registry";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -66,36 +46,9 @@ export async function GET(request: NextRequest) {
   // dossier "be" pour BEFR/BENL (cf. cmsLocalePath).
   const ctx = { year: brief.year, week: brief.week, locale: cmsLocalePath(brief.locale) };
 
-  let html = "";
-  if (section.type === "macarons") {
-    const content = section.content as MacaronsContent;
-    html = generateMacaronsHTML(content?.items ?? [], ctx);
-  } else if (section.type === "mea") {
-    const content = section.content as MeaContent;
-    html = generateMeaHTML(content?.items ?? [], ctx);
-  } else if (section.type === "custom") {
-    html = generateCustomHTML(normalizeCustomContent(section.content), ctx);
-  } else if (section.type === "macarons_v2") {
-    const content = section.content as MacaronsContent;
-    html = generateQuickaccessV2HTML(content?.items ?? [], ctx, content?.customPath);
-  } else if (section.type === "mea_v2") {
-    const content = section.content as MeaV2Content;
-    html = generateMeaV2HTML(content, ctx);
-  } else if (section.type === "ariane") {
-    html = generateArianeHTML(section.content as ArianeContent);
-  } else if (section.type === "edito") {
-    const content = section.content as EditoContent;
-    html = generateEditoHTML(content?.items ?? [], ctx);
-  } else if (section.type === "carousel") {
-    html = generateCarouselHTML(section.content as CarouselContent, ctx);
-  } else if (section.type === "global_header") {
-    html = generateGlobalHeaderHTML(section.content as GlobalHeaderContent);
-  } else if (section.type === "cat_banner") {
-    const content = section.content as CatBannerContent;
-    html = generateCatBannerHTML(content?.items ?? [], ctx);
-  }
-  // "img_sous_menu"/"miniature_offre" : pas de HTML généré, uniquement les
-  // fichiers image (cf. section-images.ts) — html reste "".
+  // Les templates sans generateHTML (img sous menu, miniature offre) rendent
+  // une chaîne vide : seuls leurs fichiers image comptent.
+  const html = generateSectionHTML(section.type, section.content, ctx);
 
   return NextResponse.json({ html: cleanExportedHtml(html), type: section.type });
 }

@@ -9,7 +9,7 @@ import {
   type GlossaryEntry,
   type TranslateStats,
 } from "@/lib/translate-content";
-import { freezeSectionContentWeek } from "@/lib/freeze-content-week";
+import { freezeSectionContentWeek } from "@/templates/registry";
 import { detachGlobalHeaderLibraryLinks } from "@/templates/global-header/schema";
 import type { GlobalHeaderContent, Locale } from "@/types";
 

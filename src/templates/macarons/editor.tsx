@@ -47,6 +47,8 @@ interface MacaronsEditorProps {
 export function MacaronsEditor({
   items,
   briefWeek,
+  briefYear,
+  briefLocale,
   onChange,
   onOpenMediaLibrary,
   onDropFile,
@@ -186,6 +188,8 @@ export function MacaronsEditor({
                 item={item}
                 isActive={item.id === activeId}
                 briefWeek={briefWeek}
+                briefYear={briefYear}
+                briefLocale={briefLocale}
                 variant={variant}
                 sectionCustomPath={sectionCustomPath}
                 onUpdate={(updates) => updateItem(item.id, updates)}

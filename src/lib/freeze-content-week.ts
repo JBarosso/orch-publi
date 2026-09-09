@@ -1,4 +1,4 @@
-import type { CarouselContent, CustomContent, EditoContent, ImgSousMenuContent, MacaronsContent, MeaContent, MeaV2Content } from "@/types";
+import type { CarouselContent, CustomContent, MeaV2Content } from "@/types";
 
 // À la duplication d'un brief vers une AUTRE semaine, un item dont l'image
 // était "native" de la semaine source (imageWeek non renseigné, ou égal à la
@@ -8,6 +8,10 @@ import type { CarouselContent, CustomContent, EditoContent, ImgSousMenuContent, 
 // le lien vers un fichier jamais réuploadé). Un item déjà figé sur une
 // semaine antérieure (imageWeek différent de la semaine source) est laissé
 // tel quel — on ne fige qu'une fois, à l'origine réelle de la référence.
+//
+// Ce fichier est une bibliothèque de COMPORTEMENTS : chaque template choisit
+// le sien dans le registre (`src/templates/registry.ts`). Trois suffisent
+// pour la plupart des cas, les autres sont des variantes spécifiques.
 
 interface Positionable {
   id: string;
@@ -16,10 +20,24 @@ interface Positionable {
   exportPosition: number | null;
 }
 
-function freezePositionableList<T extends Positionable>(
-  items: T[],
+interface WeekOnly {
+  imageWeek: number | null;
+}
+
+function isNative(imageWeek: number | null, originalWeek: number): boolean {
+  return imageWeek == null || imageWeek === originalWeek;
+}
+
+/**
+ * Comportement par défaut des listes réordonnables avec toggle "visible"
+ * (macarons, quickaccess v2, MEA v1) : la position figée ne compte que les
+ * items visibles, dans l'ordre.
+ */
+export function freezeItemsWithVisible<T extends Positionable, C extends { items: T[] }>(
+  content: C,
   originalWeek: number,
-): T[] {
+): C {
+  const items = content?.items ?? [];
   const positions = new Map<string, number>();
   let i = 0;
   for (const item of items) {
@@ -28,90 +46,69 @@ function freezePositionableList<T extends Positionable>(
       positions.set(item.id, i);
     }
   }
-  return items.map((item) => {
-    const isNative = item.imageWeek == null || item.imageWeek === originalWeek;
-    if (!isNative) return item;
-    return {
-      ...item,
-      imageWeek: originalWeek,
-      exportPosition: positions.get(item.id) ?? null,
-    };
-  });
+  return {
+    ...content,
+    items: items.map((item) =>
+      isNative(item.imageWeek, originalWeek)
+        ? { ...item, imageWeek: originalWeek, exportPosition: positions.get(item.id) ?? null }
+        : item,
+    ),
+  };
 }
 
-// Edito n'a pas de toggle "visible" par carte : la position compte toutes
-// les cartes, dans l'ordre.
-function freezePositionableListNoVisibleFilter<
-  T extends { id: string; imageWeek: number | null; exportPosition: number | null },
->(items: T[], originalWeek: number): T[] {
-  return items.map((item, index) => {
-    const isNative = item.imageWeek == null || item.imageWeek === originalWeek;
-    if (!isNative) return item;
-    return { ...item, imageWeek: originalWeek, exportPosition: index + 1 };
-  });
+/**
+ * Même chose sans toggle "visible" (edito, img sous menu) : la position
+ * compte toutes les entrées, dans l'ordre.
+ */
+export function freezeItemsNoVisible<
+  T extends { imageWeek: number | null; exportPosition: number | null },
+  C extends { items: T[] },
+>(content: C, originalWeek: number): C {
+  return {
+    ...content,
+    items: (content?.items ?? []).map((item, index) =>
+      isNative(item.imageWeek, originalWeek)
+        ? { ...item, imageWeek: originalWeek, exportPosition: index + 1 }
+        : item,
+    ),
+  };
 }
 
-function freezeWeekOnly<T extends { imageWeek: number | null }>(
-  item: T,
-  originalWeek: number,
-): T {
-  const isNative = item.imageWeek == null || item.imageWeek === originalWeek;
-  return isNative ? { ...item, imageWeek: originalWeek } : item;
+/** Fige la semaine sans toucher à la position (emplacements fixes). */
+function freezeWeekOnly<T extends WeekOnly>(item: T, originalWeek: number): T {
+  return isNative(item.imageWeek, originalWeek) ? { ...item, imageWeek: originalWeek } : item;
 }
 
-export function freezeSectionContentWeek(
-  type: string,
-  content: unknown,
-  originalWeek: number,
-): unknown {
-  if (type === "macarons" || type === "macarons_v2") {
-    const c = content as MacaronsContent;
-    return { ...c, items: freezePositionableList(c?.items ?? [], originalWeek) };
-  }
-  if (type === "mea") {
-    const c = content as MeaContent;
-    return { ...c, items: freezePositionableList(c?.items ?? [], originalWeek) };
-  }
-  if (type === "mea_v2") {
-    const c = content as MeaV2Content;
-    return {
-      ...c,
-      cards: (c?.cards ?? []).map((card) => freezeWeekOnly(card, originalWeek)),
-      focus: c?.focus ? freezeWeekOnly(c.focus, originalWeek) : c?.focus,
-    };
-  }
-  if (type === "custom") {
-    const c = content as CustomContent;
-    return {
-      ...c,
-      blocks: (c?.blocks ?? []).map((block) =>
-        block.type === "image" ? freezeWeekOnly(block, originalWeek) : block,
-      ),
-    };
-  }
-  if (type === "edito") {
-    const c = content as EditoContent;
-    return { ...c, items: freezePositionableListNoVisibleFilter(c?.items ?? [], originalWeek) };
-  }
-  if (type === "img_sous_menu") {
-    const c = content as ImgSousMenuContent;
-    return { ...c, items: freezePositionableListNoVisibleFilter(c?.items ?? [], originalWeek) };
-  }
-  if (type === "carousel") {
-    const c = content as CarouselContent;
-    return {
-      ...c,
-      slides: (c?.slides ?? []).map((slide) => {
-        // Fond (imageWeek) et titre image (titleImageWeek) sont deux semaines
-        // indépendantes — chacune figée séparément si native de la semaine source.
-        const frozenMedia = freezeWeekOnly({ imageWeek: slide.imageWeek }, originalWeek);
-        const frozenTitle =
-          slide.titleImageWeek == null || slide.titleImageWeek === originalWeek
-            ? originalWeek
-            : slide.titleImageWeek;
-        return { ...slide, imageWeek: frozenMedia.imageWeek, titleImageWeek: frozenTitle };
-      }),
-    };
-  }
-  return content;
+/** MEA v2 : 4 cartes + focus à emplacements fixes, donc pas de position. */
+export function freezeMeaV2Content(content: MeaV2Content, originalWeek: number): MeaV2Content {
+  return {
+    ...content,
+    cards: (content?.cards ?? []).map((card) => freezeWeekOnly(card, originalWeek)),
+    focus: content?.focus ? freezeWeekOnly(content.focus, originalWeek) : content?.focus,
+  };
+}
+
+/** Sections personnalisées : seuls les blocs image portent une semaine. */
+export function freezeCustomContent(content: CustomContent, originalWeek: number): CustomContent {
+  return {
+    ...content,
+    blocks: (content?.blocks ?? []).map((block) =>
+      block.type === "image" ? freezeWeekOnly(block, originalWeek) : block,
+    ),
+  };
+}
+
+/**
+ * Carousel : le fond (imageWeek) et le titre en image (titleImageWeek) sont
+ * deux semaines indépendantes, chacune figée séparément si native.
+ */
+export function freezeCarouselContent(content: CarouselContent, originalWeek: number): CarouselContent {
+  return {
+    ...content,
+    slides: (content?.slides ?? []).map((slide) => ({
+      ...slide,
+      imageWeek: isNative(slide.imageWeek, originalWeek) ? originalWeek : slide.imageWeek,
+      titleImageWeek: isNative(slide.titleImageWeek, originalWeek) ? originalWeek : slide.titleImageWeek,
+    })),
+  };
 }

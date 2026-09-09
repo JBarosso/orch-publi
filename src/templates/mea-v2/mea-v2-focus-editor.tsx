@@ -28,6 +28,8 @@ interface MeaV2FocusEditorProps {
   onOpenVideoUpload: () => void;
   /** Chemin custom de la section, hérité par la carte qui n'en définit pas. */
   sectionCustomPath?: string;
+  briefYear: number;
+  briefLocale: string;
 }
 
 export function MeaV2FocusEditor({
@@ -38,6 +40,8 @@ export function MeaV2FocusEditor({
   onDropFile,
   onOpenVideoUpload,
   sectionCustomPath = "",
+  briefYear,
+  briefLocale,
 }: MeaV2FocusEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   // Anciennes données sans champ buttons
@@ -140,6 +144,8 @@ export function MeaV2FocusEditor({
             useCustomPath,
             customPath,
             sectionCustomPath,
+            briefYear,
+            briefLocale,
             onChange: onUpdate,
           }}
         />

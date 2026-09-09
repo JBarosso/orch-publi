@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
 import { inArray } from "drizzle-orm";
-import { getSectionImages } from "@/lib/section-images";
+import { getSectionImages } from "@/templates/registry";
 import { buildZipBuffer, type ZipGroup } from "@/lib/build-zip";
 import { normalizeTypeLabel } from "@/lib/section-labels";
 

@@ -28,6 +28,8 @@ interface MeaV2CardEditorProps {
   onDropFile?: (file: File) => void;
   /** Chemin custom de la section, hérité par la carte qui n'en définit pas. */
   sectionCustomPath?: string;
+  briefYear: number;
+  briefLocale: string;
 }
 
 export function MeaV2CardEditor({
@@ -38,6 +40,8 @@ export function MeaV2CardEditor({
   onOpenMediaLibrary,
   onDropFile,
   sectionCustomPath = "",
+  briefYear,
+  briefLocale,
 }: MeaV2CardEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   // Anciennes données sans les champs prix/badge/marque (ajoutés après coup) :
@@ -91,6 +95,8 @@ export function MeaV2CardEditor({
             useCustomPath,
             customPath,
             sectionCustomPath,
+            briefYear,
+            briefLocale,
             onChange: onUpdate,
           }}
         />
