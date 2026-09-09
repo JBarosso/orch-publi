@@ -28,49 +28,20 @@ import {
   Separator as PanelResizeHandle,
   useGroupRef,
 } from "react-resizable-panels";
-import type { Brief, BriefSection, MacaronItem, MacaronsContent } from "@/types";
+import type { Brief, BriefSection, MacaronItem } from "@/types";
 import type { BriefStatus } from "@/types";
-import { MacaronsEditor } from "@/templates/macarons/editor";
-import { MacaronsPreview } from "@/templates/macarons/preview";
-import { MacaronsV2Preview } from "@/templates/macarons-v2/preview";
-import { MeaEditor } from "@/templates/mea/editor";
-import { MeaPreview } from "@/templates/mea/preview";
-import { MeaV2Editor } from "@/templates/mea-v2/editor";
-import { MeaV2Preview } from "@/templates/mea-v2/preview";
-import { ArianeEditor } from "@/templates/ariane/editor";
-import { ArianePreview } from "@/templates/ariane/preview";
-import { EditoEditor } from "@/templates/edito/editor";
-import { EditoPreview } from "@/templates/edito/preview";
-import { CarouselEditor } from "@/templates/carousel/editor";
-import { CarouselPreview } from "@/templates/carousel/preview";
-import { GlobalHeaderEditor } from "@/templates/global-header/editor";
-import { GlobalHeaderPreview } from "@/templates/global-header/preview";
-import { CustomEditor } from "@/templates/custom/editor";
-import { CustomPreview } from "@/templates/custom/preview";
 import { normalizeCustomContent } from "@/templates/custom/schema";
-import { ImgSousMenuEditor } from "@/templates/img-sous-menu/editor";
-import { ImgSousMenuPreview } from "@/templates/img-sous-menu/preview";
-import { CatBannerEditor } from "@/templates/cat-banner/editor";
-import { CatBannerPreview } from "@/templates/cat-banner/preview";
-import { MiniatureOffreEditor } from "@/templates/miniature-offre/editor";
-import { MiniatureOffrePreview } from "@/templates/miniature-offre/preview";
 import type {
   MeaItem,
-  MeaContent,
   MeaV2Content,
-  ArianeContent,
-  EditoCard,
-  EditoContent,
   CarouselContent,
-  GlobalHeaderContent,
-  CustomTemplate,
-  ImgSousMenuItem,
-  ImgSousMenuContent,
-  CatBannerItem,
   CatBannerContent,
+  EditoCard,
+  ImgSousMenuItem,
   MiniatureOffreItem,
-  MiniatureOffreContent,
+  CustomTemplate,
 } from "@/types";
+import { TEMPLATE_UI } from "@/templates/registry-ui";
 import { StatusActions } from "@/components/editor/status-actions";
 import { StatusBadge } from "@/components/briefs/status-badge";
 import { MediaLibraryDialog } from "@/components/media/media-library-dialog";
@@ -210,26 +181,6 @@ export default function BriefEditorPage({
       });
     },
     [serializeSections],
-  );
-
-  const updateSectionItems = useCallback(
-    (
-      sectionId: string,
-      items:
-        | MacaronItem[]
-        | MeaItem[]
-        | EditoCard[]
-        | ImgSousMenuItem[]
-        | CatBannerItem[]
-        | MiniatureOffreItem[],
-    ) => {
-      // Fusion (et pas remplacement) : le content porte aussi des réglages de
-      // section à côté des items, ex. customPath en quickaccess v2.
-      updateSection(sectionId, (section) => ({
-        content: { ...(section.content as Record<string, unknown>), items },
-      }));
-    },
-    [updateSection],
   );
 
   const handleSave = useCallback(async () => {
@@ -615,6 +566,56 @@ export default function BriefEditorPage({
     );
   }
 
+  // Éditeur et aperçu viennent du registre UI : chaque template y déclare ses
+  // composants et la correspondance "emplacement visé -> type d'asset".
+  const briefCtx = { year: brief.year, week: brief.week, locale: brief.locale };
+
+  const renderSectionEditor = (section: BriefSection) => {
+    const Editor = TEMPLATE_UI[section.type]?.Editor;
+    if (!Editor) {
+      return (
+        <p className="text-sm text-muted-foreground">
+          Template « {section.type} » non pris en charge dans l&apos;éditeur pour le moment.
+        </p>
+      );
+    }
+    return (
+      <Editor
+        content={section.content}
+        brief={briefCtx}
+        onChange={(content) => updateSection(section.id, { content })}
+        onOpenMedia={(target, type) =>
+          setMediaTarget({ sectionId: section.id, itemId: target, type })
+        }
+        onDropFile={(target, type, file) =>
+          handleDirectDrop({ sectionId: section.id, itemId: target, type }, file)
+        }
+        onOpenVideoUpload={(target) => {
+          // Carousel : le target porte l'index de la diapositive ; MEA v2 n'a
+          // qu'une carte focus, donc pas d'index à transmettre.
+          if (section.type === "carousel") {
+            setCarouselVideoTarget({ sectionId: section.id, slideIndex: Number(target) });
+          } else {
+            setVideoUploadSectionId(section.id);
+          }
+        }}
+      />
+    );
+  };
+
+  const renderSectionPreview = (section: BriefSection) => {
+    const Preview = TEMPLATE_UI[section.type]?.Preview;
+    if (!Preview) return null;
+    return (
+      <div key={section.id} className="space-y-1.5">
+        <p className="text-[11px] font-medium text-muted-foreground/80">
+          {section.title || "Section"}
+        </p>
+        <Preview content={section.content} />
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-full flex-col">
       {/* Unsaved changes confirmation dialog */}
@@ -953,218 +954,7 @@ export default function BriefEditorPage({
                   </button>
                   {openSections[section.id] && (
                     <div className="border-t border-border/60 px-4 py-4">
-                      {section.type === "macarons" ? (
-                        <MacaronsEditor
-                          items={((section.content as MacaronsContent)?.items ?? [])}
-                          briefWeek={brief.week}
-                          briefYear={brief.year}
-                          briefLocale={brief.locale}
-                          onChange={(items) => updateSectionItems(section.id, items)}
-                          onOpenMediaLibrary={(itemId) =>
-                            setMediaTarget({
-                              sectionId: section.id,
-                              itemId,
-                              type: "macaron",
-                            })
-                          }
-                          onDropFile={(itemId, file) =>
-                            handleDirectDrop({ sectionId: section.id, itemId, type: "macaron" }, file)
-                          }
-                        />
-                      ) : section.type === "mea" ? (
-                        <MeaEditor
-                          items={((section.content as MeaContent)?.items ?? [])}
-                          briefWeek={brief.week}
-                          briefYear={brief.year}
-                          briefLocale={brief.locale}
-                          onChange={(items) => updateSectionItems(section.id, items)}
-                          onOpenMediaLibrary={(itemId) =>
-                            setMediaTarget({
-                              sectionId: section.id,
-                              itemId,
-                              type: "mea",
-                            })
-                          }
-                          onDropFile={(itemId, file) =>
-                            handleDirectDrop({ sectionId: section.id, itemId, type: "mea" }, file)
-                          }
-                        />
-                      ) : section.type === "custom" ? (
-                        <CustomEditor
-                          content={normalizeCustomContent(section.content)}
-                          briefWeek={brief.week}
-                          onChange={(content) => updateSection(section.id, { content })}
-                          onOpenMediaLibrary={(blockId) =>
-                            setMediaTarget({
-                              sectionId: section.id,
-                              itemId: blockId,
-                              type: "other",
-                            })
-                          }
-                          onDropFile={(blockId, file) =>
-                            handleDirectDrop({ sectionId: section.id, itemId: blockId, type: "other" }, file)
-                          }
-                        />
-                      ) : section.type === "macarons_v2" ? (
-                        <MacaronsEditor
-                          variant="v2"
-                          items={((section.content as MacaronsContent)?.items ?? [])}
-                          briefWeek={brief.week}
-                          briefYear={brief.year}
-                          briefLocale={brief.locale}
-                          sectionCustomPath={(section.content as MacaronsContent)?.customPath ?? ""}
-                          onSectionCustomPathChange={(customPath) =>
-                            updateSection(section.id, (s) => ({
-                              content: { ...(s.content as MacaronsContent), customPath },
-                            }))
-                          }
-                          onChange={(items) => updateSectionItems(section.id, items)}
-                          onOpenMediaLibrary={(itemId) =>
-                            setMediaTarget({
-                              sectionId: section.id,
-                              itemId,
-                              type: "macaron_v2",
-                            })
-                          }
-                          onDropFile={(itemId, file) =>
-                            handleDirectDrop({ sectionId: section.id, itemId, type: "macaron_v2" }, file)
-                          }
-                        />
-                      ) : section.type === "mea_v2" ? (
-                        <MeaV2Editor
-                          content={section.content as MeaV2Content}
-                          briefWeek={brief.week}
-                          briefYear={brief.year}
-                          briefLocale={brief.locale}
-                          onChange={(content) => updateSection(section.id, { content })}
-                          onOpenMediaLibrary={(target) =>
-                            setMediaTarget({
-                              sectionId: section.id,
-                              itemId: target,
-                              type: target === "focus" ? "mea_v2_focus" : "mea_v2",
-                            })
-                          }
-                          onDropFile={(target, file) =>
-                            handleDirectDrop(
-                              { sectionId: section.id, itemId: target, type: target === "focus" ? "mea_v2_focus" : "mea_v2" },
-                              file,
-                            )
-                          }
-                          onOpenVideoUpload={() => setVideoUploadSectionId(section.id)}
-                        />
-                      ) : section.type === "ariane" ? (
-                        <ArianeEditor
-                          content={section.content as ArianeContent}
-                          onChange={(content) => updateSection(section.id, { content })}
-                        />
-                      ) : section.type === "edito" ? (
-                        <EditoEditor
-                          items={((section.content as EditoContent)?.items ?? [])}
-                          briefWeek={brief.week}
-                          onChange={(items) => updateSectionItems(section.id, items)}
-                          onOpenMediaLibrary={(itemId) =>
-                            setMediaTarget({
-                              sectionId: section.id,
-                              itemId,
-                              type: "edito",
-                            })
-                          }
-                          onDropFile={(itemId, file) =>
-                            handleDirectDrop({ sectionId: section.id, itemId, type: "edito" }, file)
-                          }
-                        />
-                      ) : section.type === "img_sous_menu" ? (
-                        <ImgSousMenuEditor
-                          items={((section.content as ImgSousMenuContent)?.items ?? [])}
-                          briefWeek={brief.week}
-                          onChange={(items) => updateSectionItems(section.id, items)}
-                          onOpenMediaLibrary={(itemId) =>
-                            setMediaTarget({
-                              sectionId: section.id,
-                              itemId,
-                              type: "img_sous_menu",
-                            })
-                          }
-                          onDropFile={(itemId, file) =>
-                            handleDirectDrop({ sectionId: section.id, itemId, type: "img_sous_menu" }, file)
-                          }
-                        />
-                      ) : section.type === "cat_banner" ? (
-                        <CatBannerEditor
-                          items={((section.content as CatBannerContent)?.items ?? [])}
-                          briefWeek={brief.week}
-                          onChange={(items) => updateSectionItems(section.id, items)}
-                          onOpenMediaLibrary={(target) =>
-                            setMediaTarget({
-                              sectionId: section.id,
-                              itemId: target,
-                              type: target.endsWith(":desktop") ? "cat_banner_desktop" : "cat_banner_mobile",
-                            })
-                          }
-                          onDropFile={(target, file) =>
-                            handleDirectDrop(
-                              {
-                                sectionId: section.id,
-                                itemId: target,
-                                type: target.endsWith(":desktop") ? "cat_banner_desktop" : "cat_banner_mobile",
-                              },
-                              file,
-                            )
-                          }
-                        />
-                      ) : section.type === "miniature_offre" ? (
-                        <MiniatureOffreEditor
-                          items={((section.content as MiniatureOffreContent)?.items ?? [])}
-                          briefWeek={brief.week}
-                          onChange={(items) => updateSectionItems(section.id, items)}
-                          onOpenMediaLibrary={(itemId) =>
-                            setMediaTarget({
-                              sectionId: section.id,
-                              itemId,
-                              type: "miniature_offre",
-                            })
-                          }
-                          onDropFile={(itemId, file) =>
-                            handleDirectDrop({ sectionId: section.id, itemId, type: "miniature_offre" }, file)
-                          }
-                        />
-                      ) : section.type === "carousel" ? (
-                        <CarouselEditor
-                          content={section.content as CarouselContent}
-                          briefWeek={brief.week}
-                          onChange={(content) => updateSection(section.id, { content })}
-                          onOpenMediaLibrary={(target) =>
-                            setMediaTarget({
-                              sectionId: section.id,
-                              itemId: target,
-                              type: target.startsWith("title-") ? "carousel_title" : "carousel",
-                            })
-                          }
-                          onDropFile={(target, file) =>
-                            handleDirectDrop(
-                              {
-                                sectionId: section.id,
-                                itemId: target,
-                                type: target.startsWith("title-") ? "carousel_title" : "carousel",
-                              },
-                              file,
-                            )
-                          }
-                          onOpenVideoUpload={(slideIndex) =>
-                            setCarouselVideoTarget({ sectionId: section.id, slideIndex })
-                          }
-                        />
-                      ) : section.type === "global_header" ? (
-                        <GlobalHeaderEditor
-                          content={section.content as GlobalHeaderContent}
-                          locale={brief.locale}
-                          onChange={(content) => updateSection(section.id, { content })}
-                        />
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Template « {section.type} » non pris en charge dans l&apos;éditeur pour le moment.
-                        </p>
-                      )}
+                      {renderSectionEditor(section)}
                     </div>
                   )}
                 </div>
@@ -1209,135 +999,7 @@ export default function BriefEditorPage({
             <div className="space-y-3">
               {sections.map((section) => {
                 if (!previewSections[section.id]) return null;
-                if (section.type === "macarons") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <MacaronsPreview
-                        items={((section.content as MacaronsContent)?.items ?? [])}
-                      />
-                    </div>
-                  );
-                }
-                if (section.type === "mea") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <MeaPreview
-                        items={((section.content as MeaContent)?.items ?? [])}
-                      />
-                    </div>
-                  );
-                }
-                if (section.type === "custom") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <CustomPreview
-                        content={normalizeCustomContent(section.content)}
-                      />
-                    </div>
-                  );
-                }
-                if (section.type === "macarons_v2") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <MacaronsV2Preview
-                        items={((section.content as MacaronsContent)?.items ?? [])}
-                      />
-                    </div>
-                  );
-                }
-                if (section.type === "mea_v2") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <MeaV2Preview content={section.content as MeaV2Content} />
-                    </div>
-                  );
-                }
-                if (section.type === "ariane") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <ArianePreview content={section.content as ArianeContent} />
-                    </div>
-                  );
-                }
-                if (section.type === "edito") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <EditoPreview items={((section.content as EditoContent)?.items ?? [])} />
-                    </div>
-                  );
-                }
-                if (section.type === "img_sous_menu") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <ImgSousMenuPreview items={((section.content as ImgSousMenuContent)?.items ?? [])} />
-                    </div>
-                  );
-                }
-                if (section.type === "cat_banner") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <CatBannerPreview items={((section.content as CatBannerContent)?.items ?? [])} />
-                    </div>
-                  );
-                }
-                if (section.type === "miniature_offre") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <MiniatureOffrePreview items={((section.content as MiniatureOffreContent)?.items ?? [])} />
-                    </div>
-                  );
-                }
-                if (section.type === "carousel") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <CarouselPreview content={section.content as CarouselContent} />
-                    </div>
-                  );
-                }
-                if (section.type === "global_header") {
-                  return (
-                    <div key={section.id} className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/80">
-                        {section.title || "Section"}
-                      </p>
-                      <GlobalHeaderPreview content={section.content as GlobalHeaderContent} />
-                    </div>
-                  );
-                }
-                return null;
+                return renderSectionPreview(section);
               })}
             </div>
           </div>

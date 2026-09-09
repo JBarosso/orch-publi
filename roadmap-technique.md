@@ -181,7 +181,7 @@ une autre non, la seconde est déjà écrite quand l'erreur s'affiche. Un endpoi
 sauvegarde groupée transactionnel serait le vrai correctif ; en pratique deux personnes qui
 éditent des sections différentes ne se gênent pas, et le message invite à recharger.
 
-### Phase 3 — Décomposition de `page.tsx` (1 j)
+### Phase 3 — Décomposition de `page.tsx` (1 j) — 🟡 à moitié fait le 2026-09-09
 
 Le fichier dépasse 1 400 lignes et mélange orchestration des sections, médiathèque, upload,
 drag & drop et garde de sauvegarde. La phase 1 en supprime déjà la plus grosse part
@@ -195,7 +195,35 @@ drag & drop et garde de sauvegarde. La phase 1 en supprime déjà la plus grosse
 2. **Découper la vue** : `<BriefHeader>` (titre, statut, Publier/Exporter/Sauvegarder),
    `<BriefEditorPanel>`, `<BriefPreviewPanel>`
 
-**Terminé quand :** `page.tsx` fait ~200 lignes et ne contient plus que du câblage.
+**Fait — le registre UI.** `src/templates/registry-ui.tsx` associe à chaque type son
+éditeur et son aperçu. Les éditeurs n'ayant pas la même signature (certains reçoivent
+`items`, d'autres `content` ; MEA v2 et carousel ont un upload vidéo ; macarons a une
+variante v1/v2), chaque entrée est un **adaptateur** qui traduit des props uniformes vers
+celles du composant — aucun éditeur n'a été réécrit. La correspondance
+« emplacement visé → type d'asset » (`cat_banner_desktop`, `carousel_title`,
+`mea_v2_focus`...), auparavant dispersée dans `page.tsx`, y est maintenant regroupée.
+
+Les deux cascades du rendu ont disparu : 212 lignes pour l'éditeur et 130 pour l'aperçu,
+remplacées par `renderSectionEditor` / `renderSectionPreview`. `updateSectionItems` est
+devenu inutile (la fusion items/réglages de section est faite par l'adaptateur).
+**`page.tsx` passe de 1 508 à 1 164 lignes.**
+
+**Vérifié :** 74 tests verts, typecheck, lint et build propres, et en conditions réelles sur
+un brief jetable contenant **les 12 types de section** — tous rendus, aucun fallback
+« non pris en charge », les deux champs de chemin de section et boutons d'import présents.
+Test fonctionnel du point le plus risqué (la fusion de l'adaptateur) : renseigner le chemin
+de section *puis* ajouter un item, sauvegarder — les deux sont bien persistés ensemble.
+
+**Reste à faire — l'extraction des hooks** (`useBriefSections`, `useMediaTarget`,
+`useUnsavedGuard`) et le découpage en `<BriefHeader>` / `<BriefEditorPanel>` /
+`<BriefPreviewPanel>`, pour viser ~200 lignes.
+
+⚠️ Volontairement laissé de côté : cette partie touche l'état de sauvegarde, le drapeau
+« non sauvegardé » et la médiathèque — la zone la plus délicate de l'app, sans couverture
+de test automatisée (les tests portent sur les fonctions pures, pas sur les composants).
+Elle mérite d'être faite et relue comme un changement à part entière. Noter aussi que
+`handleImageSelected` porte encore une cascade par type (placement de l'image
+sélectionnée dans le bon champ) : c'est le prochain candidat naturel pour le registre UI.
 
 ### Phase 4 — Aperçu du chemin final ✅ fait le 2026-09-09
 
@@ -369,7 +397,7 @@ Consigné pour éviter que ce soit reproposé plus tard.
 | 1 — Registre de templates | ✅ fait | 1 j | 0 | prérequis du P1 produit |
 | 2 — Normalisation + 409 | ✅ fait | 0,5 j | 1 | — |
 | 4 — Aperçu du chemin | ✅ fait | 0,5 j | 1 | — |
-| 3 — Découpage `page.tsx` | à faire | 1 j | 1 | — |
+| 3 — Découpage `page.tsx` | 🟡 registre UI fait, hooks à faire | 0,5 j restant | 1 | — |
 | 5 — Perf ZIP | à faire | 0,5 j | — | si un export devient lent |
 | 6 — Upload direct Blob | à faire | 1 j | — | si un upload dépasse la limite |
 | 7 — Dashboard recherche + « charger plus » | à faire | 0,5 j | — | vers 50 briefs (~4 mois) |
