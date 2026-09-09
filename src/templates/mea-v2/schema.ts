@@ -1,6 +1,7 @@
 import type { MeaV2Card, MeaV2FocusCard, MeaV2Content } from "@/types";
 import { v4 as uuidv4 } from "uuid";
-import { createEmptyButton } from "../mea/schema";
+import { createEmptyButton, normalizeButtons } from "../mea/schema";
+import { withDefaults } from "@/lib/normalize-content";
 
 export { createEmptyButton };
 
@@ -65,6 +66,36 @@ export function createEmptyMeaV2Content(): MeaV2Content {
     ],
     focus: createEmptyMeaV2FocusCard(uuidv4()),
   };
+}
+
+/**
+ * Complète un contenu lu en base. Deux imbrications à traiter à la main, le
+ * spread étant superficiel : les boutons de chaque carte, et l'objet
+ * appelPrix de la carte focus (un appelPrix partiel stocké écraserait sinon
+ * l'objet par défaut en entier).
+ */
+export function normalizeMeaV2Content(content: unknown): MeaV2Content {
+  const c = (content ?? {}) as Partial<MeaV2Content>;
+  const base = createEmptyMeaV2Content();
+
+  const cards = (Array.isArray(c.cards) ? c.cards : []).map((raw) => {
+    const stored = (raw ?? {}) as Partial<MeaV2Card>;
+    const card = withDefaults(createEmptyMeaV2Card(stored.id ?? uuidv4()), stored);
+    return { ...card, buttons: normalizeButtons(card.buttons) };
+  });
+  // La grille CSS suppose exactement 4 cartes : on complète si la ligne
+  // stockée en contient moins (contenu créé avant ce template, ou tronqué).
+  while (cards.length < base.cards.length) cards.push(createEmptyMeaV2Card(uuidv4()));
+
+  const storedFocus = (c.focus ?? {}) as Partial<MeaV2FocusCard>;
+  const focusDefaults = createEmptyMeaV2FocusCard(storedFocus.id ?? uuidv4());
+  const focus: MeaV2FocusCard = {
+    ...withDefaults(focusDefaults, storedFocus),
+    buttons: normalizeButtons(storedFocus.buttons),
+    appelPrix: withDefaults(focusDefaults.appelPrix, storedFocus.appelPrix),
+  };
+
+  return { ...c, cards, focus };
 }
 
 // "Remplie" = au moins un champ parmi titre / lien de la carte / image /

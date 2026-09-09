@@ -1,5 +1,6 @@
-import type { MacaronItem } from "@/types";
+import type { MacaronItem, MacaronsContent } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+import { withItemDefaults } from "@/lib/normalize-content";
 
 export function createEmptyMacaron(id: string): MacaronItem {
   return {
@@ -19,6 +20,19 @@ export function createEmptyMacaron(id: string): MacaronItem {
     globalFileName: "",
     useCustomPath: false,
     customPath: "",
+  };
+}
+
+/**
+ * Complète un contenu lu en base avec les champs ajoutés après coup
+ * (isGlobalImage, globalFileName, useCustomPath, customPath...). Partagé par
+ * macarons v1 et quickaccess v2, qui utilisent la même forme.
+ */
+export function normalizeMacaronsContent(content: unknown): MacaronsContent {
+  const c = (content ?? {}) as Partial<MacaronsContent>;
+  return {
+    ...c,
+    items: withItemDefaults(c.items, createEmptyMacaron),
   };
 }
 

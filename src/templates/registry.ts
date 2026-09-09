@@ -57,9 +57,11 @@ import { getImgSousMenuImages } from "@/templates/img-sous-menu/images";
 import { getCatBannerImages } from "@/templates/cat-banner/images";
 import { getMiniatureOffreImages } from "@/templates/miniature-offre/images";
 
-// Contenus par défaut
+// Contenus par défaut et normalisation
 import { createEmptyCustomContent, normalizeCustomContent } from "@/templates/custom/schema";
-import { createEmptyMeaV2Content } from "@/templates/mea-v2/schema";
+import { normalizeMacaronsContent } from "@/templates/macarons/schema";
+import { normalizeMeaContent } from "@/templates/mea/schema";
+import { createEmptyMeaV2Content, normalizeMeaV2Content } from "@/templates/mea-v2/schema";
 import { createEmptyArianeContent } from "@/templates/ariane/schema";
 import { createEmptyCarouselContent } from "@/templates/carousel/schema";
 import { createEmptyGlobalHeaderContent } from "@/templates/global-header/schema";
@@ -104,6 +106,7 @@ const emptyItems = () => ({ items: [] });
 export const TEMPLATES: Record<string, TemplateDefinition<unknown>> = {
   macarons: defineTemplate<MacaronsContent>({
     createEmptyContent: emptyItems,
+    normalizeContent: normalizeMacaronsContent,
     generateHTML: (c, ctx) => generateMacaronsHTML(c?.items ?? [], ctx),
     getImages: getMacaronImages,
     freezeWeek: freezeItemsWithVisible,
@@ -111,6 +114,7 @@ export const TEMPLATES: Record<string, TemplateDefinition<unknown>> = {
 
   macarons_v2: defineTemplate<MacaronsContent>({
     createEmptyContent: emptyItems,
+    normalizeContent: normalizeMacaronsContent,
     generateHTML: (c, ctx) => generateQuickaccessV2HTML(c?.items ?? [], ctx, c?.customPath),
     getImages: getMacaronsV2Images,
     freezeWeek: freezeItemsWithVisible,
@@ -118,6 +122,7 @@ export const TEMPLATES: Record<string, TemplateDefinition<unknown>> = {
 
   mea: defineTemplate<MeaContent>({
     createEmptyContent: emptyItems,
+    normalizeContent: normalizeMeaContent,
     generateHTML: (c, ctx) => generateMeaHTML(c?.items ?? [], ctx),
     getImages: getMeaImages,
     freezeWeek: freezeItemsWithVisible,
@@ -125,6 +130,7 @@ export const TEMPLATES: Record<string, TemplateDefinition<unknown>> = {
 
   mea_v2: defineTemplate<MeaV2Content>({
     createEmptyContent: createEmptyMeaV2Content,
+    normalizeContent: normalizeMeaV2Content,
     generateHTML: generateMeaV2HTML,
     getImages: getMeaV2Images,
     freezeWeek: freezeMeaV2Content,
@@ -187,6 +193,16 @@ export const SECTION_TYPES = Object.keys(TEMPLATES);
 
 function contentFor(type: string, raw: unknown): unknown {
   return TEMPLATES[type]?.normalizeContent?.(raw) ?? raw;
+}
+
+/**
+ * Complète le contenu d'une section avec les champs ajoutés après sa
+ * création. À appliquer sur tout contenu qui sort vers le client : sans ça,
+ * les champs manquants remontent en `undefined` jusqu'aux composants
+ * contrôlés. Sans effet pour les templates qui n'ont pas de normaliseur.
+ */
+export function normalizeSectionContent(type: string, content: unknown): unknown {
+  return contentFor(type, content);
 }
 
 /** Contenu initial d'une section nouvellement créée. */

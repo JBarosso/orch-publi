@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { briefSections, customTemplates } from "@/lib/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { cloneBlocksWithNewIds } from "@/templates/custom/schema";
-import { createEmptySectionContent } from "@/templates/registry";
+import { createEmptySectionContent, normalizeSectionContent } from "@/templates/registry";
 import { normalizeTypeLabel } from "@/lib/section-labels";
 import type { CustomBlock, CustomLayout } from "@/types";
 
@@ -33,7 +33,7 @@ async function getNextOrder(briefId: string): Promise<number> {
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const { id, content, visible, order, title } = body;
+  const { id, content, visible, order, title, updatedAt } = body;
 
   if (!id) {
     return NextResponse.json({ error: "id est requis" }, { status: 400 });
@@ -44,6 +44,33 @@ export async function PUT(request: NextRequest) {
   if (visible !== undefined) updateData.visible = visible;
   if (order !== undefined) updateData.order = order;
   if (title !== undefined) updateData.title = title;
+
+  // Garde-fou de concurrence : le client renvoie l'updatedAt qu'il a chargé.
+  // S'il ne correspond plus, quelqu'un a enregistré entre-temps et écraser
+  // ferait disparaître son travail sans un mot. On compare en JS (et pas dans
+  // un WHERE) parce que les deux valeurs passent alors par la même conversion
+  // Drizzle vers Date : comparer directement à la colonne échouerait à tort,
+  // les lignes créées par defaultNow() portant des microsecondes que le JSON
+  // du client a perdues.
+  const [current] = await db
+    .select({ updatedAt: briefSections.updatedAt })
+    .from(briefSections)
+    .where(eq(briefSections.id, id));
+
+  if (!current) {
+    return NextResponse.json({ error: "Section introuvable" }, { status: 404 });
+  }
+
+  if (updatedAt && current.updatedAt.getTime() !== new Date(updatedAt).getTime()) {
+    return NextResponse.json(
+      {
+        error:
+          "Cette section a été modifiée ailleurs depuis son ouverture. Recharge la page pour repartir de la version à jour.",
+        currentUpdatedAt: current.updatedAt,
+      },
+      { status: 409 },
+    );
+  }
 
   const [updated] = await db
     .update(briefSections)
@@ -58,7 +85,7 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(updated);
+  return NextResponse.json({ ...updated, content: normalizeSectionContent(updated.type, updated.content) });
 }
 
 export async function POST(request: NextRequest) {
@@ -88,7 +115,10 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    return NextResponse.json(created, { status: 201 });
+    return NextResponse.json(
+      { ...created, content: normalizeSectionContent(created.type, created.content) },
+      { status: 201 },
+    );
   }
 
   // Création d'une nouvelle section
@@ -134,7 +164,10 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
-  return NextResponse.json(created, { status: 201 });
+  return NextResponse.json(
+    { ...created, content: normalizeSectionContent(created.type, created.content) },
+    { status: 201 },
+  );
 }
 
 export async function DELETE(request: NextRequest) {

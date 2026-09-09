@@ -1,5 +1,6 @@
-import type { MeaItem } from "@/types";
+import type { MeaButton, MeaContent, MeaItem } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+import { withDefaults, withItemDefaults } from "@/lib/normalize-content";
 
 export function createEmptyMea(id: string): MeaItem {
   return {
@@ -37,6 +38,23 @@ export function createEmptyButton() {
     cgid: "",
     cid: "",
     link: "",
+  };
+}
+
+/** Complète les boutons, dont les champs cid/link ont été ajoutés après coup. */
+export function normalizeButtons(buttons: unknown): MeaButton[] {
+  if (!Array.isArray(buttons) || buttons.length === 0) return [createEmptyButton()];
+  return buttons.map((b) => withDefaults(createEmptyButton(), (b ?? {}) as Partial<MeaButton>));
+}
+
+export function normalizeMeaContent(content: unknown): MeaContent {
+  const c = (content ?? {}) as Partial<MeaContent>;
+  return {
+    ...c,
+    items: withItemDefaults(c.items, createEmptyMea, (item) => ({
+      ...item,
+      buttons: normalizeButtons(item.buttons),
+    })),
   };
 }
 

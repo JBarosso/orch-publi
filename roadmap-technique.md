@@ -128,7 +128,7 @@ correctement les 5 items.
 demande un registre UI séparé, avec des composants React et des props à
 uniformiser.
 
-### Phase 2 — Normalisation du contenu + conflit d'édition (0,5 j)
+### Phase 2 — Normalisation du contenu + conflit d'édition ✅ fait le 2026-09-09
 
 Deux sujets indépendants mais qui touchent les mêmes fichiers que la phase 1.
 
@@ -142,9 +142,44 @@ fonction pure, coût runtime négligeable, un seul point d'appel.
 **Conflit d'édition.** La sauvegarde écrase sans vérifier que personne n'a modifié entre
 temps : deux personnes sur le même brief = perte silencieuse. Observé en conditions réelles
 (un brief est passé de Brouillon à Publié pendant une session d'édition).
-Correctif : envoyer l'`updatedAt` connu du client, faire un `UPDATE ... WHERE updated_at = $1`,
-répondre 409 si 0 ligne touchée, et afficher « ce brief a été modifié ailleurs, recharge ».
-Coût serveur nul (même requête, une condition en plus).
+**Réalisé — normalisation.** `src/lib/normalize-content.ts` fournit `withDefaults` et
+`withItemDefaults` ; chaque schéma concerné expose son normaliseur
+(`normalizeMacaronsContent`, `normalizeMeaContent`, `normalizeMeaV2Content`, en plus du
+`normalizeCustomContent` qui existait), branché dans le registre. La normalisation est
+appliquée **côté serveur, dans les réponses d'API** (`GET /api/briefs/[id]`, et les
+réponses POST/PUT de `/api/sections`) : tous les chemins qui alimentent l'état client sont
+couverts, sans alourdir le bundle. La base se répare d'elle-même à la sauvegarde suivante.
+
+Deux imbrications traitées explicitement, le spread étant superficiel : les boutons de
+chaque carte, et l'`appelPrix` de la carte focus MEA v2 (un `appelPrix` partiel stocké
+aurait sinon écrasé l'objet par défaut en entier).
+
+Les `?? false` des éditeurs sont **volontairement conservés** : les retirer serait cosmétique
+et rouvrirait un bug déjà rencontré deux fois si un chemin d'alimentation avait été oublié.
+Ils sont désormais une ceinture-bretelles, plus la seule protection.
+
+**Réalisé — conflit d'édition.** Le client envoie l'`updatedAt` chargé ; le serveur le
+compare et répond 409 sans rien écraser. La comparaison se fait **en JS après un SELECT**,
+pas dans un `WHERE` : les deux valeurs passent alors par la même conversion Drizzle vers
+`Date`, alors qu'une comparaison directe à la colonne échouerait à tort — les lignes créées
+par `defaultNow()` portent des microsecondes que le JSON du client a perdues. Le coût est
+un SELECT par section sauvegardée (lookup sur clé primaire).
+
+Côté client, `handleSave` **inspecte enfin les réponses** : `fetch` ne rejette pas sur un
+statut d'erreur, si bien qu'une sauvegarde refusée s'affichait jusqu'ici comme réussie
+(bug préexistant). Il rafraîchit aussi les `updatedAt` depuis les réponses, sans quoi la
+sauvegarde suivante serait refusée à tort.
+
+**Vérifié :** 74 tests (10 nouveaux sur la normalisation), et en conditions réelles —
+session A enregistre (200), session B avec un `updatedAt` périmé est refusée (409, contenu
+de A préservé), B repasse après rechargement (200) ; deux sauvegardes successives dans
+l'UI passent toutes les deux ; un brief existant se charge sans être marqué « non
+sauvegardé » et ses anciens items reviennent complétés.
+
+**Limite connue :** les sections sont sauvegardées une par une. Si l'une est en conflit et
+une autre non, la seconde est déjà écrite quand l'erreur s'affiche. Un endpoint de
+sauvegarde groupée transactionnel serait le vrai correctif ; en pratique deux personnes qui
+éditent des sections différentes ne se gênent pas, et le message invite à recharger.
 
 ### Phase 3 — Décomposition de `page.tsx` (1 j)
 
@@ -332,17 +367,17 @@ Consigné pour éviter que ce soit reproposé plus tard.
 |---|---|---|---|---|
 | 0 — Tests fonctions pures | ✅ fait | 0,5 j | — | — |
 | 1 — Registre de templates | ✅ fait | 1 j | 0 | prérequis du P1 produit |
+| 2 — Normalisation + 409 | ✅ fait | 0,5 j | 1 | — |
 | 4 — Aperçu du chemin | ✅ fait | 0,5 j | 1 | — |
-| 2 — Normalisation + 409 | à faire | 0,5 j | 1 | — |
 | 3 — Découpage `page.tsx` | à faire | 1 j | 1 | — |
 | 5 — Perf ZIP | à faire | 0,5 j | — | si un export devient lent |
 | 6 — Upload direct Blob | à faire | 1 j | — | si un upload dépasse la limite |
 | 7 — Dashboard recherche + « charger plus » | à faire | 0,5 j | — | vers 50 briefs (~4 mois) |
 | 8 — Purge automatique | à faire | 0,5 j | — | avant la fin de la 1re fenêtre de rétention |
 
-**Reste ~4 jours.** Les phases 5 à 8 sont indépendantes et s'intercalent au moment où leur
-déclencheur se présente.
+**Reste ~3,5 jours.** Les phases 5 à 8 sont indépendantes et s'intercalent au moment où
+leur déclencheur se présente.
 
-Prochaine étape naturelle : la phase 2 (le slot `normalizeContent` est déjà en place dans
-le registre, il ne reste qu'à écrire les normaliseurs et à les appliquer à la lecture),
-puis la phase 3 qui s'appuie sur le registre.
+Prochaine étape naturelle : la phase 3, qui s'appuie sur le registre — il faut d'abord un
+registre UI (`registry-ui.tsx`, séparé pour ne pas tirer les composants React dans les
+bundles serveur) avec des props d'éditeur uniformisées, puis l'extraction des hooks.

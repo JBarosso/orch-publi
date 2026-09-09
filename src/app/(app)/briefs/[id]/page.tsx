@@ -235,9 +235,9 @@ export default function BriefEditorPage({
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await Promise.all(
-        sections.map((section) =>
-          fetch("/api/sections", {
+      const results = await Promise.all(
+        sections.map(async (section) => {
+          const res = await fetch("/api/sections", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -246,9 +246,35 @@ export default function BriefEditorPage({
               title: section.title,
               visible: section.visible,
               order: section.order,
+              // Permet au serveur de refuser d'écraser une modification faite
+              // ailleurs depuis l'ouverture du brief (réponse 409).
+              updatedAt: section.updatedAt,
             }),
-          }),
-        ),
+          });
+          return { id: section.id, status: res.status, row: res.ok ? await res.json() : null };
+        }),
+      );
+
+      // fetch ne rejette pas sur un statut d'erreur : sans ce contrôle, une
+      // sauvegarde refusée s'afficherait quand même comme réussie.
+      if (results.some((r) => r.status === 409)) {
+        toast.error(
+          "Ce brief a été modifié ailleurs. Recharge la page pour repartir de la version à jour.",
+        );
+        return;
+      }
+      if (results.some((r) => !r.row)) {
+        toast.error("Erreur lors de la sauvegarde");
+        return;
+      }
+
+      // Sans ce rafraîchissement, la sauvegarde suivante repartirait d'un
+      // updatedAt périmé et serait refusée à tort.
+      setSections((prev) =>
+        prev.map((s) => {
+          const saved = results.find((r) => r.id === s.id);
+          return saved?.row ? { ...s, updatedAt: saved.row.updatedAt } : s;
+        }),
       );
       savedSectionsRef.current = serializeSections(sections);
       setDirty(false);

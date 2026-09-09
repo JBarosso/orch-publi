@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
 import { eq } from "drizzle-orm";
+import { normalizeSectionContent } from "@/templates/registry";
 
 export async function GET(
   _request: NextRequest,
@@ -20,7 +21,16 @@ export async function GET(
     .where(eq(briefSections.briefId, id))
     .orderBy(briefSections.order);
 
-  return NextResponse.json({ ...brief, sections });
+  // Complète les contenus enregistrés avant l'ajout de certains champs : le
+  // client reçoit toujours des objets complets, et la base se répare d'
+  // elle-même à la prochaine sauvegarde.
+  return NextResponse.json({
+    ...brief,
+    sections: sections.map((s) => ({
+      ...s,
+      content: normalizeSectionContent(s.type, s.content),
+    })),
+  });
 }
 
 export async function PUT(
