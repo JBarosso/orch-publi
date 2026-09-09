@@ -214,16 +214,28 @@ un brief jetable contenant **les 12 types de section** — tous rendus, aucun fa
 Test fonctionnel du point le plus risqué (la fusion de l'adaptateur) : renseigner le chemin
 de section *puis* ajouter un item, sauvegarder — les deux sont bien persistés ensemble.
 
-**Reste à faire — l'extraction des hooks** (`useBriefSections`, `useMediaTarget`,
-`useUnsavedGuard`) et le découpage en `<BriefHeader>` / `<BriefEditorPanel>` /
-`<BriefPreviewPanel>`, pour viser ~200 lignes.
+**Fait — le hook `useBriefSections`** (`use-brief-sections.ts`, 211 lignes) : chargement du
+brief, état des sections, drapeau « non sauvegardé », enregistrement (avec le garde-fou 409
+et le rafraîchissement des `updatedAt`), raccourci Ctrl+S et `beforeunload`.
 
-⚠️ Volontairement laissé de côté : cette partie touche l'état de sauvegarde, le drapeau
-« non sauvegardé » et la médiathèque — la zone la plus délicate de l'app, sans couverture
-de test automatisée (les tests portent sur les fonctions pures, pas sur les composants).
-Elle mérite d'être faite et relue comme un changement à part entière. Noter aussi que
-`handleImageSelected` porte encore une cascade par type (placement de l'image
-sélectionnée dans le bon champ) : c'est le prochain candidat naturel pour le registre UI.
+Le drapeau se calculait à la main en quatre endroits (`serializeSections(next) !==
+savedSectionsRef.current`), avec le risque qu'un futur `setSections` direct l'oublie et
+fasse perdre du travail sans avertissement. Le hook expose `applySections` /
+`updateSection`, seuls chemins de modification, et le calcul n'existe plus qu'une fois.
+
+Simplification au passage : les sections dépliées et les aperçus visibles n'ont plus besoin
+d'être amorcés au chargement du brief — les maps ne retiennent que les choix explicites de
+l'utilisateur, avec un `?? true` à la lecture. **`page.tsx` : 1 508 → 1 030 lignes.**
+
+**Vérifié en conditions réelles** sur un brief jetable : section dépliée par défaut, brief
+non marqué « non sauvegardé » au chargement, drapeau qui s'allume à la première
+modification, deux sauvegardes successives qui passent (donc pas de faux 409), contenu
+réellement persisté, et dialogue « Modifications non sauvegardées » qui bloque bien le
+retour au dashboard.
+
+**Reste à faire :** le découpage de la vue en `<BriefHeader>` / `<BriefEditorPanel>` /
+`<BriefPreviewPanel>` (surtout cosmétique désormais), et `handleImageSelected` qui porte
+encore une cascade par type — prochain candidat naturel pour le registre UI.
 
 ### Phase 4 — Aperçu du chemin final ✅ fait le 2026-09-09
 
@@ -437,7 +449,7 @@ Consigné pour éviter que ce soit reproposé plus tard.
 | 1 — Registre de templates | ✅ fait | 1 j | 0 | prérequis du P1 produit |
 | 2 — Normalisation + 409 | ✅ fait | 0,5 j | 1 | — |
 | 4 — Aperçu du chemin | ✅ fait | 0,5 j | 1 | — |
-| 3 — Découpage `page.tsx` | 🟡 registre UI fait, hooks à faire | 0,5 j restant | 1 | — |
+| 3 — Découpage `page.tsx` | 🟡 registre UI + hook faits ; découpage de la vue à faire | 0,25 j restant | 1 | — |
 | 5 — Perf ZIP | 🟡 parallélisation + échecs remontés ; streaming à faire | 0,25 j restant | — | — |
 | 6 — Upload direct Blob | à faire | 1 j | — | si un upload dépasse la limite |
 | 7 — Dashboard recherche + « charger plus » | ✅ fait | 0,5 j | — | — |

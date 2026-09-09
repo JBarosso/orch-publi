@@ -28,7 +28,7 @@ import {
   Separator as PanelResizeHandle,
   useGroupRef,
 } from "react-resizable-panels";
-import type { Brief, BriefSection, MacaronItem } from "@/types";
+import type { BriefSection, MacaronItem } from "@/types";
 import type { BriefStatus } from "@/types";
 import { normalizeCustomContent } from "@/templates/custom/schema";
 import type {
@@ -42,16 +42,13 @@ import type {
   CustomTemplate,
 } from "@/types";
 import { TEMPLATE_UI } from "@/templates/registry-ui";
+import { useBriefSections } from "./use-brief-sections";
 import { StatusActions } from "@/components/editor/status-actions";
 import { StatusBadge } from "@/components/briefs/status-badge";
 import { MediaLibraryDialog } from "@/components/media/media-library-dialog";
 import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
 import { captureVideoFirstFrame, dataUrlToFile } from "@/lib/capture-video-frame";
 import type { AssetType } from "@/types";
-
-interface BriefWithSections extends Brief {
-  sections: BriefSection[];
-}
 
 function isMacaronItem(item: MacaronItem | MeaItem): item is MacaronItem {
   return "label" in item;
@@ -68,10 +65,21 @@ export default function BriefEditorPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const [brief, setBrief] = useState<BriefWithSections | null>(null);
-  const [sections, setSections] = useState<BriefSection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  // Chargement, édition, drapeau "non sauvegardé" et enregistrement des
+  // sections vivent dans ce hook — cf. use-brief-sections.ts.
+  const {
+    brief,
+    sections,
+    loading,
+    saving,
+    dirty,
+    setDirty,
+    applySections,
+    updateSection,
+    handleSave,
+    refetch: fetchBrief,
+  } = useBriefSections(id);
+
   const [mediaTarget, setMediaTarget] = useState<{
     sectionId: string;
     itemId: string;
@@ -95,7 +103,6 @@ export default function BriefEditorPage({
     slideIndex: number;
   } | null>(null);
   const [carouselCapturedPosterFile, setCarouselCapturedPosterFile] = useState<File | null>(null);
-  const [dirty, setDirty] = useState(false);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
   // Action bloquée par des modifications non sauvegardées (supprimer/dupliquer
   // une section, changer le statut...) : on la met de côté plutôt que de
@@ -104,7 +111,8 @@ export default function BriefEditorPage({
     label: string;
     run: () => void | Promise<void>;
   } | null>(null);
-  const savedSectionsRef = useRef<string>("");
+  // Sections dépliées et aperçus visibles par défaut : ces maps ne retiennent
+  // que les choix explicites de l'utilisateur, d'où le `?? true` à la lecture.
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [previewSections, setPreviewSections] = useState<Record<string, boolean>>({});
   const [createOpen, setCreateOpen] = useState(false);
@@ -114,151 +122,6 @@ export default function BriefEditorPage({
   const [pendingDeleteSectionId, setPendingDeleteSectionId] = useState<string | null>(null);
   const panelGroupContainerRef = useRef<HTMLDivElement | null>(null);
   const previewGroupRef = useGroupRef();
-
-  const serializeSections = useCallback((list: BriefSection[]) => {
-    return JSON.stringify(
-      list.map((s) => ({
-        id: s.id,
-        type: s.type,
-        title: s.title,
-        order: s.order,
-        visible: s.visible,
-        content: s.content,
-      })),
-    );
-  }, []);
-
-  const fetchBrief = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch(`/api/briefs/${id}`);
-    if (!res.ok) {
-      toast.error("Brief introuvable");
-      router.push("/");
-      return;
-    }
-    const data: BriefWithSections = await res.json();
-    setBrief(data);
-    setSections(data.sections);
-    savedSectionsRef.current = serializeSections(data.sections);
-    setOpenSections((prev) => {
-      const next = { ...prev };
-      for (const section of data.sections) {
-        if (next[section.id] === undefined) next[section.id] = true;
-      }
-      return next;
-    });
-    setPreviewSections((prev) => {
-      const next = { ...prev };
-      for (const section of data.sections) {
-        if (next[section.id] === undefined) next[section.id] = true;
-      }
-      return next;
-    });
-
-    setDirty(false);
-    setLoading(false);
-  }, [id, router, serializeSections]);
-
-  useEffect(() => {
-    fetchBrief();
-  }, [fetchBrief]);
-
-  const updateSection = useCallback(
-    (
-      sectionId: string,
-      // Forme fonction quand la mise à jour dépend de la section courante
-      // (ex: fusionner dans content sans écraser ses autres clés).
-      updates: Partial<BriefSection> | ((section: BriefSection) => Partial<BriefSection>),
-    ) => {
-      setSections((prev) => {
-        const next = prev.map((section) =>
-          section.id === sectionId
-            ? { ...section, ...(typeof updates === "function" ? updates(section) : updates) }
-            : section,
-        );
-        setDirty(serializeSections(next) !== savedSectionsRef.current);
-        return next;
-      });
-    },
-    [serializeSections],
-  );
-
-  const handleSave = useCallback(async () => {
-    setSaving(true);
-    try {
-      const results = await Promise.all(
-        sections.map(async (section) => {
-          const res = await fetch("/api/sections", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: section.id,
-              content: section.content,
-              title: section.title,
-              visible: section.visible,
-              order: section.order,
-              // Permet au serveur de refuser d'écraser une modification faite
-              // ailleurs depuis l'ouverture du brief (réponse 409).
-              updatedAt: section.updatedAt,
-            }),
-          });
-          return { id: section.id, status: res.status, row: res.ok ? await res.json() : null };
-        }),
-      );
-
-      // fetch ne rejette pas sur un statut d'erreur : sans ce contrôle, une
-      // sauvegarde refusée s'afficherait quand même comme réussie.
-      if (results.some((r) => r.status === 409)) {
-        toast.error(
-          "Ce brief a été modifié ailleurs. Recharge la page pour repartir de la version à jour.",
-        );
-        return;
-      }
-      if (results.some((r) => !r.row)) {
-        toast.error("Erreur lors de la sauvegarde");
-        return;
-      }
-
-      // Sans ce rafraîchissement, la sauvegarde suivante repartirait d'un
-      // updatedAt périmé et serait refusée à tort.
-      setSections((prev) =>
-        prev.map((s) => {
-          const saved = results.find((r) => r.id === s.id);
-          return saved?.row ? { ...s, updatedAt: saved.row.updatedAt } : s;
-        }),
-      );
-      savedSectionsRef.current = serializeSections(sections);
-      setDirty(false);
-      toast.success("Sauvegardé");
-    } catch {
-      toast.error("Erreur lors de la sauvegarde");
-    } finally {
-      setSaving(false);
-    }
-  }, [sections, serializeSections]);
-
-  // Ctrl+S shortcut
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [handleSave]);
-
-  // Browser beforeunload (tab close, refresh, external navigation)
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (dirty) {
-        e.preventDefault();
-      }
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [dirty]);
 
   const navigateWithGuard = (href: string) => {
     if (dirty) {
@@ -345,8 +208,8 @@ export default function BriefEditorPage({
     if (!mediaTarget) return;
 
     const target = mediaTarget;
-    setSections((prev) => {
-      const next = prev.map((section) => {
+    applySections((prev) =>
+      prev.map((section) => {
         if (section.id !== target.sectionId) return section;
         if (section.type === "custom") {
           const content = normalizeCustomContent(section.content);
@@ -446,13 +309,11 @@ export default function BriefEditorPage({
             : item,
         );
         return { ...section, content: { items } };
-      });
-      setDirty(serializeSections(next) !== savedSectionsRef.current);
-      return next;
-    });
+      }),
+    );
 
     setMediaTarget(null);
-  }, [mediaTarget, serializeSections]);
+  }, [mediaTarget, applySections]);
 
   // Templates publiés proposés dans le dialogue de création de section
   useEffect(() => {
@@ -864,7 +725,7 @@ export default function BriefEditorPage({
                     onClick={() =>
                       setOpenSections((prev) => ({
                         ...prev,
-                        [section.id]: !prev[section.id],
+                        [section.id]: !(prev[section.id] ?? true),
                       }))
                     }
                     className="flex w-full items-center justify-between gap-3 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/50"
@@ -935,24 +796,24 @@ export default function BriefEditorPage({
                           e.stopPropagation();
                           setPreviewSections((prev) => ({
                             ...prev,
-                            [section.id]: !prev[section.id],
+                            [section.id]: !(prev[section.id] ?? true),
                           }));
                         }}
                         className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        title={previewSections[section.id] ? "Masquer l'aperçu" : "Afficher l'aperçu"}
+                        title={(previewSections[section.id] ?? true) ? "Masquer l'aperçu" : "Afficher l'aperçu"}
                       >
-                        {previewSections[section.id] ? (
+                        {(previewSections[section.id] ?? true) ? (
                           <Eye className="h-3.5 w-3.5" />
                         ) : (
                           <EyeOff className="h-3.5 w-3.5" />
                         )}
                       </span>
                       <ChevronDown
-                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${openSections[section.id] ? "rotate-0" : "-rotate-90"}`}
+                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${(openSections[section.id] ?? true) ? "rotate-0" : "-rotate-90"}`}
                       />
                     </div>
                   </button>
-                  {openSections[section.id] && (
+                  {(openSections[section.id] ?? true) && (
                     <div className="border-t border-border/60 px-4 py-4">
                       {renderSectionEditor(section)}
                     </div>
@@ -998,7 +859,7 @@ export default function BriefEditorPage({
             </div>
             <div className="space-y-3">
               {sections.map((section) => {
-                if (!previewSections[section.id]) return null;
+                if (!(previewSections[section.id] ?? true)) return null;
                 return renderSectionPreview(section);
               })}
             </div>
@@ -1076,8 +937,8 @@ export default function BriefEditorPage({
           }}
           onUploaded={(url) => {
             const sectionId = videoUploadSectionId;
-            setSections((prev) => {
-              const next = prev.map((s) => {
+            applySections((prev) =>
+              prev.map((s) => {
                 if (s.id !== sectionId || s.type !== "mea_v2") return s;
                 const content = s.content as MeaV2Content;
                 return {
@@ -1087,10 +948,8 @@ export default function BriefEditorPage({
                     focus: { ...content.focus, mediaType: "video" as const, videoUrl: url },
                   },
                 };
-              });
-              setDirty(serializeSections(next) !== savedSectionsRef.current);
-              return next;
-            });
+              }),
+            );
             // Enchaîne sur l'upload de la vignette, pré-remplie par la 1ère
             // frame capturée côté navigateur (l'utilisateur ajuste le cadrage).
             // Toast explicite pour que ce 2e popin ne soit pas pris pour le
@@ -1126,8 +985,8 @@ export default function BriefEditorPage({
           }}
           onUploaded={(url) => {
             const { sectionId, slideIndex } = carouselVideoTarget;
-            setSections((prev) => {
-              const next = prev.map((s) => {
+            applySections((prev) =>
+              prev.map((s) => {
                 if (s.id !== sectionId || s.type !== "carousel") return s;
                 const content = s.content as CarouselContent;
                 return {
@@ -1141,10 +1000,8 @@ export default function BriefEditorPage({
                     ),
                   },
                 };
-              });
-              setDirty(serializeSections(next) !== savedSectionsRef.current);
-              return next;
-            });
+              }),
+            );
             // Enchaîne sur l'upload de la vignette, pré-remplie par la 1ère
             // frame capturée côté navigateur (l'utilisateur ajuste le cadrage).
             if (carouselCapturedPosterFile) {
