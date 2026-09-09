@@ -61,12 +61,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Aucun fichier à exporter" }, { status: 400 });
   }
 
-  const zipBuffer = await buildZipBuffer(groups);
+  const { buffer, failed } = await buildZipBuffer(groups);
+  const total = groups.reduce((n, g) => n + g.images.length, 0);
 
-  return new NextResponse(new Uint8Array(zipBuffer), {
+  // Aucun fichier produit : renvoyer une archive vide en 200 laisserait croire
+  // que l'export a fonctionné.
+  if (failed.length === total) {
+    return NextResponse.json(
+      {
+        error:
+          "Aucune image n'a pu être lue (stockage indisponible ?). L'export est vide, rien n'a été téléchargé.",
+        failed,
+      },
+      { status: 502 },
+    );
+  }
+
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="export-groupe.zip"`,
+      // Export partiel : le détail est aussi dans _IMAGES-MANQUANTES.txt au
+      // sein de l'archive.
+      ...(failed.length > 0 ? { "X-Export-Images-Manquantes": String(failed.length) } : {}),
     },
   });
 }

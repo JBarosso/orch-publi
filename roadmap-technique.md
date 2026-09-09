@@ -253,7 +253,7 @@ dans le chemin.
 affichent `→ homepage/2026/wk32/fr/`, les items en semaine 36 n'affichent rien, et activer
 « Global » fait disparaître le segment de langue en direct.
 
-### Phase 5 — Performance de l'export ZIP (0,5 j)
+### Phase 5 — Performance de l'export ZIP — 🟡 en partie fait le 2026-09-09
 
 `src/lib/build-zip.ts`, par rapport valeur/effort décroissant :
 
@@ -271,6 +271,36 @@ affichent `→ homepage/2026/wk32/fr/`, les items en semaine 36 n'affichent rien
 Garde-fou à prévoir : plafonner le nombre d'images par requête, ou découper l'export groupé
 par brief.
 
+**Fait — décodage unique et parallélisation.** `build-zip.ts` a été restructuré :
+`prepareImage()` isole « télécharger + convertir » par image, un seul `sharp()` sert aux
+deux sorties via `.clone()`, et les images sont préparées par lots de 4 en parallèle puis
+ajoutées à l'archive dans l'ordre du lot (le zip reste déterministe).
+
+⚠️ **Aucun chiffre de gain n'a pu être mesuré de façon fiable** : pendant les mesures, le
+`fetch` de Node vers Vercel Blob s'est mis à échouer systématiquement (voir ci-dessous),
+rendant les temps ininterprétables. La comparaison avant/après reste à refaire quand le
+stockage répond.
+
+**Fait — et non prévu : les échecs ne sont plus silencieux.** Le diagnostic a révélé un
+défaut plus grave que la lenteur : quand `readAsset` échoue, l'image était simplement
+loguée et sautée, et la route renvoyait **HTTP 200 avec une archive vide**. Un incident
+passager du stockage livrait donc un brief sans images, sans le moindre avertissement —
+découvert seulement une fois intégré au CMS.
+
+Désormais `buildZipBuffer` renvoie `{ buffer, failed }` et :
+- si **toutes** les images échouent → `502` avec un message explicite et la liste ;
+- si **certaines** échouent → l'archive est livrée (elle reste utile), avec l'en-tête
+  `X-Export-Images-Manquantes` et un fichier `_IMAGES-MANQUANTES.txt` à la racine du zip
+  listant les visuels absents.
+
+Vérifié sur les deux cas : 502 quand rien ne passe ; et 2 images sur 3 livrées avec
+l'en-tête à `1` et le fichier de rapport présent.
+
+**Reste à faire — le streaming de la réponse.** L'archive est toujours assemblée
+entièrement en mémoire (`chunks` + `Buffer.concat`), ce qui plafonne l'export groupé et
+les vidéos. C'est le point le plus délicat du fichier (cf. le deadlock documenté en tête),
+à traiter séparément.
+
 ### Phase 6 — Upload direct vers Vercel Blob (1 j)
 
 Aujourd'hui les fichiers transitent en base64 par la fonction serveur, d'où le
@@ -284,7 +314,7 @@ devient « upload puis conversion sur le blob stocké » au lieu de « conversio
 de la requête ». Un peu plus de pièces mobiles, mais c'est la seule façon de sortir de la
 limite de 1,4 Go.
 
-### Phase 7 — Dashboard : recherche + affichage progressif (0,5 j)
+### Phase 7 — Dashboard : recherche + affichage progressif ✅ fait le 2026-09-09
 
 **État constaté** dans `src/components/briefs/briefs-list.tsx` :
 
@@ -320,8 +350,18 @@ au-delà de ~1 000-2 000 briefs, pas à 450.
 **Bascule à envisager si** la charge utile initiale dépasse ~500 Ko ou si le dashboard devient
 lent au chargement. La purge de rétention (phase 8) rognera de toute façon le total avant.
 
-**Quand le faire :** à ~3 briefs/semaine, la liste dépasse 50 entrées d'ici environ 4 mois.
-C'est le moment où l'absence de recherche devient une gêne quotidienne.
+**Réalisé** dans `src/components/briefs/briefs-list.tsx` : un seul `GET /api/briefs` au
+montage, filtres langue/statut passés côté client (donc instantanés, sans refetch),
+champ de recherche sur le nom et le slug, rendu plafonné à 10 avec « Charger plus » (+10)
+et un compteur « X sur N briefs ». Le compteur repart à 10 dès qu'un filtre, la recherche
+ou le tri change — ajusté pendant le rendu et non dans un effet, pour éviter les rendus
+en cascade que la règle `react-hooks/set-state-in-effect` interdit. « Tout sélectionner »
+porte sur la liste filtrée, pas seulement sur les lignes visibles.
+
+**Vérifié en conditions réelles** avec 15 briefs : 10 lignes affichées puis « Charger
+plus » révèle les 15 et le bouton disparaît ; et surtout, un brief **absent des 10 lignes
+visibles** est bien trouvé par la recherche, et le tri par semaine réordonne sur
+l'ensemble — c'était l'exigence.
 
 ### Phase 8 — Purge de rétention automatique (0,5 j)
 
@@ -398,9 +438,9 @@ Consigné pour éviter que ce soit reproposé plus tard.
 | 2 — Normalisation + 409 | ✅ fait | 0,5 j | 1 | — |
 | 4 — Aperçu du chemin | ✅ fait | 0,5 j | 1 | — |
 | 3 — Découpage `page.tsx` | 🟡 registre UI fait, hooks à faire | 0,5 j restant | 1 | — |
-| 5 — Perf ZIP | à faire | 0,5 j | — | si un export devient lent |
+| 5 — Perf ZIP | 🟡 parallélisation + échecs remontés ; streaming à faire | 0,25 j restant | — | — |
 | 6 — Upload direct Blob | à faire | 1 j | — | si un upload dépasse la limite |
-| 7 — Dashboard recherche + « charger plus » | à faire | 0,5 j | — | vers 50 briefs (~4 mois) |
+| 7 — Dashboard recherche + « charger plus » | ✅ fait | 0,5 j | — | — |
 | 8 — Purge automatique | à faire | 0,5 j | — | avant la fin de la 1re fenêtre de rétention |
 
 **Reste ~3,5 jours.** Les phases 5 à 8 sont indépendantes et s'intercalent au moment où

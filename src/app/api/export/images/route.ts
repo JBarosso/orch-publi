@@ -80,14 +80,30 @@ async function buildZip(images: ImageEntry[], brief: { year: number; week: numbe
   const wk = String(brief.week).padStart(2, "0");
   const folderName = `homepage-${brief.year}-wk${wk}-${brief.locale}`;
 
-  const zipBuffer = await buildZipBuffer([
+  const { buffer, failed } = await buildZipBuffer([
     { folderPrefix: "", images, year: brief.year, week: brief.week, locale: brief.locale },
   ]);
 
-  return new NextResponse(new Uint8Array(zipBuffer), {
+  // Aucun fichier produit : renvoyer une archive vide en 200 laisserait croire
+  // que l'export a fonctionné.
+  if (failed.length === images.length) {
+    return NextResponse.json(
+      {
+        error:
+          "Aucune image n'a pu être lue (stockage indisponible ?). L'export est vide, rien n'a été téléchargé.",
+        failed,
+      },
+      { status: 502 },
+    );
+  }
+
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="${folderName}.zip"`,
+      // Export partiel : le détail est aussi dans _IMAGES-MANQUANTES.txt au
+      // sein de l'archive.
+      ...(failed.length > 0 ? { "X-Export-Images-Manquantes": String(failed.length) } : {}),
     },
   });
 }

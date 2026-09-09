@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useDevMode } from "@/lib/dev-mode";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -38,6 +39,9 @@ import { LOCALES } from "@/types";
 import { DuplicateDialog } from "./duplicate-dialog";
 import { StatusBadge } from "./status-badge";
 
+// Nombre de briefs affichés au départ, et pas à pas via "Charger plus".
+const PAGE_SIZE = 10;
+
 type SortColumn = "slug" | "week" | "locale" | "status" | "createdAt";
 type SortDirection = "asc" | "desc" | null;
 
@@ -52,6 +56,12 @@ export function BriefsList() {
   const [sortColumn, setSortColumn] = useState<SortColumn>("createdAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  // Seul l'AFFICHAGE est plafonné : recherche, filtres et tri travaillent sur
+  // la liste complète, chargée en une fois. Une ligne de brief ne pèse que ses
+  // métadonnées (~200 octets), donc tout charger reste négligeable — et c'est
+  // ce qui garantit que la recherche porte bien sur tous les briefs.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const toggleSelected = (id: string) => {
     setSelected((prev) => {
@@ -75,10 +85,20 @@ export function BriefsList() {
     });
   }, []);
 
-  const sortedBriefs = useMemo(() => {
-    if (!sortDirection) return briefs;
+  const filteredBriefs = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return briefs.filter((b) => {
+      if (filterLocale !== "all" && b.locale !== filterLocale) return false;
+      if (filterStatus !== "all" && b.status !== filterStatus) return false;
+      if (!q) return true;
+      return `${b.name ?? ""} ${b.slug}`.toLowerCase().includes(q);
+    });
+  }, [briefs, filterLocale, filterStatus, search]);
 
-    return [...briefs].sort((a, b) => {
+  const sortedBriefs = useMemo(() => {
+    if (!sortDirection) return filteredBriefs;
+
+    return [...filteredBriefs].sort((a, b) => {
       let cmp = 0;
       switch (sortColumn) {
         case "slug":
@@ -99,23 +119,42 @@ export function BriefsList() {
       }
       return sortDirection === "desc" ? -cmp : cmp;
     });
-  }, [briefs, sortColumn, sortDirection]);
+  }, [filteredBriefs, sortColumn, sortDirection]);
 
+  const visibleBriefs = sortedBriefs.slice(0, visibleCount);
+  const remaining = sortedBriefs.length - visibleBriefs.length;
+
+  // Un seul chargement : filtres, recherche et tri se font ensuite en mémoire,
+  // ce qui les rend instantanés et garantit qu'ils couvrent tous les briefs.
+  // Pure I/O, sans setState : c'est ce qui permet de l'appeler depuis un effet
+  // sans déclencher de rendu en cascade.
+  const loadBriefs = (): Promise<Brief[]> =>
+    fetch("/api/briefs").then((r) => r.json());
+
+  /** Rechargement après une action (suppression, duplication) : avec spinner. */
   const fetchBriefs = async () => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (filterLocale !== "all") params.set("locale", filterLocale);
-    if (filterStatus !== "all") params.set("status", filterStatus);
-    const res = await fetch(`/api/briefs?${params}`);
-    const data = await res.json();
-    setBriefs(data);
+    setBriefs(await loadBriefs());
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchBriefs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterLocale, filterStatus]);
+    loadBriefs().then((data) => {
+      setBriefs(data);
+      setLoading(false);
+    });
+  }, []);
+
+  // Repartir du haut dès que la liste affichée change de contenu, sinon on
+  // garderait un "Charger plus" déjà déroulé sur une sélection sans rapport.
+  // Ajusté pendant le rendu plutôt que dans un effet (pattern React pour
+  // réinitialiser un état en réponse au changement d'une prop/valeur).
+  const listKey = `${filterLocale}|${filterStatus}|${search}|${sortColumn}|${sortDirection}`;
+  const [prevListKey, setPrevListKey] = useState(listKey);
+  if (listKey !== prevListKey) {
+    setPrevListKey(listKey);
+    setVisibleCount(PAGE_SIZE);
+  }
 
   const handleDelete = async (id: string) => {
     if (!confirm("Supprimer ce brief ?")) return;
@@ -164,7 +203,14 @@ export function BriefsList() {
 
   return (
     <>
-      <div className="mb-5 flex gap-3">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="Rechercher un brief (nom ou slug)…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-72"
+        />
+
         <Select
           value={filterLocale}
           items={{
@@ -226,9 +272,9 @@ export function BriefsList() {
                 <TableHead className="w-10">
                   <input
                     type="checkbox"
-                    checked={briefs.length > 0 && selected.size === briefs.length}
+                    checked={sortedBriefs.length > 0 && selected.size === sortedBriefs.length}
                     onChange={(e) =>
-                      setSelected(e.target.checked ? new Set(briefs.map((b) => b.id)) : new Set())
+                      setSelected(e.target.checked ? new Set(sortedBriefs.map((b) => b.id)) : new Set())
                     }
                     className="h-3.5 w-3.5 cursor-pointer"
                   />
@@ -268,7 +314,7 @@ export function BriefsList() {
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
-            ) : briefs.length === 0 ? (
+            ) : sortedBriefs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={devMode ? 7 : 6} className="py-16 text-center">
                   <FileX className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
@@ -276,7 +322,7 @@ export function BriefsList() {
                 </TableCell>
               </TableRow>
             ) : (
-              sortedBriefs.map((brief) => (
+              visibleBriefs.map((brief) => (
                 <TableRow key={brief.id} className="group">
                   {devMode && (
                     <TableCell>
@@ -339,6 +385,21 @@ export function BriefsList() {
           </TableBody>
         </Table>
       </div>
+
+      {remaining > 0 && (
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+          >
+            Charger plus
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {visibleBriefs.length} sur {sortedBriefs.length} brief
+            {sortedBriefs.length > 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
 
       {duplicating && (
         <DuplicateDialog
