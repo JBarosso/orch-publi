@@ -1,6 +1,6 @@
 import { writeFile, unlink, readFile } from "fs/promises";
 import { join } from "path";
-import { put, del } from "@vercel/blob";
+import { copy, del, list, put } from "@vercel/blob";
 
 // Sur Vercel, public/ est immuable au runtime (servi par le CDN depuis le
 // build) : impossible d'y écrire des uploads utilisateur et de les voir
@@ -57,4 +57,69 @@ export async function readAsset(url: string): Promise<Buffer> {
     return Buffer.from(await res.arrayBuffer());
   }
   return readFile(join(process.cwd(), "public", url));
+}
+
+// --- Upload direct navigateur → Vercel Blob ---
+// Sur Vercel, une fonction refuse tout corps de requête ou de réponse au-delà
+// de 4,5 Mo (erreur 413), quel que soit proxyClientMaxBodySize. Le navigateur
+// dépose donc les fichiers lui-même sous tmp/ (jeton délivré par
+// /api/assets/blob-token) et seule leur URL transite par les routes, qui les
+// traitent puis les suppriment.
+
+export const TEMP_UPLOAD_PREFIX = "tmp/";
+
+/**
+ * N'accepte que les fichiers de tmp/ du store Blob : une URL arbitraire ferait
+ * lire n'importe quoi au serveur, et un asset définitif transmis par erreur
+ * serait supprimé après traitement.
+ */
+export function isTempUploadUrl(url: unknown): url is string {
+  if (typeof url !== "string") return false;
+  try {
+    const { protocol, hostname, pathname } = new URL(url);
+    return (
+      protocol === "https:" &&
+      hostname.endsWith(".public.blob.vercel-storage.com") &&
+      pathname.startsWith(`/${TEMP_UPLOAD_PREFIX}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fait d'un upload direct un asset définitif, sans traitement (vidéos). Copie
+ * interne à Blob, hors de tmp/ que le ménage quotidien vide.
+ */
+export async function promoteTempUpload(
+  url: string,
+  filename: string,
+  contentType: string,
+): Promise<string> {
+  const blob = await copy(url, filename, { access: "public", contentType, addRandomSuffix: true });
+  await del(url);
+  return blob.url;
+}
+
+/**
+ * Ménage de tmp/ : aperçus de TIFF convertis, et uploads jamais traités
+ * (dialogue fermé en cours de route). Au-delà de 24 h, plus rien ne les attend.
+ */
+export async function purgeStaleTempUploads(): Promise<number> {
+  if (!BLOB_ENABLED) return 0;
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  let deleted = 0;
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix: TEMP_UPLOAD_PREFIX, cursor });
+    const stale = page.blobs
+      .filter((blob) => blob.uploadedAt.getTime() < cutoff)
+      .map((blob) => blob.url);
+    if (stale.length > 0) {
+      await del(stale);
+      deleted += stale.length;
+    }
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  return deleted;
 }

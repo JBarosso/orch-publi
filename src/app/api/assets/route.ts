@@ -4,7 +4,14 @@ import { assets } from "@/lib/schema";
 import { and, desc, eq, ilike } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import sharp from "sharp";
-import { putAsset, deleteAsset } from "@/lib/storage";
+import { head } from "@vercel/blob";
+import {
+  putAsset,
+  deleteAsset,
+  readAsset,
+  isTempUploadUrl,
+  promoteTempUpload,
+} from "@/lib/storage";
 import {
   ACCEPTED_FORMATS_LABEL,
   ACCEPTED_SHARP_FORMATS,
@@ -113,10 +120,18 @@ export async function PUT(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { image, crop, label, week, year, type, fromTiff } = body;
+  // Le fichier arrive de deux façons :
+  // - `sourceUrl` : déjà déposé sur Vercel Blob par le navigateur (upload
+  //   direct, cf. src/lib/storage.ts) — seule voie possible en production
+  //   au-delà de 4,5 Mo ;
+  // - `image` : data URL base64 dans le corps (dev local sans Blob).
+  const { image, sourceUrl, crop, label, week, year, type, fromTiff } = body;
 
-  if (!image) {
+  if (!image && !sourceUrl) {
     return NextResponse.json({ error: "Image requise" }, { status: 400 });
+  }
+  if (sourceUrl && !isTempUploadUrl(sourceUrl)) {
+    return NextResponse.json({ error: "Fichier source invalide" }, { status: 400 });
   }
 
   const assetType = resolveAssetType(type);
@@ -132,12 +147,19 @@ export async function POST(request: NextRequest) {
 
   // Vidéo (carte focus MEA v2) : pipeline dédiée, pas de sharp.
   if (spec.kind === "video") {
-    return handleVideoUpload(image, assetType, cleanLabel, toIntOrNull(week), toIntOrNull(year));
+    return handleVideoUpload(
+      sourceUrl ? { sourceUrl } : { image },
+      assetType,
+      cleanLabel,
+      toIntOrNull(week),
+      toIntOrNull(year),
+    );
   }
 
   try {
-    const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-    const imageBuffer = Buffer.from(base64Data, "base64");
+    const imageBuffer: Buffer = sourceUrl
+      ? await readAsset(sourceUrl)
+      : Buffer.from(image.replace(/^data:image\/\w+;base64,/, ""), "base64");
 
     // Upload libre (pas de crop) issu d'un TIFF converti : l'image reçue ici
     // est encore en pleine résolution — plafond TIFF plutôt que le plafond
@@ -252,38 +274,49 @@ export async function POST(request: NextRequest) {
       { error: "Erreur lors du traitement de l'image" },
       { status: 500 },
     );
+  } finally {
+    // Le fichier déposé n'était qu'un intermédiaire : seul l'asset traité est conservé.
+    if (sourceUrl) await deleteAsset(sourceUrl);
   }
 }
 
+function videoUploadError(mimeType: string, bytes: number): string | null {
+  if (!ACCEPTED_VIDEO_MIME_TYPES.includes(mimeType)) {
+    return "Format non supporté. Formats acceptés : MP4.";
+  }
+  if (bytes > MAX_VIDEO_SOURCE_BYTES) {
+    return `Vidéo trop lourde (${formatBytes(bytes)}). Maximum : ${formatBytes(MAX_VIDEO_SOURCE_BYTES)}.`;
+  }
+  return null;
+}
+
 async function handleVideoUpload(
-  image: string,
+  source: { image: string } | { sourceUrl: string },
   assetType: string,
   cleanLabel: string,
   week: number | null,
   year: number | null,
 ) {
-  const mimeMatch = /^data:(video\/\w+);base64,/.exec(image);
-  const mimeType = mimeMatch?.[1] ?? "";
-  if (!ACCEPTED_VIDEO_MIME_TYPES.includes(mimeType)) {
-    return NextResponse.json(
-      { error: "Format non supporté. Formats acceptés : MP4." },
-      { status: 400 },
-    );
-  }
-
-  const base64Data = image.replace(/^data:video\/\w+;base64,/, "");
-  const videoBuffer = Buffer.from(base64Data, "base64");
-
-  if (videoBuffer.byteLength > MAX_VIDEO_SOURCE_BYTES) {
-    return NextResponse.json(
-      { error: `Vidéo trop lourde (${formatBytes(videoBuffer.byteLength)}). Maximum : ${formatBytes(MAX_VIDEO_SOURCE_BYTES)}.` },
-      { status: 400 },
-    );
-  }
-
   try {
-    const filename = `${uuidv4()}.mp4`;
-    const url = await putAsset(videoBuffer, filename, "video/mp4");
+    let url: string;
+    if ("sourceUrl" in source) {
+      // Upload direct : on vérifie ce que le navigateur a réellement déposé.
+      const { size, contentType } = await head(source.sourceUrl);
+      const error = videoUploadError(contentType, size);
+      if (error) {
+        await deleteAsset(source.sourceUrl);
+        return NextResponse.json({ error }, { status: 400 });
+      }
+      url = await promoteTempUpload(source.sourceUrl, `${uuidv4()}.mp4`, "video/mp4");
+    } else {
+      const mimeType = /^data:(video\/\w+);base64,/.exec(source.image)?.[1] ?? "";
+      const videoBuffer = Buffer.from(source.image.replace(/^data:video\/\w+;base64,/, ""), "base64");
+      const error = videoUploadError(mimeType, videoBuffer.byteLength);
+      if (error) {
+        return NextResponse.json({ error }, { status: 400 });
+      }
+      url = await putAsset(videoBuffer, `${uuidv4()}.mp4`, "video/mp4");
+    }
 
     let asset;
     try {

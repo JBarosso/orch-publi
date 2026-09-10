@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { assets, briefs, briefSections, customTemplates, settings } from "@/lib/schema";
 import { and, eq, inArray, lt, notInArray } from "drizzle-orm";
-import { deleteAsset } from "@/lib/storage";
+import { deleteAsset, purgeStaleTempUploads } from "@/lib/storage";
 
 // Rétention des données : aperçu (dry-run) et purge manuelle depuis
 // Paramétrage, plus un passage automatique quotidien (cf. runScheduledPurge).
@@ -253,6 +253,8 @@ export interface ScheduledPurgeReport {
   deletedBriefs: number;
   deletedAssets: number;
   deletedVideos: number;
+  /** Fichiers de transit de l'upload direct (tmp/) plus vieux que 24 h. */
+  deletedTempUploads: number;
   error?: string;
 }
 
@@ -261,9 +263,9 @@ export async function getLastScheduledPurge(): Promise<ScheduledPurgeReport | nu
 }
 
 /**
- * Briefs et images seulement si la purge automatique est activée, vidéos
- * toujours. Le compte rendu est conservé pour Paramétrage : une purge qui
- * tourne seule doit laisser une trace, y compris quand elle échoue.
+ * Briefs et images seulement si la purge automatique est activée ; vidéos et
+ * fichiers de transit toujours. Le compte rendu est conservé pour Paramétrage :
+ * une purge qui tourne seule doit laisser une trace, y compris quand elle échoue.
  */
 export async function runScheduledPurge(): Promise<ScheduledPurgeReport> {
   const report: ScheduledPurgeReport = {
@@ -272,6 +274,7 @@ export async function runScheduledPurge(): Promise<ScheduledPurgeReport> {
     deletedBriefs: 0,
     deletedAssets: 0,
     deletedVideos: 0,
+    deletedTempUploads: 0,
   };
 
   try {
@@ -284,6 +287,7 @@ export async function runScheduledPurge(): Promise<ScheduledPurgeReport> {
       report.deletedAssets = result.deletedAssets;
     }
     report.deletedVideos = (await executeVideoPurge(await getVideoRetentionDays())).deletedVideos;
+    report.deletedTempUploads = await purgeStaleTempUploads();
   } catch (err) {
     report.error = err instanceof Error ? err.message : String(err);
   }

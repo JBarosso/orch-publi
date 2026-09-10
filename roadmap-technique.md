@@ -338,7 +338,7 @@ deviendrait impossible. Tant que les exports passent, l'avertissement vaut mieux
 mémoire. **Déclencheur :** un export qui échoue en production (cf. la question de la
 limite de 4,5 Mo en phase 6, qui s'applique aussi aux réponses).
 
-### Phase 6 — Upload direct vers Vercel Blob (1 j)
+### Phase 6 — Upload direct vers Vercel Blob ✅ fait le 2026-09-10 — à valider en production
 
 Aujourd'hui les fichiers transitent en base64 par la fonction serveur, d'où le
 `proxyClientMaxBodySize: "1400mb"` de `next.config.ts` et +33 % de volume dû au base64.
@@ -364,6 +364,40 @@ Deux points à ne pas rater si elle est lancée : `handleUpload` de `@vercel/blo
 confirme la fin d'upload par un rappel de Vercel vers la route, qui n'aura pas de cookie de
 session (même piège que le cron, cf. phase 8) et qui n'arrive pas en local ; et sans
 `BLOB_READ_WRITE_TOKEN`, l'upload direct est impossible, il faut garder le chemin actuel.
+
+**Déclencheur atteint le 2026-09-10.** Un TIFF uploadé en production affichait « Impossible
+de convertir ce fichier TIFF ». La console montrait `POST /api/assets/convert-tiff` →
+**413 Content Too Large** : Vercel rejetait la requête avant que la route ne s'exécute, d'où
+le message générique (la réponse n'était pas le JSON de la route). Cela confirme aussi que
+l'app est utilisée en production sur Vercel.
+
+**Réalisé :**
+
+- Le navigateur dépose le fichier directement sur Vercel Blob, sous `tmp/`, avec un jeton
+  délivré par `POST /api/assets/blob-token` (`handleUpload` ; dépôt refusé hors de `tmp/`,
+  plafond 1 Go). Pas de `onUploadCompleted` : aucun rappel de Vercel, donc rien à exempter
+  dans `proxy.ts`.
+- `convert-tiff` reçoit `{ sourceUrl }`, convertit, dépose le PNG sous `tmp/` et renvoie son
+  URL — la **réponse** d'une fonction est plafonnée elle aussi. Le navigateur relit le PNG
+  directement sur Blob, qui autorise toutes les origines.
+- `/api/assets` reçoit `{ sourceUrl }` : les images passent par sharp comme avant, puis le
+  fichier source est supprimé ; les vidéos sont contrôlées (`head` : type et poids) puis
+  copiées hors de `tmp/`.
+- Garde-fou `isTempUploadUrl` : le serveur ne lit et ne supprime que des URLs `tmp/` du
+  store. Sans lui, un asset définitif transmis par erreur serait effacé après traitement.
+- Sans Blob (dev local sur disque), le navigateur retombe sur l'ancien envoi par la route.
+- Ménage : le cron quotidien (phase 8) supprime ce qui reste dans `tmp/` depuis plus de
+  24 h — aperçus de TIFF convertis et uploads abandonnés.
+
+Le correctif couvre les trois cas bloqués par la limite, pas seulement le TIFF : les vidéos
+au-delà de ~3,3 Mo et les images lourdes en upload libre passent par le même chemin.
+
+**Vérifié :** 93 tests (3 sur `isTempUploadUrl`, 3 sur la route de jeton), typecheck et lint
+propres ; et **contre le vrai store Blob**, avec un fichier de test supprimé ensuite : jeton
+client puis dépôt sous `tmp/` avec suffixe aléatoire, relecture côté serveur reconnue comme
+TIFF par sharp, `head` (poids, type), copie hors de `tmp/`, `list`, en-tête CORS `*`.
+**Non vérifié :** l'enchaînement dans l'interface (connexion requise) et la production, où
+seul un déploiement peut prouver que le 413 a disparu — la limite n'existe pas en local.
 
 ### Phase 7 — Dashboard : recherche + affichage progressif ✅ fait le 2026-09-09
 
@@ -530,11 +564,10 @@ Consigné pour éviter que ce soit reproposé plus tard.
 | 4 — Aperçu du chemin | ✅ fait | 0,5 j | 1 | — |
 | 3 — Découpage `page.tsx` | ✅ fait (découpage de la vue écarté) | — | 1 | — |
 | 5 — Perf ZIP | 🟡 parallélisation + échecs remontés ; streaming en attente | 0,25 j restant | — | un export qui échoue en production |
-| 6 — Upload direct Blob | en attente | 1 j | — | un upload qui échoue en production |
+| 6 — Upload direct Blob | ✅ fait — à valider en production | 1 j | — | — |
 | 7 — Dashboard recherche + « charger plus » | ✅ fait | 0,5 j | — | — |
 | 8 — Purge automatique | ✅ fait — `CRON_SECRET` à définir sur Vercel | 0,5 j | — | — |
 
-**Reste ~1,25 jour, entièrement conditionné.** Les phases 5 (streaming) et 6 dépendent de la
-même question : l'app est-elle utilisée en production sur Vercel, où requêtes et réponses
-des fonctions sont plafonnées à 4,5 Mo ? Si oui et que des uploads ou exports y échouent,
-les deux se lancent ensemble ; sinon elles attendent.
+**Reste ~0,25 jour, conditionné.** L'app est bien utilisée en production sur Vercel (confirmé
+par le 413 du 2026-09-10). Seul le streaming de l'export ZIP (phase 5) reste ouvert : à lancer
+si un export échoue en production, sa réponse étant soumise au même plafond de 4,5 Mo.

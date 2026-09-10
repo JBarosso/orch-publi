@@ -32,6 +32,28 @@ import {
   validateSourceFile,
   validateSourceVideoFile,
 } from "@/lib/upload-specs";
+import { upload } from "@vercel/blob/client";
+
+// Upload direct navigateur → Vercel Blob, sous tmp/ (cf. src/lib/storage.ts).
+// Sur Vercel, une route refuse tout corps de requête au-delà de 4,5 Mo
+// (erreur 413) : c'est ce qui bloquait les TIFF, les vidéos et les images
+// lourdes. Renvoie null si l'upload direct est indisponible (dev local sans
+// Blob) : l'appelant envoie alors le fichier à la route, comme avant.
+async function uploadToTemp(body: Blob, contentType: string): Promise<string | null> {
+  try {
+    const blob = await upload("tmp/upload", body, {
+      access: "public",
+      handleUploadUrl: "/api/assets/blob-token",
+      contentType,
+      // Envoi en parties parallèles avec reprise, pour les gros TIFF.
+      multipart: body.size > 100 * 1024 * 1024,
+    });
+    return blob.url;
+  } catch (err) {
+    console.warn("Upload direct indisponible, envoi par la route :", err);
+    return null;
+  }
+}
 
 interface ImageUploadDialogProps {
   defaultLabel?: string;
@@ -236,25 +258,44 @@ export function ImageUploadDialog({
 
       if (looksLikeTiff(file)) {
         sourceWasTiffRef.current = true;
-        // Un TIFF peut peser plusieurs centaines de Mo : on l'envoie en
-        // binaire brut (pas de FileReader/base64/JSON, qui multiplieraient la
-        // mémoire nécessaire côté navigateur jusqu'au crash) et on récupère
-        // un blob en retour, exposé via une object URL — <img>/Cropper
+        // Un TIFF peut peser plusieurs centaines de Mo : jamais de
+        // FileReader/base64/JSON, qui multiplieraient la mémoire nécessaire
+        // côté navigateur jusqu'au crash. Le fichier part tel quel sur Blob
+        // (upload direct) ou, à défaut, en binaire brut vers la route. Le PNG
+        // converti revient en blob, exposé via une object URL — <img>/Cropper
         // savent tous les deux la charger nativement, comme une data URL.
         setConvertingTiff(true);
         (async () => {
           try {
-            const res = await fetch("/api/assets/convert-tiff", {
-              method: "POST",
-              headers: { "Content-Type": file.type || "application/octet-stream" },
-              body: file,
-            });
+            const sourceUrl = await uploadToTemp(file, "image/tiff");
+            const res = await fetch(
+              "/api/assets/convert-tiff",
+              sourceUrl
+                ? {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ sourceUrl }),
+                  }
+                : {
+                    method: "POST",
+                    headers: { "Content-Type": file.type || "application/octet-stream" },
+                    body: file,
+                  },
+            );
             if (!res.ok) {
               const data = await res.json().catch(() => null);
               toast.error(data?.error ?? "Impossible de convertir ce fichier TIFF");
               return;
             }
-            const blob = await res.blob();
+            // Upload direct : la route renvoie l'URL du PNG déposé sur Blob (sa
+            // réponse aussi est plafonnée à 4,5 Mo), lisible d'ici car Blob
+            // autorise toutes les origines.
+            const blob = sourceUrl
+              ? await fetch((await res.json()).url).then((r) => {
+                  if (!r.ok) throw new Error(`PNG converti illisible (${r.status})`);
+                  return r.blob();
+                })
+              : await res.blob();
             showImage(URL.createObjectURL(blob));
           } catch {
             toast.error("Erreur lors de la conversion du fichier TIFF");
@@ -328,11 +369,16 @@ export function ImageUploadDialog({
             effTargetHeight
           );
 
+      // Upload direct quand il est disponible : seule l'URL transite par la
+      // route, quel que soit le poids du fichier.
+      const fileBlob = await fetch(finalBase64).then((r) => r.blob());
+      const sourceUrl = await uploadToTemp(fileBlob, fileBlob.type);
+
       const res = await fetch("/api/assets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          image: finalBase64,
+          ...(sourceUrl ? { sourceUrl } : { image: finalBase64 }),
           label: cleanLabel,
           week: week ? Number(week) : null,
           year: year ? Number(year) : null,
@@ -395,7 +441,7 @@ export function ImageUploadDialog({
         {convertingTiff ? (
           <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-12">
             <Loader2 className="mb-2 h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground text-center">Conversion du fichier TIFF…</p>
+            <p className="text-sm text-muted-foreground text-center">Envoi et conversion du fichier TIFF…</p>
           </div>
         ) : !imageSrc ? (
           <div
