@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import archiver from "archiver";
-import { PassThrough } from "stream";
+import { PassThrough, Readable } from "stream";
 import { readAsset } from "@/lib/storage";
 import type { ImageEntry } from "@/lib/section-images";
 import { cmsLocalePath } from "@/lib/utils";
@@ -94,45 +94,57 @@ async function prepareImage(img: ImageEntry, group: ZipGroup): Promise<PreparedI
   }
 }
 
-// Construit le buffer ZIP à partir d'un ou plusieurs groupes d'images. Le
-// drain du flux de sortie DOIT démarrer avant (et tourner pendant) les
-// archive.append() : archiver met en file d'attente les entrées et attend
-// que le flux de sortie soit lu pour passer à la suivante — avec 2+ grosses
-// entrées non compressibles (vidéos), ne lire qu'après finalize() bloque
-// indéfiniment (deadlock reproduit et confirmé).
-export interface ZipResult {
-  buffer: Buffer;
+export interface PreparedZip {
+  entries: ZipEntry[];
   /** Fichiers qui n'ont pas pu être produits (asset illisible, image corrompue). */
   failed: string[];
 }
 
-export async function buildZipBuffer(groups: ZipGroup[]): Promise<ZipResult> {
-  const passthrough = new PassThrough();
-  const archive = archiver("zip", { zlib: { level: 9 } });
-  archive.pipe(passthrough);
-
+/**
+ * Télécharge et convertit toutes les images (par lots en parallèle), sans
+ * toucher à l'archive. Séparé de `streamZip` ci-dessous pour que l'appelant
+ * connaisse `failed` — et puisse donc décider d'un 502 « tout a échoué » —
+ * avant qu'un seul octet ne parte vers le client : une fois le flux de
+ * réponse ouvert, il n'est plus possible de basculer vers une erreur JSON.
+ */
+export async function prepareZip(groups: ZipGroup[]): Promise<PreparedZip> {
+  const entries: ZipEntry[] = [];
   const failed: string[] = [];
-  const chunks: Buffer[] = [];
-  const drainPromise = (async () => {
-    for await (const chunk of passthrough) {
-      chunks.push(chunk as Buffer);
-    }
-  })();
 
   for (const group of groups) {
-    // Les images sont préparées par lots en parallèle (téléchargement + sharp,
-    // qui travaille dans un threadpool natif et rend la main), puis ajoutées à
-    // l'archive dans l'ordre du lot pour que le zip reste déterministe.
     for (let i = 0; i < group.images.length; i += PREPARE_CONCURRENCY) {
       const batch = group.images.slice(i, i + PREPARE_CONCURRENCY);
       const prepared = await Promise.all(batch.map((img) => prepareImage(img, group)));
       for (const item of prepared) {
         if (item.failed) failed.push(item.failed);
-        for (const entry of item.entries) {
-          archive.append(entry.buffer, { name: entry.name, store: entry.store });
-        }
+        entries.push(...item.entries);
       }
     }
+  }
+
+  return { entries, failed };
+}
+
+/**
+ * Construit le ZIP et le renvoie comme flux — pas de `Buffer.concat` d'une
+ * archive entière en mémoire, qui plafonnerait la réponse à 4,5 Mo sur Vercel
+ * (limite de toute fonction, streaming excepté). `entries` doit déjà venir de
+ * `prepareZip` : à ce stade, on ne fait plus que compresser des buffers déjà
+ * en mémoire, donc `archive.finalize()` n'a plus besoin d'être attendu avant
+ * de commencer à lire — c'est le client qui devient le drain, ce qui élimine
+ * le risque de deadlock documenté ici par le passé (2+ grosses entrées comme
+ * des vidéos, jamais lues avant `finalize()`).
+ */
+export function streamZip({ entries, failed }: PreparedZip): ReadableStream<Uint8Array> {
+  const archive = archiver("zip", { zlib: { level: 9 } });
+  const passthrough = new PassThrough();
+  archive.pipe(passthrough);
+  // Une erreur de compression après le début du flux ne peut plus devenir un
+  // 502 : elle coupe la réponse, ce que le client voit comme un ZIP tronqué.
+  archive.on("error", (err) => passthrough.destroy(err));
+
+  for (const entry of entries) {
+    archive.append(entry.buffer, { name: entry.name, store: entry.store });
   }
 
   // Un fichier de rapport dans l'archive : c'est le seul endroit que
@@ -148,7 +160,9 @@ export async function buildZipBuffer(groups: ZipGroup[]): Promise<ZipResult> {
     archive.append(Buffer.from(rapport, "utf-8"), { name: "_IMAGES-MANQUANTES.txt" });
   }
 
-  await archive.finalize();
-  await drainPromise;
-  return { buffer: Buffer.concat(chunks), failed };
+  // Ne pas attendre : la promesse ne se résout qu'une fois tout drainé, et
+  // personne ne lit encore `passthrough` à cet instant.
+  void archive.finalize();
+
+  return Readable.toWeb(passthrough) as ReadableStream<Uint8Array>;
 }

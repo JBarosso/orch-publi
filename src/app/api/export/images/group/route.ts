@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
 import { inArray } from "drizzle-orm";
 import { getSectionImages } from "@/templates/registry";
-import { buildZipBuffer, type ZipGroup } from "@/lib/build-zip";
+import { prepareZip, streamZip, type ZipGroup } from "@/lib/build-zip";
 import { normalizeTypeLabel } from "@/lib/section-labels";
 
 // Caractères interdits dans un nom de dossier ZIP sur la plupart des OS.
@@ -61,29 +61,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Aucun fichier à exporter" }, { status: 400 });
   }
 
-  const { buffer, failed } = await buildZipBuffer(groups);
+  const prepared = await prepareZip(groups);
   const total = groups.reduce((n, g) => n + g.images.length, 0);
 
   // Aucun fichier produit : renvoyer une archive vide en 200 laisserait croire
-  // que l'export a fonctionné.
-  if (failed.length === total) {
+  // que l'export a fonctionné. Décidé avant de streamer : une fois le corps
+  // de la réponse ouvert, on ne peut plus basculer vers un JSON d'erreur.
+  if (prepared.failed.length === total) {
     return NextResponse.json(
       {
         error:
           "Aucune image n'a pu être lue (stockage indisponible ?). L'export est vide, rien n'a été téléchargé.",
-        failed,
+        failed: prepared.failed,
       },
       { status: 502 },
     );
   }
 
-  return new NextResponse(new Uint8Array(buffer), {
+  // Réponse streamée : pas de ZIP entier assemblé en mémoire, ce qui
+  // plafonnerait sinon l'export à 4,5 Mo sur Vercel (limite de toute
+  // fonction, streaming excepté) — le cas visé ici, un export multi-briefs.
+  return new NextResponse(streamZip(prepared), {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="export-groupe.zip"`,
       // Export partiel : le détail est aussi dans _IMAGES-MANQUANTES.txt au
       // sein de l'archive.
-      ...(failed.length > 0 ? { "X-Export-Images-Manquantes": String(failed.length) } : {}),
+      ...(prepared.failed.length > 0 ? { "X-Export-Images-Manquantes": String(prepared.failed.length) } : {}),
     },
   });
 }

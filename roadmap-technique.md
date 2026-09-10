@@ -284,7 +284,7 @@ dans le chemin.
 affichent `→ homepage/2026/wk32/fr/`, les items en semaine 36 n'affichent rien, et activer
 « Global » fait disparaître le segment de langue en direct.
 
-### Phase 5 — Performance de l'export ZIP — 🟡 en partie fait le 2026-09-09
+### Phase 5 — Performance de l'export ZIP ✅ fait le 2026-09-10
 
 `src/lib/build-zip.ts`, par rapport valeur/effort décroissant :
 
@@ -327,16 +327,37 @@ Désormais `buildZipBuffer` renvoie `{ buffer, failed }` et :
 Vérifié sur les deux cas : 502 quand rien ne passe ; et 2 images sur 3 livrées avec
 l'en-tête à `1` et le fichier de rapport présent.
 
-**Reste à faire — le streaming de la réponse.** L'archive est toujours assemblée
-entièrement en mémoire (`chunks` + `Buffer.concat`), ce qui plafonne l'export groupé et
-les vidéos. C'est le point le plus délicat du fichier (cf. le deadlock documenté en tête),
-à traiter séparément.
+**Fait — le streaming de la réponse.** Vérifié directement auprès de Vercel : la limite de
+4,5 Mo par réponse de fonction ne s'applique pas aux réponses **streamées** (elle ne
+plafonne que les corps assemblés d'un coup). C'était la seule inconnue qui bloquait cette
+phase — une fois confirmée, le conflit documenté plus haut (« streamer empêche le 502 »)
+avait en fait déjà une solution simple :
 
-**Conflit identifié :** streamer oblige à envoyer les premiers octets avant de savoir si
-les images suivantes seront lisibles — le `502` « aucune image lisible » ajouté ci-dessus
-deviendrait impossible. Tant que les exports passent, l'avertissement vaut mieux que le gain
-mémoire. **Déclencheur :** un export qui échoue en production (cf. la question de la
-limite de 4,5 Mo en phase 6, qui s'applique aussi aux réponses).
+`src/lib/build-zip.ts` est séparé en deux étapes. `prepareZip()` télécharge et convertit
+toutes les images (identique à avant : lots de 4 en parallèle), et renvoie `{ entries,
+failed }` **sans toucher à l'archive**. À cet instant, avant tout octet envoyé au client,
+l'appelant sait déjà si tout a échoué et peut encore renvoyer un 502 JSON. `streamZip()`
+ne fait plus qu'assembler l'archive à partir de buffers déjà en mémoire et la renvoie en
+`ReadableStream` (`Readable.toWeb`) — `archive.finalize()` n'est plus attendu avant de
+commencer à lire : c'est la connexion HTTP réelle qui devient le drain, ce qui élimine
+aussi le risque de deadlock documenté ici par le passé (2+ grosses entrées comme des
+vidéos, jamais lues avant `finalize()`).
+
+Les deux routes (`export/images` et `export/images/group`) renvoient maintenant
+`new NextResponse(streamZip(prepared), { headers: {...} })` au lieu d'un `Buffer` entier.
+Aucun changement pour l'utilisateur ni pour le CMS : mêmes en-têtes, même contenu, la
+différence est invisible sauf pour un export qui dépassait 4,5 Mo, qui échouait
+silencieusement avant (413, jamais vu par personne puisque rien n'avait encore déclenché
+d'export aussi volumineux).
+
+**Vérifié :** 103 tests, dont 6 nouveaux — `build-zip.test.ts` (archive réelle relue et
+vérifiée par sa signature ZIP et sa fin de répertoire central, rapport d'images manquantes
+inclus) et `export/images/route.test.ts` (la route complète : 404, 502 sans le moindre
+octet envoyé quand tout échoue, et surtout succès avec `content-length` absent — c'est ce
+qui autorise à dépasser 4,5 Mo — et `res.body` qui est un vrai `ReadableStream`, pas un
+buffer). Plus `npm run build` propre. **Non vérifié :** un export réellement volumineux
+(>4,5 Mo) en production — les tests prouvent le mécanisme, pas la taille réelle des exports
+de ce projet.
 
 ### Phase 6 — Upload direct vers Vercel Blob ✅ fait le 2026-09-10 — à valider en production
 
@@ -563,11 +584,12 @@ Consigné pour éviter que ce soit reproposé plus tard.
 | 2 — Normalisation + 409 | ✅ fait | 0,5 j | 1 | — |
 | 4 — Aperçu du chemin | ✅ fait | 0,5 j | 1 | — |
 | 3 — Découpage `page.tsx` | ✅ fait (découpage de la vue écarté) | — | 1 | — |
-| 5 — Perf ZIP | 🟡 parallélisation + échecs remontés ; streaming en attente | 0,25 j restant | — | un export qui échoue en production |
+| 5 — Perf ZIP | ✅ fait | 0,5 j | — | — |
 | 6 — Upload direct Blob | ✅ fait — à valider en production | 1 j | — | — |
 | 7 — Dashboard recherche + « charger plus » | ✅ fait | 0,5 j | — | — |
 | 8 — Purge automatique | ✅ fait — `CRON_SECRET` à définir sur Vercel | 0,5 j | — | — |
 
-**Reste ~0,25 jour, conditionné.** L'app est bien utilisée en production sur Vercel (confirmé
-par le 413 du 2026-09-10). Seul le streaming de l'export ZIP (phase 5) reste ouvert : à lancer
-si un export échoue en production, sa réponse étant soumise au même plafond de 4,5 Mo.
+**Roadmap technique terminée.** Les 9 phases sont faites. Il reste deux choses à faire
+*avec* l'utilisateur, pas du code : valider en production l'upload direct (phase 6) et
+l'export ZIP volumineux (phase 5), et décider si les vidéos de carousel doivent être
+purgées comme celles de MEA v2 (question ouverte, phase 8).
