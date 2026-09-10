@@ -30,6 +30,8 @@ interface MeaV2FocusEditorProps {
   sectionCustomPath?: string;
   briefYear: number;
   briefLocale: string;
+  /** Démo publique : image seule (pas de vidéo), sans réglages de chemin CMS. */
+  minimal?: boolean;
 }
 
 export function MeaV2FocusEditor({
@@ -42,6 +44,7 @@ export function MeaV2FocusEditor({
   sectionCustomPath = "",
   briefYear,
   briefLocale,
+  minimal = false,
 }: MeaV2FocusEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   // Anciennes données sans champ buttons
@@ -58,19 +61,21 @@ export function MeaV2FocusEditor({
       <div className="flex w-37.5 shrink-0 flex-col items-center gap-1.5">
         <span className="text-[10px] font-medium text-muted-foreground">Carte focus (5)</span>
 
-        <Select
-          value={focus.mediaType}
-          items={{ image: "Image", video: "Vidéo" }}
-          onValueChange={(v) => v && onUpdate({ mediaType: v as "image" | "video" })}
-        >
-          <SelectTrigger className="h-7 w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="image">Image</SelectItem>
-            <SelectItem value="video">Vidéo</SelectItem>
-          </SelectContent>
-        </Select>
+        {!minimal && (
+          <Select
+            value={focus.mediaType}
+            items={{ image: "Image", video: "Vidéo" }}
+            onValueChange={(v) => v && onUpdate({ mediaType: v as "image" | "video" })}
+          >
+            <SelectTrigger className="h-7 w-full text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="image">Image</SelectItem>
+              <SelectItem value="video">Vidéo</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
 
         <button
           type="button"
@@ -94,7 +99,7 @@ export function MeaV2FocusEditor({
           {focus.mediaType === "video" ? "Vignette (poster)" : "Image"}
         </span>
 
-        {focus.mediaType === "video" && (
+        {!minimal && focus.mediaType === "video" && (
           <div
             className={cn(
               "flex w-full flex-col items-center gap-1.5 rounded-md border p-1.5",
@@ -138,16 +143,20 @@ export function MeaV2FocusEditor({
           briefWeek={briefWeek}
           imageId={focus.imageId}
           onChange={(imageWeek) => onUpdate({ imageWeek })}
-          imagePath={{
-            isGlobalImage,
-            globalFileName,
-            useCustomPath,
-            customPath,
-            sectionCustomPath,
-            briefYear,
-            briefLocale,
-            onChange: onUpdate,
-          }}
+          imagePath={
+            minimal
+              ? undefined
+              : {
+                  isGlobalImage,
+                  globalFileName,
+                  useCustomPath,
+                  customPath,
+                  sectionCustomPath,
+                  briefYear,
+                  briefLocale,
+                  onChange: onUpdate,
+                }
+          }
         />
 
         <Input

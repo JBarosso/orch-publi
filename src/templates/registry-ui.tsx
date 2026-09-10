@@ -63,6 +63,8 @@ export interface TemplateEditorProps {
   onOpenMedia: (target: string, assetType: AssetType) => void;
   onDropFile: (target: string, assetType: AssetType, file: File) => void;
   onOpenVideoUpload: (target: string) => void;
+  /** Démo publique : masque l'import CMS, les réglages de chemin CMS et la vidéo. */
+  minimal?: boolean;
 }
 
 export interface TemplateUi {
@@ -112,9 +114,11 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
   },
 
   macarons_v2: {
-    Editor: ({ content, brief, onChange, onOpenMedia, onDropFile }) => (
+    Editor: ({ content, brief, onChange, onOpenMedia, onDropFile, minimal }) => (
       <MacaronsEditor
-        variant="v2"
+        // La variante v1 n'a ni import CMS ni réglages de chemin : c'est
+        // exactement la version réduite voulue pour la démo.
+        variant={minimal ? "v1" : "v2"}
         items={(content as MacaronsContent)?.items ?? []}
         briefWeek={brief.week}
         briefYear={brief.year}
@@ -149,8 +153,9 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
   },
 
   mea_v2: {
-    Editor: ({ content, brief, onChange, onOpenMedia, onDropFile, onOpenVideoUpload }) => (
+    Editor: ({ content, brief, onChange, onOpenMedia, onDropFile, onOpenVideoUpload, minimal }) => (
       <MeaV2Editor
+        minimal={minimal}
         content={content as MeaV2Content}
         briefWeek={brief.week}
         briefYear={brief.year}
