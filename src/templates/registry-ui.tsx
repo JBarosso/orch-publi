@@ -1,9 +1,9 @@
 "use client";
 
-// Pendant visuel de `registry.ts` : à chaque type de section, son éditeur et
-// son aperçu. Séparé du registre principal parce que celui-ci est chargé par
-// les routes API — y mêler des composants React tirerait tout le front dans
-// les bundles serveur.
+// Pendant visuel de `registry.ts` : à chaque type de section, son éditeur, son
+// aperçu, et la façon de ranger une image ou une vidéo choisie. Séparé du
+// registre principal parce que celui-ci est chargé par les routes API — y
+// mêler des composants React tirerait tout le front dans les bundles serveur.
 //
 // Les éditeurs existants n'ont pas tous la même signature (certains reçoivent
 // `items`, d'autres `content` ; MEA v2 et carousel ont un upload vidéo ;
@@ -28,6 +28,7 @@ import type {
   MeaV2Content,
   MiniatureOffreContent,
 } from "@/types";
+import { normalizeCustomContent } from "@/templates/custom/schema";
 
 import { MacaronsEditor } from "@/templates/macarons/editor";
 import { MeaEditor } from "@/templates/mea/editor";
@@ -67,11 +68,30 @@ export interface TemplateEditorProps {
 export interface TemplateUi {
   Editor?: (props: TemplateEditorProps) => ReactNode;
   Preview?: (props: { content: unknown }) => ReactNode;
+  /** Range l'URL choisie (médiathèque ou upload) au `target` passé à `onOpenMedia`. */
+  setImage?: (content: unknown, target: string, url: string) => unknown;
+  /** Upload vidéo direct, enchaîné sur l'upload de sa vignette. */
+  video?: {
+    assetType: AssetType;
+    /** Range l'URL au `target` passé à `onOpenVideoUpload`. */
+    set: (content: unknown, target: string, url: string) => unknown;
+    /** Emplacement qui reçoit la vignette capturée sur la 1re frame. */
+    poster: (target: string) => { target: string; assetType: AssetType };
+  };
 }
 
 /** Remplace la liste d'items en conservant les réglages de section (ex: customPath). */
 function withItems(content: unknown, items: unknown): unknown {
   return { ...((content ?? {}) as Record<string, unknown>), items };
+}
+
+// Une nouvelle image est un fichier natif de la semaine du brief : semaine et
+// position figées redeviennent dynamiques.
+function setItemImage(content: unknown, itemId: string, url: string): unknown {
+  const items = ((content as { items?: { id: string }[] })?.items ?? []).map((item) =>
+    item.id === itemId ? { ...item, imageUrl: url, imageWeek: null, exportPosition: null } : item,
+  );
+  return withItems(content, items);
 }
 
 export const TEMPLATE_UI: Record<string, TemplateUi> = {
@@ -88,6 +108,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       />
     ),
     Preview: ({ content }) => <MacaronsPreview items={(content as MacaronsContent)?.items ?? []} />,
+    setImage: setItemImage,
   },
 
   macarons_v2: {
@@ -108,6 +129,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       />
     ),
     Preview: ({ content }) => <MacaronsV2Preview items={(content as MacaronsContent)?.items ?? []} />,
+    setImage: setItemImage,
   },
 
   mea: {
@@ -123,6 +145,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       />
     ),
     Preview: ({ content }) => <MeaPreview items={(content as MeaContent)?.items ?? []} />,
+    setImage: setItemImage,
   },
 
   mea_v2: {
@@ -144,6 +167,28 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       />
     ),
     Preview: ({ content }) => <MeaV2Preview content={content as MeaV2Content} />,
+    // Targets : "focus" ou "card-<index>".
+    setImage: (content, target, url) => {
+      const c = content as MeaV2Content;
+      if (target === "focus") {
+        return { ...c, focus: { ...c.focus, imageUrl: url, imageWeek: null } };
+      }
+      const index = Number(target.replace("card-", ""));
+      return {
+        ...c,
+        cards: c.cards.map((card, i) =>
+          i === index ? { ...card, imageUrl: url, imageWeek: null } : card,
+        ),
+      };
+    },
+    video: {
+      assetType: "mea_v2_video",
+      set: (content, _target, url) => {
+        const c = content as MeaV2Content;
+        return { ...c, focus: { ...c.focus, mediaType: "video", videoUrl: url } };
+      },
+      poster: () => ({ target: "focus", assetType: "mea_v2_focus" }),
+    },
   },
 
   custom: {
@@ -157,6 +202,15 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       />
     ),
     Preview: ({ content }) => <CustomPreview content={content as CustomContent} />,
+    setImage: (content, target, url) => {
+      const c = normalizeCustomContent(content);
+      return {
+        ...c,
+        blocks: c.blocks.map((block) =>
+          block.id === target ? { ...block, imageUrl: url, imageWeek: null } : block,
+        ),
+      };
+    },
   },
 
   edito: {
@@ -170,6 +224,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       />
     ),
     Preview: ({ content }) => <EditoPreview items={(content as EditoContent)?.items ?? []} />,
+    setImage: setItemImage,
   },
 
   img_sous_menu: {
@@ -185,6 +240,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
     Preview: ({ content }) => (
       <ImgSousMenuPreview items={(content as ImgSousMenuContent)?.items ?? []} />
     ),
+    setImage: setItemImage,
   },
 
   cat_banner: {
@@ -207,6 +263,14 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       />
     ),
     Preview: ({ content }) => <CatBannerPreview items={(content as CatBannerContent)?.items ?? []} />,
+    setImage: (content, target, url) => {
+      const [itemId, slot] = target.split(":");
+      const field = slot === "desktop" ? "desktopImageUrl" : "mobileImageUrl";
+      const items = ((content as CatBannerContent)?.items ?? []).map((item) =>
+        item.id === itemId ? { ...item, [field]: url, imageWeek: null, exportPosition: null } : item,
+      );
+      return withItems(content, items);
+    },
   },
 
   miniature_offre: {
@@ -222,6 +286,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
     Preview: ({ content }) => (
       <MiniatureOffrePreview items={(content as MiniatureOffreContent)?.items ?? []} />
     ),
+    setImage: setItemImage,
   },
 
   carousel: {
@@ -241,6 +306,34 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       />
     ),
     Preview: ({ content }) => <CarouselPreview content={content as CarouselContent} />,
+    // Targets : "slide-<index>" ou "title-<index>".
+    setImage: (content, target, url) => {
+      const c = content as CarouselContent;
+      const [kind, index] = target.split("-");
+      return {
+        ...c,
+        slides: c.slides.map((slide, i) => {
+          if (i !== Number(index)) return slide;
+          return kind === "title"
+            ? { ...slide, titleImageUrl: url, titleImageWeek: null }
+            : { ...slide, imageUrl: url, imageWeek: null };
+        }),
+      };
+    },
+    video: {
+      assetType: "carousel_video",
+      // Le target est l'index de la diapositive.
+      set: (content, target, url) => {
+        const c = content as CarouselContent;
+        return {
+          ...c,
+          slides: c.slides.map((slide, i) =>
+            i === Number(target) ? { ...slide, mediaType: "video", videoUrl: url } : slide,
+          ),
+        };
+      },
+      poster: (target) => ({ target: `slide-${target}`, assetType: "carousel" }),
+    },
   },
 
   ariane: {

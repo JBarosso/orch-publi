@@ -181,7 +181,7 @@ une autre non, la seconde est déjà écrite quand l'erreur s'affiche. Un endpoi
 sauvegarde groupée transactionnel serait le vrai correctif ; en pratique deux personnes qui
 éditent des sections différentes ne se gênent pas, et le message invite à recharger.
 
-### Phase 3 — Décomposition de `page.tsx` (1 j) — 🟡 à moitié fait le 2026-09-09
+### Phase 3 — Décomposition de `page.tsx` (1 j) — ✅ fait le 2026-09-10 (découpage de la vue écarté)
 
 Le fichier dépasse 1 400 lignes et mélange orchestration des sections, médiathèque, upload,
 drag & drop et garde de sauvegarde. La phase 1 en supprime déjà la plus grosse part
@@ -233,9 +233,28 @@ modification, deux sauvegardes successives qui passent (donc pas de faux 409), c
 réellement persisté, et dialogue « Modifications non sauvegardées » qui bloque bien le
 retour au dashboard.
 
-**Reste à faire :** le découpage de la vue en `<BriefHeader>` / `<BriefEditorPanel>` /
-`<BriefPreviewPanel>` (surtout cosmétique désormais), et `handleImageSelected` qui porte
-encore une cascade par type — prochain candidat naturel pour le registre UI.
+**Fait — images et vidéos passent par le registre UI.** Chaque entrée déclare
+`setImage(content, target, url)`, et MEA v2 / carousel déclarent en plus
+`video { assetType, set, poster }`. `handleImageSelected` passe de 110 lignes à 8, et les
+deux dialogues d'upload vidéo quasi identiques (MEA v2, carousel) n'en font plus qu'un :
+**`page.tsx` ne teste plus nulle part le type d'une section.** Ajouter un template avec des
+images ne demande plus de toucher à ce fichier. **`page.tsx` : 1 508 → 843 lignes.**
+
+**Bug corrigé au passage :** choisir une image dans une section Macaron v2 remplaçait le
+contenu par `{ items }` et **effaçait le chemin custom de la section**. `setItemImage`
+passe par `withItems`, qui conserve les réglages de section. Test de régression dans
+`registry-ui.test.ts` (5 tests : cette régression, fond/titre du carousel, desktop/mobile
+de la cat banner, focus/cartes MEA v2, vidéo + vignette du carousel).
+
+**Écarté — le découpage de la vue** en `<BriefHeader>` / `<BriefEditorPanel>` /
+`<BriefPreviewPanel>`, ainsi que `useMediaTarget`. Il ne reste dans `page.tsx` que de
+l'orchestration (dialogues, actions gardées) et du JSX : le découper déplacerait une
+vingtaine de props d'un fichier à l'autre sans retirer de logique. À rouvrir si l'un de ces
+blocs doit être réutilisé ailleurs.
+
+**Vérifié :** 87 tests, typecheck et lint propres. **Non rejoué dans le navigateur** (la
+connexion demande le mot de passe de l'app) : choix d'une image dans chaque type, et
+enchaînement vidéo → vignette sur MEA v2 et carousel.
 
 ### Phase 4 — Aperçu du chemin final ✅ fait le 2026-09-09
 
@@ -313,6 +332,12 @@ entièrement en mémoire (`chunks` + `Buffer.concat`), ce qui plafonne l'export 
 les vidéos. C'est le point le plus délicat du fichier (cf. le deadlock documenté en tête),
 à traiter séparément.
 
+**Conflit identifié :** streamer oblige à envoyer les premiers octets avant de savoir si
+les images suivantes seront lisibles — le `502` « aucune image lisible » ajouté ci-dessus
+deviendrait impossible. Tant que les exports passent, l'avertissement vaut mieux que le gain
+mémoire. **Déclencheur :** un export qui échoue en production (cf. la question de la
+limite de 4,5 Mo en phase 6, qui s'applique aussi aux réponses).
+
 ### Phase 6 — Upload direct vers Vercel Blob (1 j)
 
 Aujourd'hui les fichiers transitent en base64 par la fonction serveur, d'où le
@@ -325,6 +350,20 @@ les octets vont du navigateur au blob sans traverser la fonction.
 devient « upload puis conversion sur le blob stocké » au lieu de « conversion dans le corps
 de la requête ». Un peu plus de pièces mobiles, mais c'est la seule façon de sortir de la
 limite de 1,4 Go.
+
+**Question à trancher avant de lancer la phase (2026-09-10) :** sur Vercel, le corps des
+requêtes **et des réponses** d'une fonction est plafonné à 4,5 Mo, et
+`proxyClientMaxBodySize` n'y change rien — il ne joue qu'en local. En production, on
+s'attendrait donc à voir échouer une vidéo au-delà d'environ 3,3 Mo (base64), un TIFF
+au-delà de 4,5 Mo, et un export ZIP au-delà de 4,5 Mo. Si l'app est utilisée en local
+(`npm run dev` sur la base et le Blob partagés), rien de tout ça ne se produit et la phase
+peut attendre. Si elle est utilisée en production et que ces cas échouent, le déclencheur
+est atteint — pour cette phase comme pour le streaming de la phase 5.
+
+Deux points à ne pas rater si elle est lancée : `handleUpload` de `@vercel/blob/client`
+confirme la fin d'upload par un rappel de Vercel vers la route, qui n'aura pas de cookie de
+session (même piège que le cron, cf. phase 8) et qui n'arrive pas en local ; et sans
+`BLOB_READ_WRITE_TOKEN`, l'upload direct est impossible, il faut garder le chemin actuel.
 
 ### Phase 7 — Dashboard : recherche + affichage progressif ✅ fait le 2026-09-09
 
@@ -375,7 +414,7 @@ plus » révèle les 15 et le bouton disparaît ; et surtout, un brief **absent 
 visibles** est bien trouvé par la recherche, et le tri par semaine réordonne sur
 l'ensemble — c'était l'exigence.
 
-### Phase 8 — Purge de rétention automatique (0,5 j)
+### Phase 8 — Purge de rétention automatique ✅ fait le 2026-09-10 — `CRON_SECRET` à définir sur Vercel
 
 **État constaté :** il n'y a **pas de `vercel.json`**, donc **aucun cron n'est configuré**.
 La purge est exclusivement manuelle. La mécanique est déjà propre :
@@ -410,6 +449,45 @@ de briefs et d'assets supprimés) et l'afficher dans l'onglet Paramétrage. Une 
 **Urgence :** dépend de la durée de conservation configurée. Si elle est de 2 ans (valeur
 évoquée dans la roadmap produit), rien n'expire avant un moment et le cron peut attendre.
 
+**Bug trouvé en préparant l'automatisation — corrigé.** Pour savoir si une image est encore
+utilisée, `retention.ts` listait les champs à inspecter par template : `blocks` (custom),
+`cards` + `focus` (MEA v2), `items[].imageUrl` pour le reste. Étaient ignorés le carousel
+(visuel de fond, titre en image, vidéo), la cat banner (visuels desktop et mobile) et les
+templates personnalisés. Une image de plus de N mois réutilisée dans l'une de ces sections
+était donc jugée orpheline **et supprimée par la purge manuelle**. L'automatiser sans
+correctif aurait rendu cette perte quotidienne et invisible.
+
+Remplacé par un repérage générique : toute URL d'asset présente n'importe où dans le JSON
+des sections conservées **et des templates personnalisés** compte comme une référence, y
+compris dans du HTML libre. Aucune liste de champs à tenir à jour quand un template est
+ajouté. Tests dans `retention.test.ts`.
+
+**Réalisé :**
+
+- `vercel.json` : cron quotidien à 3 h UTC vers `GET /api/cron/retention`.
+- La route est ajoutée aux chemins publics de `src/proxy.ts` et vérifie
+  `Authorization: Bearer <CRON_SECRET>`, que Vercel envoie tout seul quand la variable
+  existe. **Sans `CRON_SECRET`, elle refuse tout** — sinon `Bearer ` suffirait à
+  déclencher une suppression.
+- `runScheduledPurge()` : briefs et images seulement si le réglage est actif, vidéos MEA v2
+  toujours. Le compte rendu (date, compteurs, message d'erreur éventuel) est conservé dans
+  `settings` sous `lastScheduledPurge`.
+- Paramétrage : toggle « Purge automatique chaque nuit », **désactivé par défaut** et
+  confirmation à l'activation ; ligne « Dernier passage le … » (en rouge en cas d'échec) ;
+  avertissement si `CRON_SECRET` n'est pas défini sur le déploiement.
+- `src/instrumentation.ts` est laissé tel quel. Sur Vercel ses minuteries ne sont pas
+  fiables (une instance est gelée entre deux requêtes) : c'est désormais le cron qui
+  garantit la purge vidéo en production. En local, rien ne change.
+
+**Vérifié :** 401 sans en-tête et avec `Bearer ` vide (pas de `CRON_SECRET` en local), et
+les autres routes toujours redirigées vers `/login` ; 4 tests sur le contrôle d'accès de la
+route, 4 sur le repérage des références. **Non vérifié :** un vrai passage du cron
+(demande un déploiement et `CRON_SECRET`), et l'écran Paramétrage (connexion requise).
+
+**Question ouverte :** la purge vidéo ne vise que `mea_v2_video`. Les vidéos du carousel
+(`carousel_video`), tout aussi lourdes, ne sont jamais purgées. Laissé tel quel en attendant
+une décision : les inclure est une ligne, mais cela supprime des fichiers.
+
 ---
 
 ## Volume de données : vérifié, non bloquant
@@ -420,8 +498,8 @@ faire côté base**, hors index de confort sur `briefSections.briefId` et `asset
 
 Ce qui s'accumule réellement : **les assets** (~30 images par brief → ~4 500 fichiers/an dans
 Vercel Blob, plus les vidéos), et ça ne décroît jamais tout seul. Les routes
-`/api/retention/purge` et `purge-videos` existent déjà, mais **uniquement en déclenchement
-manuel** — c'est l'objet de la phase 8.
+`/api/retention/purge` et `purge-videos` existaient, mais **uniquement en déclenchement
+manuel** — la phase 8 les automatise.
 
 Effet secondaire du volume, côté UX et non perf : à ~450 briefs le dashboard devient pénible
 à parcourir, et il n'a aujourd'hui ni recherche ni pagination — c'est l'objet de la phase 7.
@@ -438,6 +516,7 @@ Consigné pour éviter que ce soit reproposé plus tard.
 | Validation bloquante avant publication | Le statut « publié » est purement visuel pour les utilisateurs, il ne déclenche rien. |
 | Historique des publications | Pas de besoin exprimé. |
 | Diff entre deux briefs | Jugé sans valeur d'usage. |
+| Découpage de la vue de `page.tsx` (`<BriefHeader>`, `<BriefEditorPanel>`, `<BriefPreviewPanel>`) | Plus aucune logique par template dans le fichier : le découper déplacerait des props sans rien simplifier. À rouvrir si un bloc doit être réutilisé. |
 
 ---
 
@@ -449,15 +528,13 @@ Consigné pour éviter que ce soit reproposé plus tard.
 | 1 — Registre de templates | ✅ fait | 1 j | 0 | prérequis du P1 produit |
 | 2 — Normalisation + 409 | ✅ fait | 0,5 j | 1 | — |
 | 4 — Aperçu du chemin | ✅ fait | 0,5 j | 1 | — |
-| 3 — Découpage `page.tsx` | 🟡 registre UI + hook faits ; découpage de la vue à faire | 0,25 j restant | 1 | — |
-| 5 — Perf ZIP | 🟡 parallélisation + échecs remontés ; streaming à faire | 0,25 j restant | — | — |
-| 6 — Upload direct Blob | à faire | 1 j | — | si un upload dépasse la limite |
+| 3 — Découpage `page.tsx` | ✅ fait (découpage de la vue écarté) | — | 1 | — |
+| 5 — Perf ZIP | 🟡 parallélisation + échecs remontés ; streaming en attente | 0,25 j restant | — | un export qui échoue en production |
+| 6 — Upload direct Blob | en attente | 1 j | — | un upload qui échoue en production |
 | 7 — Dashboard recherche + « charger plus » | ✅ fait | 0,5 j | — | — |
-| 8 — Purge automatique | à faire | 0,5 j | — | avant la fin de la 1re fenêtre de rétention |
+| 8 — Purge automatique | ✅ fait — `CRON_SECRET` à définir sur Vercel | 0,5 j | — | — |
 
-**Reste ~3,5 jours.** Les phases 5 à 8 sont indépendantes et s'intercalent au moment où
-leur déclencheur se présente.
-
-Prochaine étape naturelle : la phase 3, qui s'appuie sur le registre — il faut d'abord un
-registre UI (`registry-ui.tsx`, séparé pour ne pas tirer les composants React dans les
-bundles serveur) avec des props d'éditeur uniformisées, puis l'extraction des hooks.
+**Reste ~1,25 jour, entièrement conditionné.** Les phases 5 (streaming) et 6 dépendent de la
+même question : l'app est-elle utilisée en production sur Vercel, où requêtes et réponses
+des fonctions sont plafonnées à 4,5 Mo ? Si oui et que des uploads ou exports y échouent,
+les deux se lancent ensemble ; sinon elles attendent.

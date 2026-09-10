@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Eraser,
   Loader2,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { HeaderColor } from "@/lib/header-colors";
+import type { ScheduledPurgeReport } from "@/lib/retention";
 
 interface PurgePreview {
   cutoff: string;
@@ -36,6 +38,10 @@ export default function SettingsPage() {
   const [preview, setPreview] = useState<PurgePreview | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [purging, setPurging] = useState(false);
+  const [autoPurge, setAutoPurge] = useState(false);
+  const [savingAutoPurge, setSavingAutoPurge] = useState(false);
+  const [cronConfigured, setCronConfigured] = useState(true);
+  const [lastScheduledPurge, setLastScheduledPurge] = useState<ScheduledPurgeReport | null>(null);
 
   const [videoDays, setVideoDays] = useState<string>("");
   const [savedVideoDays, setSavedVideoDays] = useState<number | null>(null);
@@ -62,6 +68,9 @@ export default function SettingsPage() {
       setSavedVideoDays(data.videoRetentionDays);
       setColors(data.headerColors ?? []);
       setSavedColors(data.headerColors ?? []);
+      setAutoPurge(data.autoPurgeEnabled === true);
+      setCronConfigured(data.cronConfigured === true);
+      setLastScheduledPurge(data.lastScheduledPurge ?? null);
     })();
   }, []);
 
@@ -139,6 +148,34 @@ export default function SettingsPage() {
       fetchPreview();
     } finally {
       setPurging(false);
+    }
+  };
+
+  const handleAutoPurgeChange = async (enabled: boolean) => {
+    if (
+      enabled &&
+      !confirm(
+        `Chaque nuit, les briefs traités de plus de ${savedMonths} mois et les images expirées non utilisées seront supprimés définitivement, sans aperçu ni confirmation.\n\nActiver la purge automatique ?`,
+      )
+    )
+      return;
+
+    setSavingAutoPurge(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoPurgeEnabled: enabled }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Erreur lors de la sauvegarde");
+        return;
+      }
+      setAutoPurge(data.autoPurgeEnabled);
+      toast.success(enabled ? "Purge automatique activée" : "Purge automatique désactivée");
+    } finally {
+      setSavingAutoPurge(false);
     }
   };
 
@@ -240,8 +277,8 @@ export default function SettingsPage() {
         <p className="mt-1 text-xs text-muted-foreground">
           Les briefs <strong>traités </strong> plus anciens que cette durée, et
           les images de la médiathèque anciennes et non utilisées par un brief
-          restant, deviennent éligibles à la purge. Aucune suppression n&apos;est
-          automatique : la purge est déclenchée manuellement ci-dessous.
+          restant, deviennent éligibles à la purge, déclenchée manuellement
+          ci-dessous ou chaque nuit si la purge automatique est activée.
         </p>
         <div className="mt-4 flex items-end gap-3">
           <div className="space-y-1.5">
@@ -290,6 +327,44 @@ export default function SettingsPage() {
             )}
             Aperçu de la purge
           </Button>
+        </div>
+
+        <div className="mt-4 flex items-start justify-between gap-3 border-t border-border/60 pt-4">
+          <div>
+            <Label htmlFor="auto-purge">Purge automatique chaque nuit</Label>
+            {!cronConfigured && (
+              <p className="mt-1 text-xs text-amber-600">
+                CRON_SECRET n&apos;est pas défini sur ce déploiement : le passage
+                automatique est refusé et ne tournera pas.
+              </p>
+            )}
+            {lastScheduledPurge?.error ? (
+              <p className="mt-1 text-xs text-red-600">
+                Dernier passage le{" "}
+                {new Date(lastScheduledPurge.ranAt).toLocaleString("fr-FR")} : échec —{" "}
+                {lastScheduledPurge.error}
+              </p>
+            ) : lastScheduledPurge ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Dernier passage le{" "}
+                {new Date(lastScheduledPurge.ranAt).toLocaleString("fr-FR")} :{" "}
+                {lastScheduledPurge.briefPurgeEnabled
+                  ? `${lastScheduledPurge.deletedBriefs} brief(s), ${lastScheduledPurge.deletedAssets} image(s) et `
+                  : ""}
+                {lastScheduledPurge.deletedVideos} vidéo(s) supprimé(s)
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Aucun passage automatique enregistré pour l&apos;instant.
+              </p>
+            )}
+          </div>
+          <Switch
+            id="auto-purge"
+            checked={autoPurge}
+            disabled={savingAutoPurge || savedMonths === null}
+            onCheckedChange={handleAutoPurgeChange}
+          />
         </div>
 
         {preview && (

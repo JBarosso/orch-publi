@@ -28,19 +28,7 @@ import {
   Separator as PanelResizeHandle,
   useGroupRef,
 } from "react-resizable-panels";
-import type { BriefSection, MacaronItem } from "@/types";
-import type { BriefStatus } from "@/types";
-import { normalizeCustomContent } from "@/templates/custom/schema";
-import type {
-  MeaItem,
-  MeaV2Content,
-  CarouselContent,
-  CatBannerContent,
-  EditoCard,
-  ImgSousMenuItem,
-  MiniatureOffreItem,
-  CustomTemplate,
-} from "@/types";
+import type { BriefSection, BriefStatus, CustomTemplate, MacaronItem, MeaItem } from "@/types";
 import { TEMPLATE_UI } from "@/templates/registry-ui";
 import { useBriefSections } from "./use-brief-sections";
 import { StatusActions } from "@/components/editor/status-actions";
@@ -74,7 +62,6 @@ export default function BriefEditorPage({
     saving,
     dirty,
     setDirty,
-    applySections,
     updateSection,
     handleSave,
     refetch: fetchBrief,
@@ -92,17 +79,11 @@ export default function BriefEditorPage({
   // recadrage ne fasse pas apparaître une médiathèque jamais demandée.
   const [directDropUpload, setDirectDropUpload] = useState(false);
   const [uploadAssetType, setUploadAssetType] = useState<AssetType>("other");
-  // Carte focus MEA v2 : upload vidéo dédié (pas de médiathèque, direct à l'upload),
-  // avec chaînage vers l'upload de la vignette pré-remplie par la 1ère frame capturée
-  const [videoUploadSectionId, setVideoUploadSectionId] = useState<string | null>(null);
+  // Upload vidéo (carte focus MEA v2, diapositive de carousel) : direct, sans
+  // médiathèque, puis enchaîné sur l'upload de la vignette pré-remplie par la
+  // 1ère frame capturée. Le détail par template vit dans TEMPLATE_UI[type].video.
+  const [videoTarget, setVideoTarget] = useState<{ sectionId: string; target: string } | null>(null);
   const [capturedPosterFile, setCapturedPosterFile] = useState<File | null>(null);
-  // Carousel : même principe que MEA v2 ci-dessus, mais 2 diapositives
-  // possibles donc on garde aussi l'index de la diapositive ciblée.
-  const [carouselVideoTarget, setCarouselVideoTarget] = useState<{
-    sectionId: string;
-    slideIndex: number;
-  } | null>(null);
-  const [carouselCapturedPosterFile, setCarouselCapturedPosterFile] = useState<File | null>(null);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
   // Action bloquée par des modifications non sauvegardées (supprimer/dupliquer
   // une section, changer le statut...) : on la met de côté plutôt que de
@@ -206,114 +187,13 @@ export default function BriefEditorPage({
 
   const handleImageSelected = useCallback((url: string) => {
     if (!mediaTarget) return;
-
-    const target = mediaTarget;
-    applySections((prev) =>
-      prev.map((section) => {
-        if (section.id !== target.sectionId) return section;
-        if (section.type === "custom") {
-          const content = normalizeCustomContent(section.content);
-          return {
-            ...section,
-            content: {
-              ...content,
-              // Nouvelle image = nouveau fichier pour la semaine courante :
-              // on redevient natif (imageWeek redevient dynamique).
-              blocks: content.blocks.map((block) =>
-                block.id === target.itemId ? { ...block, imageUrl: url, imageWeek: null } : block,
-              ),
-            },
-          };
-        }
-        if (section.type === "mea_v2") {
-          const content = section.content as MeaV2Content;
-          if (target.itemId === "focus") {
-            return {
-              ...section,
-              content: { ...content, focus: { ...content.focus, imageUrl: url, imageWeek: null } },
-            };
-          }
-          const cardMatch = /^card-(\d+)$/.exec(target.itemId);
-          if (cardMatch) {
-            const idx = Number(cardMatch[1]);
-            return {
-              ...section,
-              content: {
-                ...content,
-                cards: content.cards.map((c, i) =>
-                  i === idx ? { ...c, imageUrl: url, imageWeek: null } : c,
-                ),
-              },
-            };
-          }
-          return section;
-        }
-        if (section.type === "carousel") {
-          const content = section.content as CarouselContent;
-          const slideMatch = /^slide-(\d+)$/.exec(target.itemId);
-          if (slideMatch) {
-            const idx = Number(slideMatch[1]);
-            return {
-              ...section,
-              content: {
-                ...content,
-                slides: content.slides.map((s, i) =>
-                  i === idx ? { ...s, imageUrl: url, imageWeek: null } : s,
-                ),
-              },
-            };
-          }
-          const titleMatch = /^title-(\d+)$/.exec(target.itemId);
-          if (titleMatch) {
-            const idx = Number(titleMatch[1]);
-            return {
-              ...section,
-              content: {
-                ...content,
-                slides: content.slides.map((s, i) =>
-                  i === idx ? { ...s, titleImageUrl: url, titleImageWeek: null } : s,
-                ),
-              },
-            };
-          }
-          return section;
-        }
-        if (section.type === "cat_banner") {
-          const content = section.content as CatBannerContent;
-          const slotMatch = /^(.+):(desktop|mobile)$/.exec(target.itemId);
-          if (slotMatch) {
-            const [, itemId, slot] = slotMatch;
-            const field = slot === "desktop" ? "desktopImageUrl" : "mobileImageUrl";
-            return {
-              ...section,
-              content: {
-                ...content,
-                items: content.items.map((item) =>
-                  item.id === itemId
-                    ? { ...item, [field]: url, imageWeek: null, exportPosition: null }
-                    : item,
-                ),
-              },
-            };
-          }
-          return section;
-        }
-        const content = section.content as {
-          items?: (MacaronItem | MeaItem | EditoCard | ImgSousMenuItem | MiniatureOffreItem)[];
-        };
-        // Nouvelle image sélectionnée/uploadée : redevient native de la
-        // semaine courante (semaine + position figées repassent dynamiques).
-        const items = (content.items ?? []).map((item) =>
-          item.id === target.itemId
-            ? { ...item, imageUrl: url, imageWeek: null, exportPosition: null }
-            : item,
-        );
-        return { ...section, content: { items } };
-      }),
-    );
-
+    const { sectionId, itemId } = mediaTarget;
+    updateSection(sectionId, (section) => {
+      const setImage = TEMPLATE_UI[section.type]?.setImage;
+      return setImage ? { content: setImage(section.content, itemId, url) } : {};
+    });
     setMediaTarget(null);
-  }, [mediaTarget, applySections]);
+  }, [mediaTarget, updateSection]);
 
   // Templates publiés proposés dans le dialogue de création de section
   useEffect(() => {
@@ -451,15 +331,7 @@ export default function BriefEditorPage({
         onDropFile={(target, type, file) =>
           handleDirectDrop({ sectionId: section.id, itemId: target, type }, file)
         }
-        onOpenVideoUpload={(target) => {
-          // Carousel : le target porte l'index de la diapositive ; MEA v2 n'a
-          // qu'une carte focus, donc pas d'index à transmettre.
-          if (section.type === "carousel") {
-            setCarouselVideoTarget({ sectionId: section.id, slideIndex: Number(target) });
-          } else {
-            setVideoUploadSectionId(section.id);
-          }
-        }}
+        onOpenVideoUpload={(target) => setVideoTarget({ sectionId: section.id, target })}
       />
     );
   };
@@ -924,104 +796,48 @@ export default function BriefEditorPage({
         );
       })()}
 
-      {videoUploadSectionId && (
-        <ImageUploadDialog
-          assetType="mea_v2_video"
-          defaultWeek={brief.week}
-          defaultYear={brief.year}
-          onFileSelected={(file) => {
-            captureVideoFirstFrame(file)
-              .then((dataUrl) => dataUrlToFile(dataUrl, "vignette.jpg"))
-              .then(setCapturedPosterFile)
-              .catch(() => setCapturedPosterFile(null));
-          }}
-          onUploaded={(url) => {
-            const sectionId = videoUploadSectionId;
-            applySections((prev) =>
-              prev.map((s) => {
-                if (s.id !== sectionId || s.type !== "mea_v2") return s;
-                const content = s.content as MeaV2Content;
-                return {
-                  ...s,
-                  content: {
-                    ...content,
-                    focus: { ...content.focus, mediaType: "video" as const, videoUrl: url },
-                  },
-                };
-              }),
-            );
-            // Enchaîne sur l'upload de la vignette, pré-remplie par la 1ère
-            // frame capturée côté navigateur (l'utilisateur ajuste le cadrage).
-            // Toast explicite pour que ce 2e popin ne soit pas pris pour le
-            // premier resté ouvert.
-            if (sectionId && capturedPosterFile) {
-              toast.success("Vidéo uploadée — ajustez le cadrage de la vignette suggérée", {
-                duration: 5000,
-              });
-              setMediaTarget({ sectionId, itemId: "focus", type: "mea_v2_focus" });
-              setDroppedFile(capturedPosterFile);
-              setUploadAssetType("mea_v2_focus");
-              setShowUpload(true);
-            }
-            setVideoUploadSectionId(null);
-            setCapturedPosterFile(null);
-          }}
-          onClose={() => {
-            setVideoUploadSectionId(null);
-            setCapturedPosterFile(null);
-          }}
-        />
-      )}
-      {carouselVideoTarget && (
-        <ImageUploadDialog
-          assetType="carousel_video"
-          defaultWeek={brief.week}
-          defaultYear={brief.year}
-          onFileSelected={(file) => {
-            captureVideoFirstFrame(file)
-              .then((dataUrl) => dataUrlToFile(dataUrl, "vignette.jpg"))
-              .then(setCarouselCapturedPosterFile)
-              .catch(() => setCarouselCapturedPosterFile(null));
-          }}
-          onUploaded={(url) => {
-            const { sectionId, slideIndex } = carouselVideoTarget;
-            applySections((prev) =>
-              prev.map((s) => {
-                if (s.id !== sectionId || s.type !== "carousel") return s;
-                const content = s.content as CarouselContent;
-                return {
-                  ...s,
-                  content: {
-                    ...content,
-                    slides: content.slides.map((slide, i) =>
-                      i === slideIndex
-                        ? { ...slide, mediaType: "video" as const, videoUrl: url }
-                        : slide,
-                    ),
-                  },
-                };
-              }),
-            );
-            // Enchaîne sur l'upload de la vignette, pré-remplie par la 1ère
-            // frame capturée côté navigateur (l'utilisateur ajuste le cadrage).
-            if (carouselCapturedPosterFile) {
-              toast.success("Vidéo uploadée — ajustez le cadrage de la vignette suggérée", {
-                duration: 5000,
-              });
-              setMediaTarget({ sectionId, itemId: `slide-${slideIndex}`, type: "carousel" });
-              setDroppedFile(carouselCapturedPosterFile);
-              setUploadAssetType("carousel");
-              setShowUpload(true);
-            }
-            setCarouselVideoTarget(null);
-            setCarouselCapturedPosterFile(null);
-          }}
-          onClose={() => {
-            setCarouselVideoTarget(null);
-            setCarouselCapturedPosterFile(null);
-          }}
-        />
-      )}
+      {videoTarget && (() => {
+        const section = sections.find((s) => s.id === videoTarget.sectionId);
+        const video = section ? TEMPLATE_UI[section.type]?.video : undefined;
+        if (!video) return null;
+        const closeVideoUpload = () => {
+          setVideoTarget(null);
+          setCapturedPosterFile(null);
+        };
+        return (
+          <ImageUploadDialog
+            assetType={video.assetType}
+            defaultWeek={brief.week}
+            defaultYear={brief.year}
+            onFileSelected={(file) => {
+              captureVideoFirstFrame(file)
+                .then((dataUrl) => dataUrlToFile(dataUrl, "vignette.jpg"))
+                .then(setCapturedPosterFile)
+                .catch(() => setCapturedPosterFile(null));
+            }}
+            onUploaded={(url) => {
+              const { sectionId, target } = videoTarget;
+              updateSection(sectionId, (s) => ({ content: video.set(s.content, target, url) }));
+              // Enchaîne sur l'upload de la vignette, pré-remplie par la 1ère
+              // frame capturée côté navigateur (l'utilisateur ajuste le cadrage).
+              // Toast explicite pour que ce 2e popin ne soit pas pris pour le
+              // premier resté ouvert.
+              if (capturedPosterFile) {
+                const poster = video.poster(target);
+                toast.success("Vidéo uploadée — ajustez le cadrage de la vignette suggérée", {
+                  duration: 5000,
+                });
+                setMediaTarget({ sectionId, itemId: poster.target, type: poster.assetType });
+                setDroppedFile(capturedPosterFile);
+                setUploadAssetType(poster.assetType);
+                setShowUpload(true);
+              }
+              closeVideoUpload();
+            }}
+            onClose={closeVideoUpload}
+          />
+        );
+      })()}
     </div>
   );
 }

@@ -8,16 +8,31 @@ import {
   setVideoRetentionDays,
   MIN_VIDEO_RETENTION_DAYS,
   MAX_VIDEO_RETENTION_DAYS,
+  getAutoPurgeEnabled,
+  setAutoPurgeEnabled,
+  getLastScheduledPurge,
 } from "@/lib/retention";
 import { getHeaderColors, setHeaderColors, type HeaderColor } from "@/lib/header-colors";
 
 export async function GET() {
-  const [retentionMonths, videoRetentionDays, headerColors] = await Promise.all([
-    getRetentionMonths(),
-    getVideoRetentionDays(),
-    getHeaderColors(),
-  ]);
-  return NextResponse.json({ retentionMonths, videoRetentionDays, headerColors });
+  const [retentionMonths, videoRetentionDays, headerColors, autoPurgeEnabled, lastScheduledPurge] =
+    await Promise.all([
+      getRetentionMonths(),
+      getVideoRetentionDays(),
+      getHeaderColors(),
+      getAutoPurgeEnabled(),
+      getLastScheduledPurge(),
+    ]);
+  return NextResponse.json({
+    retentionMonths,
+    videoRetentionDays,
+    headerColors,
+    autoPurgeEnabled,
+    lastScheduledPurge,
+    // Sans secret, la route de cron refuse tous les appels : le passage
+    // automatique ne tournerait jamais, et l'interface doit le dire.
+    cronConfigured: !!process.env.CRON_SECRET,
+  });
 }
 
 export async function PUT(request: NextRequest) {
@@ -57,6 +72,17 @@ export async function PUT(request: NextRequest) {
     }
     await setVideoRetentionDays(days);
     return NextResponse.json({ videoRetentionDays: days });
+  }
+
+  if (body.autoPurgeEnabled !== undefined) {
+    if (typeof body.autoPurgeEnabled !== "boolean") {
+      return NextResponse.json(
+        { error: "autoPurgeEnabled doit être un booléen" },
+        { status: 400 },
+      );
+    }
+    await setAutoPurgeEnabled(body.autoPurgeEnabled);
+    return NextResponse.json({ autoPurgeEnabled: body.autoPurgeEnabled });
   }
 
   if (body.headerColors !== undefined) {

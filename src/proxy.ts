@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/preview/cms-css"];
+// /api/cron : appelée par le cron Vercel, qui n'a pas de cookie de session —
+// la route vérifie elle-même CRON_SECRET.
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/preview/cms-css", "/api/cron"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

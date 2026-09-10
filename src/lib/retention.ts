@@ -1,11 +1,10 @@
 import { db } from "@/lib/db";
-import { assets, briefs, briefSections, settings } from "@/lib/schema";
+import { assets, briefs, briefSections, customTemplates, settings } from "@/lib/schema";
 import { and, eq, inArray, lt, notInArray } from "drizzle-orm";
 import { deleteAsset } from "@/lib/storage";
-import type { CustomContent, MeaV2Content } from "@/types";
 
-// Rétention des données — v1 : dry-run + purge manuelle pour les briefs
-// (pas d'automatisme). La purge vidéo MEA v2 (plus bas) est automatique.
+// Rétention des données : aperçu (dry-run) et purge manuelle depuis
+// Paramétrage, plus un passage automatique quotidien (cf. runScheduledPurge).
 // Éligibles : briefs « traités » créés avant la date limite (+ sections en cascade),
 // puis assets créés avant la date limite ET non référencés par les briefs restants.
 
@@ -48,25 +47,33 @@ export interface PurgePreview {
   assets: { id: string; url: string; label: string; createdAt: Date }[];
 }
 
-// Extrait les URLs (/uploads/...) référencées dans le contenu d'une section —
-// images et vidéos, tous types de section confondus (items, blocks, cards+focus).
-function extractReferencedAssetUrls(type: string, content: unknown): string[] {
-  const urls: (string | undefined)[] = [];
+// Toute URL d'asset présente n'importe où dans le contenu compte comme une
+// référence : champ dédié, mais aussi HTML ou texte libre. Volontairement
+// générique — la liste de champs par template qui existait ici ignorait le
+// carousel et le cat banner, dont les images étaient alors purgées alors
+// qu'encore utilisées.
+const ASSET_URL_PATTERN = /https?:\/\/[^\s"'<>()\\]+|\/uploads\/[^\s"'<>()\\]+/g;
 
-  if (type === "custom") {
-    const blocks = (content as CustomContent)?.blocks ?? [];
-    urls.push(...blocks.map((b) => b.imageUrl));
-  } else if (type === "mea_v2") {
-    const c = content as MeaV2Content;
-    urls.push(...(c?.cards ?? []).map((card) => card.imageUrl));
-    urls.push(c?.focus?.imageUrl, c?.focus?.videoUrl);
-  } else {
-    // macarons, macarons_v2, mea : forme {items: [{imageUrl}]}
-    const items = (content as { items?: { imageUrl?: string }[] })?.items ?? [];
-    urls.push(...items.map((item) => item.imageUrl));
-  }
+export function extractReferencedAssetUrls(value: unknown): string[] {
+  return JSON.stringify(value ?? null).match(ASSET_URL_PATTERN) ?? [];
+}
 
-  return urls.filter((url): url is string => typeof url === "string" && url.length > 0);
+// URLs encore utilisées : sections des briefs conservés, et templates
+// personnalisés (qui embarquent leurs propres images).
+async function collectReferencedAssetUrls(excludedBriefIds: string[]): Promise<Set<string>> {
+  const [sections, templates] = await Promise.all([
+    db
+      .select({ content: briefSections.content })
+      .from(briefSections)
+      .where(
+        excludedBriefIds.length > 0 ? notInArray(briefSections.briefId, excludedBriefIds) : undefined,
+      ),
+    db.select({ blocks: customTemplates.blocks }).from(customTemplates),
+  ]);
+  return new Set([
+    ...sections.flatMap((s) => extractReferencedAssetUrls(s.content)),
+    ...templates.flatMap((t) => extractReferencedAssetUrls(t.blocks)),
+  ]);
 }
 
 export async function computePurgePreview(
@@ -79,22 +86,7 @@ export async function computePurgePreview(
     .from(briefs)
     .where(and(eq(briefs.status, "treated"), lt(briefs.createdAt, cutoff)));
 
-  const expiredIds = expiredBriefs.map((b) => b.id);
-
-  // URLs encore référencées par les sections des briefs qui resteront
-  const remainingSections =
-    expiredIds.length > 0
-      ? await db
-          .select({ type: briefSections.type, content: briefSections.content })
-          .from(briefSections)
-          .where(notInArray(briefSections.briefId, expiredIds))
-      : await db
-          .select({ type: briefSections.type, content: briefSections.content })
-          .from(briefSections);
-
-  const referencedUrls = new Set(
-    remainingSections.flatMap((s) => extractReferencedAssetUrls(s.type, s.content)),
-  );
+  const referencedUrls = await collectReferencedAssetUrls(expiredBriefs.map((b) => b.id));
 
   const oldAssets = await db
     .select({
@@ -144,11 +136,11 @@ export async function executePurge(months: number): Promise<PurgeResult> {
   };
 }
 
-// --- Rétention vidéo MEA v2 — automatique (voir src/instrumentation.ts) ---
+// --- Rétention vidéo MEA v2 — automatique ---
 // Les vidéos sont lourdes : purgées une fois expirées, SAUF si encore
 // référencées par une section de brief existante (même invariant que ci-dessus).
 // Contrairement à la purge briefs/images, celle-ci ne dépend d'aucun statut de
-// brief ni d'aucun clic — elle tourne seule en tâche de fond.
+// brief ni d'aucun réglage : elle passe à chaque exécution automatique.
 
 export const VIDEO_RETENTION_SETTING_KEY = "videoRetention";
 export const DEFAULT_VIDEO_RETENTION_DAYS = 30;
@@ -193,12 +185,7 @@ export async function computeVideoPurgePreview(
 ): Promise<VideoPurgePreview> {
   const cutoff = videoRetentionCutoff(days);
 
-  const allSections = await db
-    .select({ type: briefSections.type, content: briefSections.content })
-    .from(briefSections);
-  const referencedUrls = new Set(
-    allSections.flatMap((s) => extractReferencedAssetUrls(s.type, s.content)),
-  );
+  const referencedUrls = await collectReferencedAssetUrls([]);
 
   const oldVideos = await db
     .select({
@@ -232,4 +219,75 @@ export async function executeVideoPurge(days: number): Promise<VideoPurgeResult>
   }
 
   return { deletedVideos: preview.videos.length };
+}
+
+// --- Passage automatique quotidien (cron Vercel, cf. /api/cron/retention) ---
+
+const AUTO_PURGE_SETTING_KEY = "autoPurge";
+const LAST_SCHEDULED_PURGE_KEY = "lastScheduledPurge";
+
+async function readSetting<T>(key: string): Promise<T | undefined> {
+  const [row] = await db.select().from(settings).where(eq(settings.key, key));
+  return row?.value as T | undefined;
+}
+
+async function writeSetting(key: string, value: unknown): Promise<void> {
+  await db
+    .insert(settings)
+    .values({ key, value })
+    .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: new Date() } });
+}
+
+/** Désactivée par défaut : la purge des briefs est irréversible. */
+export async function getAutoPurgeEnabled(): Promise<boolean> {
+  return (await readSetting<{ enabled?: boolean }>(AUTO_PURGE_SETTING_KEY))?.enabled === true;
+}
+
+export async function setAutoPurgeEnabled(enabled: boolean): Promise<void> {
+  await writeSetting(AUTO_PURGE_SETTING_KEY, { enabled });
+}
+
+export interface ScheduledPurgeReport {
+  ranAt: string;
+  briefPurgeEnabled: boolean;
+  deletedBriefs: number;
+  deletedAssets: number;
+  deletedVideos: number;
+  error?: string;
+}
+
+export async function getLastScheduledPurge(): Promise<ScheduledPurgeReport | null> {
+  return (await readSetting<ScheduledPurgeReport>(LAST_SCHEDULED_PURGE_KEY)) ?? null;
+}
+
+/**
+ * Briefs et images seulement si la purge automatique est activée, vidéos
+ * toujours. Le compte rendu est conservé pour Paramétrage : une purge qui
+ * tourne seule doit laisser une trace, y compris quand elle échoue.
+ */
+export async function runScheduledPurge(): Promise<ScheduledPurgeReport> {
+  const report: ScheduledPurgeReport = {
+    ranAt: new Date().toISOString(),
+    briefPurgeEnabled: false,
+    deletedBriefs: 0,
+    deletedAssets: 0,
+    deletedVideos: 0,
+  };
+
+  try {
+    report.briefPurgeEnabled = await getAutoPurgeEnabled();
+    // Briefs d'abord : les vidéos qu'ils étaient seuls à utiliser deviennent
+    // purgeables dès ce passage.
+    if (report.briefPurgeEnabled) {
+      const result = await executePurge(await getRetentionMonths());
+      report.deletedBriefs = result.deletedBriefs;
+      report.deletedAssets = result.deletedAssets;
+    }
+    report.deletedVideos = (await executeVideoPurge(await getVideoRetentionDays())).deletedVideos;
+  } catch (err) {
+    report.error = err instanceof Error ? err.message : String(err);
+  }
+
+  await writeSetting(LAST_SCHEDULED_PURGE_KEY, report);
+  return report;
 }
