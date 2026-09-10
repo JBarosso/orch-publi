@@ -17,14 +17,15 @@ export const MAX_SOURCE_BYTES = 40 * 1024 * 1024; // 40 Mo
 // déjà plus petite (withoutEnlargement).
 export const MAX_SOURCE_DIMENSION = 2400;
 
-export const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/tiff"];
-// Windows ne rapporte pas toujours le type MIME des .tif/.tiff (file.type
+export const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/tiff"];
+// Windows ne rapporte pas toujours le type MIME des .tif/.tiff/.avif (file.type
 // peut être vide) : on ajoute l'extension, comme pour le .mp4 plus bas.
-export const ACCEPTED_MIME_ATTR = `${ACCEPTED_MIME_TYPES.join(",")},.tif,.tiff`;
-export const ACCEPTED_FORMATS_LABEL = "JPEG, PNG, WebP ou TIFF";
+export const ACCEPTED_MIME_ATTR = `${ACCEPTED_MIME_TYPES.join(",")},.tif,.tiff,.avif`;
+export const ACCEPTED_FORMATS_LABEL = "JPEG, PNG, WebP, AVIF ou TIFF";
 
-// Formats tels que rapportés par sharp().metadata().format
-export const ACCEPTED_SHARP_FORMATS = ["jpeg", "png", "webp", "tiff"];
+// Formats tels que rapportés par sharp().metadata().format. L'AVIF y apparaît
+// sous « heif », le conteneur qu'il partage avec le HEIC (refusé en amont).
+export const ACCEPTED_SHARP_FORMATS = ["jpeg", "png", "webp", "heif", "tiff"];
 
 // Même souci que looksLikeMp4 plus bas : ne pas se fier uniquement à file.type.
 export function looksLikeTiff(file: { type: string; name?: string }): boolean {
@@ -225,7 +226,11 @@ export function validateSourceFile(file: {
   size: number;
   name?: string;
 }): string | null {
-  if (!ACCEPTED_MIME_TYPES.includes(file.type) && !looksLikeTiff(file)) {
+  if (
+    !ACCEPTED_MIME_TYPES.includes(file.type) &&
+    !looksLikeTiff(file) &&
+    !/\.avif$/i.test(file.name ?? "")
+  ) {
     return `Format non supporté${file.type ? ` (${file.type})` : ""}. Formats acceptés : ${ACCEPTED_FORMATS_LABEL}.`;
   }
   const maxBytes = looksLikeTiff(file) ? MAX_TIFF_SOURCE_BYTES : MAX_SOURCE_BYTES;

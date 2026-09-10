@@ -379,14 +379,12 @@ export function generateCarouselHTML(content: CarouselContent, ctx: ExportContex
     .map((_, i) => `      <li data-target="#carouselHomepage" data-slide-to="${i}"${i === 0 ? ' class="active"' : ""}></li>`)
     .join("\n");
 
-  return `<div class="general-layout">
-  <div id="carouselHomepage" class="carousel slide" data-ride="carousel">
-    <ol class="carousel-indicators z-2">
+  return `<div id="carouselHomepage" class="carousel slide" data-ride="carousel">
+  <ol class="carousel-indicators z-2">
 ${indicatorsHTML}
-    </ol>
-    <div class="carousel-inner">
+  </ol>
+  <div class="carousel-inner">
 ${slidesHTML}
-    </div>
   </div>
 </div>`;
 }
@@ -450,14 +448,12 @@ body { margin: 0; background: #fff; cursor: default; height: 700px;}
 </style>
 </head>
 <body>
-<div class="general-layout">
-  <div id="carouselHomepage" class="carousel slide">
-    <ol class="carousel-indicators z-2">
+<div id="carouselHomepage" class="carousel slide">
+  <ol class="carousel-indicators z-2">
 ${indicatorsHTML}
-    </ol>
-    <div class="carousel-inner">
+  </ol>
+  <div class="carousel-inner">
 ${slidesHTML}
-    </div>
   </div>
 </div>
 <script>

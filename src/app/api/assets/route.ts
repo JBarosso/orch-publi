@@ -210,7 +210,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // "source" : format d'origine conservé, ré-encodé pour optimiser le poids
+    // "source" : format d'origine conservé, ré-encodé pour optimiser le poids.
+    // Un AVIF (« heif » pour sharp) tombe dans le cas PNG ci-dessous : sans
+    // perte, transparence conservée.
     const outputFormat =
       spec.outputFormat === "source"
         ? (metadata.format as "jpeg" | "png" | "webp")
