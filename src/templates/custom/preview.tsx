@@ -56,7 +56,10 @@ export function CustomPreview({ content }: CustomPreviewProps) {
         srcDoc={srcDoc}
         className="w-full border-0"
         style={{ height: iframeHeight }}
-        sandbox="allow-scripts"
+        // allow-popups : seul template dont les liens restent cliquables en
+        // aperçu (cf. export.ts) — ils s'ouvrent en target="_blank", que le
+        // sandbox bloquerait sinon silencieusement.
+        sandbox="allow-scripts allow-popups"
         title="Aperçu section personnalisée"
       />
     </div>

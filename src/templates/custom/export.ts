@@ -134,8 +134,14 @@ function renderBlock(
       case "text":
          return `      <p class="custom-section__text">${esc(block.text).replace(/\n/g, "<br>")}</p>`;
       case "button": {
-         const href = ctx ? getBlockUrl(block) : "#";
-         return `      <a class="custom-section__button" href="${href}">${esc(block.text)}</a>`;
+         // Seul ce template accepte un lien vraiment testable en preview
+         // (url libre, pas seulement cgid/cid) — les autres neutralisent tout
+         // clic car leurs liens ne sont que des macros CMS ($url(...)$),
+         // inertes hors du vrai CMS. Ici on garde le clic actif mais en
+         // target="_blank" : jamais de navigation qui quitterait l'éditeur.
+         const href = getBlockUrl(block);
+         const previewAttrs = ctx ? "" : ` target="_blank" rel="noopener noreferrer"`;
+         return `      <a class="custom-section__button" href="${href}"${previewAttrs}>${esc(block.text)}</a>`;
       }
       case "image":
          return renderImageBlock(block, ctx, wrapImage);
@@ -217,12 +223,9 @@ export function generatePreviewHTML(content: CustomContent, frameId = ""): strin
 <body>
 ${wrapped}
 <script>
-  document.addEventListener("click", (event) => {
-    const target = event.target;
-    if (target instanceof Element && target.closest("a")) {
-      event.preventDefault();
-    }
-  });
+  // Contrairement aux autres templates, les liens ne sont pas neutralisés
+  // ici : un bouton peut porter une vraie URL testable, toujours ouverte en
+  // nouvel onglet (target="_blank" posé par renderBlock ci-dessus).
 
   new ResizeObserver(() => {
     window.parent.postMessage({ type: "resize", frameId: ${JSON.stringify(frameId)}, height: document.body.scrollHeight }, "*");

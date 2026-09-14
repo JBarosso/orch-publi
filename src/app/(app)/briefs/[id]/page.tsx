@@ -1,8 +1,25 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, use } from "react";
+import { useEffect, useState, useCallback, useRef, use, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -36,7 +53,141 @@ import { StatusBadge } from "@/components/briefs/status-badge";
 import { MediaLibraryDialog } from "@/components/media/media-library-dialog";
 import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
 import { captureVideoFirstFrame, dataUrlToFile } from "@/lib/capture-video-frame";
+import { cn } from "@/lib/utils";
 import type { AssetType } from "@/types";
+
+interface SortableSectionCardProps {
+  section: BriefSection;
+  isOpen: boolean;
+  isPreviewVisible: boolean;
+  onToggleOpen: () => void;
+  onTogglePreview: () => void;
+  onTitleChange: (title: string) => void;
+  onVisibleChange: (visible: boolean) => void;
+  onConvertToTemplate?: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  children: ReactNode;
+}
+
+// Composant à part (plutôt qu'inline dans le .map() de la page) : useSortable
+// est un Hook, qui ne peut pas être appelé depuis un callback de map().
+function SortableSectionCard({
+  section,
+  isOpen,
+  isPreviewVisible,
+  onToggleOpen,
+  onTogglePreview,
+  onTitleChange,
+  onVisibleChange,
+  onConvertToTemplate,
+  onDuplicate,
+  onDelete,
+  children,
+}: SortableSectionCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: section.id,
+  });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "rounded-lg border border-border/60 bg-card shadow-sm transition-all",
+        !section.visible && "opacity-70",
+        isDragging && "relative z-10 opacity-50 shadow-lg scale-[1.01]",
+      )}
+    >
+      <div className="flex items-center gap-1 pl-1.5">
+        <button
+          type="button"
+          className="shrink-0 cursor-grab touch-none rounded p-1.5 text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+          title="Déplacer la section"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={onToggleOpen}
+          className="flex flex-1 items-center justify-between gap-3 py-3 pr-4 text-sm font-semibold transition-colors hover:bg-muted/50"
+        >
+          <Input
+            value={section.title || section.type}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onTitleChange(e.target.value)}
+            className="h-8 w-full max-w-80"
+          />
+          <div className="flex items-center gap-1">
+            <span
+              onClick={(e) => e.stopPropagation()}
+              className="mr-1 flex items-center gap-1"
+              title={
+                section.visible
+                  ? "Section incluse dans l'export"
+                  : "Section informative — exclue de l'export"
+              }
+            >
+              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                Export
+              </span>
+              <Switch checked={section.visible} onCheckedChange={onVisibleChange} className="scale-75" />
+            </span>
+            {onConvertToTemplate && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onConvertToTemplate();
+                }}
+                className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Convertir en template (snapshot indépendant)"
+              >
+                <LayoutTemplate className="h-3.5 w-3.5" />
+              </span>
+            )}
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicate();
+              }}
+              className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Dupliquer la section"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </span>
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+              title="Supprimer la section"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </span>
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePreview();
+              }}
+              className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title={isPreviewVisible ? "Masquer l'aperçu" : "Afficher l'aperçu"}
+            >
+              {isPreviewVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            </span>
+            <ChevronDown
+              className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-0" : "-rotate-90"}`}
+            />
+          </div>
+        </button>
+      </div>
+      {isOpen && <div className="border-t border-border/60 px-4 py-4">{children}</div>}
+    </div>
+  );
+}
 
 export default function BriefEditorPage({
   params,
@@ -54,10 +205,31 @@ export default function BriefEditorPage({
     saving,
     dirty,
     setDirty,
+    applySections,
     updateSection,
     handleSave,
     refetch: fetchBrief,
   } = useBriefSections(id);
+
+  const sectionDragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleSectionDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      applySections((prev) => {
+        const oldIndex = prev.findIndex((s) => s.id === active.id);
+        const newIndex = prev.findIndex((s) => s.id === over.id);
+        // order réindexé sur la position réelle : c'est lui qui est persisté
+        // à la sauvegarde (handleSave envoie order pour chaque section).
+        return arrayMove(prev, oldIndex, newIndex).map((s, index) => ({ ...s, order: index }));
+      });
+    },
+    [applySections],
+  );
 
   const [mediaTarget, setMediaTarget] = useState<{
     sectionId: string;
@@ -579,111 +751,37 @@ export default function BriefEditorPage({
                   Aucune section. Cliquez sur « Créer une section » pour commencer.
                 </div>
               )}
-              {sections.map((section) => (
-                <div
-                  key={section.id}
-                  className={`rounded-lg border border-border/60 bg-card shadow-sm ${section.visible ? "" : "opacity-70"}`}
-                >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenSections((prev) => ({
-                        ...prev,
-                        [section.id]: !(prev[section.id] ?? true),
-                      }))
-                    }
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/50"
-                  >
-                    <Input
-                      value={section.title || section.type}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) =>
-                        updateSection(section.id, { title: e.target.value })
+              <DndContext
+                sensors={sectionDragSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleSectionDragEnd}
+              >
+                <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                  {sections.map((section) => (
+                    <SortableSectionCard
+                      key={section.id}
+                      section={section}
+                      isOpen={openSections[section.id] ?? true}
+                      isPreviewVisible={previewSections[section.id] ?? true}
+                      onToggleOpen={() =>
+                        setOpenSections((prev) => ({ ...prev, [section.id]: !(prev[section.id] ?? true) }))
                       }
-                      className="h-8 w-full max-w-80"
-                    />
-                    <div className="flex items-center gap-1">
-                      <span
-                        onClick={(e) => e.stopPropagation()}
-                        className="mr-1 flex items-center gap-1"
-                        title={
-                          section.visible
-                            ? "Section incluse dans l'export"
-                            : "Section informative — exclue de l'export"
-                        }
-                      >
-                        <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60">
-                          Export
-                        </span>
-                        <Switch
-                          checked={section.visible}
-                          onCheckedChange={(checked) =>
-                            updateSection(section.id, { visible: checked })
-                          }
-                          className="scale-75"
-                        />
-                      </span>
-                      {section.type === "custom" && (
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            convertToTemplate(section.id);
-                          }}
-                          className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                          title="Convertir en template (snapshot indépendant)"
-                        >
-                          <LayoutTemplate className="h-3.5 w-3.5" />
-                        </span>
-                      )}
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          duplicateSection(section.id);
-                        }}
-                        className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        title="Dupliquer la section"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </span>
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPendingDeleteSectionId(section.id);
-                        }}
-                        className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
-                        title="Supprimer la section"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </span>
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPreviewSections((prev) => ({
-                            ...prev,
-                            [section.id]: !(prev[section.id] ?? true),
-                          }));
-                        }}
-                        className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        title={(previewSections[section.id] ?? true) ? "Masquer l'aperçu" : "Afficher l'aperçu"}
-                      >
-                        {(previewSections[section.id] ?? true) ? (
-                          <Eye className="h-3.5 w-3.5" />
-                        ) : (
-                          <EyeOff className="h-3.5 w-3.5" />
-                        )}
-                      </span>
-                      <ChevronDown
-                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${(openSections[section.id] ?? true) ? "rotate-0" : "-rotate-90"}`}
-                      />
-                    </div>
-                  </button>
-                  {(openSections[section.id] ?? true) && (
-                    <div className="border-t border-border/60 px-4 py-4">
+                      onTogglePreview={() =>
+                        setPreviewSections((prev) => ({ ...prev, [section.id]: !(prev[section.id] ?? true) }))
+                      }
+                      onTitleChange={(title) => updateSection(section.id, { title })}
+                      onVisibleChange={(visible) => updateSection(section.id, { visible })}
+                      onConvertToTemplate={
+                        section.type === "custom" ? () => convertToTemplate(section.id) : undefined
+                      }
+                      onDuplicate={() => duplicateSection(section.id)}
+                      onDelete={() => setPendingDeleteSectionId(section.id)}
+                    >
                       {renderSectionEditor(section)}
-                    </div>
-                  )}
-                </div>
-              ))}
+                    </SortableSectionCard>
+                  ))}
+                </SortableContext>
+              </DndContext>
             </div>
           </div>
         </Panel>
