@@ -122,20 +122,22 @@ function SortableSectionCard({
             className="h-8 w-full max-w-80"
           />
           <div className="flex items-center gap-1">
-            <span
-              onClick={(e) => e.stopPropagation()}
-              className="mr-1 flex items-center gap-1"
-              title={
-                section.visible
-                  ? "Section incluse dans l'export"
-                  : "Section informative — exclue de l'export"
-              }
-            >
-              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60">
-                Export
+            {section.type !== "moodboard" && (
+              <span
+                onClick={(e) => e.stopPropagation()}
+                className="mr-1 flex items-center gap-1"
+                title={
+                  section.visible
+                    ? "Section incluse dans l'export"
+                    : "Section informative — exclue de l'export"
+                }
+              >
+                <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  Export
+                </span>
+                <Switch checked={section.visible} onCheckedChange={onVisibleChange} className="scale-75" />
               </span>
-              <Switch checked={section.visible} onCheckedChange={onVisibleChange} className="scale-75" />
-            </span>
+            )}
             {onConvertToTemplate && (
               <span
                 onClick={(e) => {

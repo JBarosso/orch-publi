@@ -31,7 +31,12 @@ export function MediaLibraryDialog({
   const [search, setSearch] = useState("");
   const [filterWeek, setFilterWeek] = useState("");
   const [filterYear, setFilterYear] = useState("");
-  const [filterType, setFilterType] = useState<AssetType | "">(initialType);
+  // Moodboard est freeform : ses images ne sont pas rangées sous le type
+  // "moodboard" (elles viennent de partout), donc filtrer dessus par défaut
+  // ne montrerait jamais rien tant qu'aucun asset n'a encore ce type.
+  const [filterType, setFilterType] = useState<AssetType | "">(
+    initialType === "moodboard" ? "" : initialType,
+  );
   const [yearOptions, setYearOptions] = useState<number[]>([]);
   const [weekOptions, setWeekOptions] = useState<number[]>([]);
   const [typeOptions, setTypeOptions] = useState<AssetType[]>([]);

@@ -407,7 +407,16 @@ export function MoodboardCanvas({
 
   return (
     <div
-      style={{ width: content.canvasWidth, height: content.canvasHeight, backgroundColor: content.backgroundColor }}
+      style={{
+        width: content.canvasWidth,
+        height: content.canvasHeight,
+        backgroundColor: content.backgroundColor,
+        // zIndex explicite (même à 0) pour que ce conteneur crée son propre
+        // contexte d'empilement : sans ça, un élément envoyé "à l'arrière"
+        // (zIndex négatif) sort du conteneur et passe derrière son propre
+        // fond au lieu de simplement passer sous les autres éléments.
+        zIndex: 0,
+      }}
       className="relative shrink-0"
       onPointerDown={() => interactive && onSelect?.(null)}
     >
