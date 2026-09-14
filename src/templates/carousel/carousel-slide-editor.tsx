@@ -49,7 +49,7 @@ export function CarouselSlideEditor({
   const callout = slide.productCallout;
 
   return (
-    <div className="space-y-3 rounded-lg border border-border/60 bg-card p-3">
+    <div className="space-y-3 rounded-lg border border-border/60 bg-card p-3 transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground">{label}</span>
       </div>

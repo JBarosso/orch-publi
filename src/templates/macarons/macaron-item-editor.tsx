@@ -66,7 +66,7 @@ export function MacaronItemEditor({
         ref={setNodeRef}
         style={style}
         className={cn(
-          "flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3 transition-all",
+          "flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3 transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20",
           isDragging && "shadow-lg opacity-50 scale-[1.02]",
           isActive && "ring-2 ring-primary/30",
           !item.visible && "opacity-50",

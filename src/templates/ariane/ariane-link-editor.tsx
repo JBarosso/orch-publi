@@ -27,7 +27,7 @@ export function ArianeLinkEditor({ link, onUpdate, onRemove }: ArianeLinkEditorP
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 rounded-lg border border-border/60 bg-card p-2 ${isDragging ? "shadow-lg opacity-50 scale-[1.02]" : ""}`}
+      className={`flex items-center gap-2 rounded-lg border border-border/60 bg-card p-2 transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 ${isDragging ? "shadow-lg opacity-50 scale-[1.02]" : ""}`}
     >
       <button
         type="button"
