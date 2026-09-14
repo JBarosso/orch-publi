@@ -580,6 +580,7 @@ export default function BriefEditorPage({
               { value: "mea", label: "MEA" },
               { value: "mea_v2", label: "MEA v2" },
               { value: "miniature_offre", label: "Miniature offre" },
+              { value: "moodboard", label: "Moodboard (tableau libre, non exporté)" },
               { value: "custom", label: "Section personnalisée (vierge)" },
               { value: "carousel", label: "Slider" },
               ...publishedTemplates.map((template) => ({
@@ -603,6 +604,7 @@ export default function BriefEditorPage({
               <SelectItem value="mea">MEA</SelectItem>
               <SelectItem value="mea_v2">MEA v2</SelectItem>
               <SelectItem value="miniature_offre">Miniature offre</SelectItem>
+              <SelectItem value="moodboard">Moodboard (tableau libre, non exporté)</SelectItem>
               <SelectItem value="custom">Section personnalisée (vierge)</SelectItem>
               <SelectItem value="carousel">Slider</SelectItem>
               {publishedTemplates.map((template) => (

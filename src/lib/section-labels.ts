@@ -13,5 +13,6 @@ export function normalizeTypeLabel(type: string): string {
   if (type === "img_sous_menu") return "img sous menu";
   if (type === "cat_banner") return "cat banner";
   if (type === "miniature_offre") return "miniature offre";
+  if (type === "moodboard") return "moodboard";
   return type;
 }

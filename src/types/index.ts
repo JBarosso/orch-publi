@@ -12,7 +12,8 @@ export type SectionType =
   | "global_header"
   | "img_sous_menu"
   | "cat_banner"
-  | "miniature_offre";
+  | "miniature_offre"
+  | "moodboard";
 export type AssetType =
   | "macaron"
   | "mea"
@@ -28,7 +29,8 @@ export type AssetType =
   | "img_sous_menu"
   | "cat_banner_desktop"
   | "cat_banner_mobile"
-  | "miniature_offre";
+  | "miniature_offre"
+  | "moodboard";
 
 export type Locale = "FR" | "BEFR" | "BENL" | "GR" | "ES";
 
@@ -568,4 +570,78 @@ export interface GlobalHeaderItem extends Omit<GlobalHeaderLibraryItem, "locale"
 export interface GlobalHeaderContent {
   items: GlobalHeaderItem[];
   bgColor: string;
+}
+
+// --- Moodboard : tableau blanc à positionnement libre, purement informatif
+// (aucun export CMS — ni HTML, ni images). Chaque élément porte sa propre
+// position/taille en pixels dans le repère du canevas (canvasWidth ×
+// canvasHeight), empilés par zIndex croissant.
+
+export interface MoodboardTextElement {
+  id: string;
+  type: "text";
+  zIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  color: string;
+  fontSize: number;
+  bold: boolean;
+  align: "left" | "center" | "right";
+}
+
+export interface MoodboardImageElement {
+  id: string;
+  type: "image";
+  zIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  imageUrl: string;
+  imageId: string;
+}
+
+export interface MoodboardShapeElement {
+  id: string;
+  type: "shape";
+  zIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  // Rayon d'angle en pixels — 0 = rectangle net.
+  radius: number;
+}
+
+// Trait/flèche : positionné par ses deux extrémités, pas par x/y/largeur/hauteur.
+export interface MoodboardArrowElement {
+  id: string;
+  type: "arrow";
+  zIndex: number;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  color: string;
+  strokeWidth: number;
+}
+
+export type MoodboardElement =
+  | MoodboardTextElement
+  | MoodboardImageElement
+  | MoodboardShapeElement
+  | MoodboardArrowElement;
+
+export interface MoodboardContent {
+  canvasWidth: number;
+  canvasHeight: number;
+  backgroundColor: string;
+  elements: MoodboardElement[];
+  // Note dev affichée en overlay en preview (jamais exportée — le template
+  // entier ne l'est de toute façon pas), comme sur les autres templates.
+  comment: string;
 }

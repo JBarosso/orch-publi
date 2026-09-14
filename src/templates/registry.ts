@@ -31,6 +31,7 @@ import type {
   MeaContent,
   MeaV2Content,
   MiniatureOffreContent,
+  MoodboardContent,
 } from "@/types";
 
 // Générateurs HTML
@@ -69,6 +70,7 @@ import { createEmptyEditoContent } from "@/templates/edito/schema";
 import { createEmptyCatBannerContent } from "@/templates/cat-banner/schema";
 import { createEmptyImgSousMenuContent } from "@/templates/img-sous-menu/schema";
 import { createEmptyMiniatureOffreContent } from "@/templates/miniature-offre/schema";
+import { createEmptyMoodboardContent, normalizeMoodboardContent } from "@/templates/moodboard/schema";
 
 export interface ExportContext {
   year: number;
@@ -186,6 +188,13 @@ export const TEMPLATES: Record<string, TemplateDefinition<unknown>> = {
   global_header: defineTemplate<GlobalHeaderContent>({
     createEmptyContent: createEmptyGlobalHeaderContent,
     generateHTML: (c) => generateGlobalHeaderHTML(c),
+  }),
+
+  // Purement informatif : ni generateHTML ni getImages — jamais exporté,
+  // seulement visible dans l'aperçu. Cf. src/templates/moodboard/.
+  moodboard: defineTemplate<MoodboardContent>({
+    createEmptyContent: createEmptyMoodboardContent,
+    normalizeContent: normalizeMoodboardContent,
   }),
 };
 

@@ -55,6 +55,21 @@ describe("TEMPLATE_UI setImage", () => {
     });
     expect(setImage(content, "focus", URL)).toMatchObject({ focus: { imageUrl: URL } });
   });
+
+  it("moodboard : ne touche qu'à l'élément image visé, laisse les autres types intacts", () => {
+    const content = {
+      elements: [
+        { id: "a", type: "image", imageUrl: "" },
+        { id: "b", type: "shape", color: "#fff" },
+      ],
+    };
+    expect(TEMPLATE_UI.moodboard.setImage!(content, "a", URL)).toEqual({
+      elements: [
+        { id: "a", type: "image", imageUrl: URL },
+        { id: "b", type: "shape", color: "#fff" },
+      ],
+    });
+  });
 });
 
 describe("mergeQuickaccessImport", () => {

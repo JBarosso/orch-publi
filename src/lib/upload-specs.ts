@@ -187,6 +187,13 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
     outputFormat: "jpeg",
     requireLabel: false,
   },
+  moodboard: {
+    displayName: "Moodboard",
+    // Upload libre : l'élément image se redimensionne librement sur le
+    // canevas, aucun recadrage à imposer à l'upload.
+    outputFormat: "source",
+    requireLabel: false,
+  },
 };
 
 const KNOWN_ASSET_TYPES: AssetType[] = [
@@ -204,6 +211,7 @@ const KNOWN_ASSET_TYPES: AssetType[] = [
   "cat_banner_desktop",
   "cat_banner_mobile",
   "miniature_offre",
+  "moodboard",
 ];
 
 export function resolveAssetType(type: unknown): AssetType {

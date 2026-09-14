@@ -259,10 +259,15 @@ export default function ExportPage({
                 )}
                 {exp.type !== "img_sous_menu" &&
                   exp.type !== "miniature_offre" &&
-                  exp.type !== "cat_banner" && <CopyCodeButton text={exp.html} />}
+                  exp.type !== "cat_banner" &&
+                  exp.type !== "moodboard" && <CopyCodeButton text={exp.html} />}
               </div>
             </div>
-            {exp.type === "img_sous_menu" || exp.type === "miniature_offre" ? (
+            {exp.type === "moodboard" ? (
+              <p className="px-5 py-4 text-xs text-muted-foreground">
+                Section purement informative — jamais exportée (ni HTML, ni images), visible seulement dans l&apos;aperçu.
+              </p>
+            ) : exp.type === "img_sous_menu" || exp.type === "miniature_offre" ? (
               <p className="px-5 py-4 text-xs text-muted-foreground">
                 Pas de HTML pour ce type de section — seuls les fichiers image sont à exporter.
               </p>

@@ -28,6 +28,7 @@ import type {
   MeaContent,
   MeaV2Content,
   MiniatureOffreContent,
+  MoodboardContent,
 } from "@/types";
 import { normalizeCustomContent } from "@/templates/custom/schema";
 
@@ -42,6 +43,7 @@ import { CatBannerEditor } from "@/templates/cat-banner/editor";
 import { MiniatureOffreEditor } from "@/templates/miniature-offre/editor";
 import { CarouselEditor } from "@/templates/carousel/editor";
 import { GlobalHeaderEditor } from "@/templates/global-header/editor";
+import { MoodboardEditor } from "@/templates/moodboard/editor";
 
 import { MacaronsPreview } from "@/templates/macarons/preview";
 import { MeaPreview } from "@/templates/mea/preview";
@@ -55,6 +57,7 @@ import { CatBannerPreview } from "@/templates/cat-banner/preview";
 import { MiniatureOffrePreview } from "@/templates/miniature-offre/preview";
 import { CarouselPreview } from "@/templates/carousel/preview";
 import { GlobalHeaderPreview } from "@/templates/global-header/preview";
+import { MoodboardPreview } from "@/templates/moodboard/preview";
 
 export interface TemplateEditorProps {
   content: unknown;
@@ -404,5 +407,24 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       />
     ),
     Preview: ({ content }) => <GlobalHeaderPreview content={content as GlobalHeaderContent} />,
+  },
+
+  moodboard: {
+    Editor: ({ content, onChange, onOpenMedia, onDropFile }) => (
+      <MoodboardEditor
+        content={content as MoodboardContent}
+        onChange={(next) => onChange(next)}
+        onOpenMedia={(elementId) => onOpenMedia(elementId, "moodboard")}
+        onDropFile={(elementId, file) => onDropFile(elementId, "moodboard", file)}
+      />
+    ),
+    Preview: ({ content }) => <MoodboardPreview content={content as MoodboardContent} />,
+    setImage: (content, target, url) => {
+      const c = content as MoodboardContent;
+      return {
+        ...c,
+        elements: c.elements.map((el) => (el.id === target && el.type === "image" ? { ...el, imageUrl: url } : el)),
+      };
+    },
   },
 };
