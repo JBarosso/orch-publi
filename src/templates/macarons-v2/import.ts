@@ -19,23 +19,35 @@ export interface ImportQuickaccessV2Result {
   issueCount: number;
 }
 
+// Même composant CMS sur deux emplacements, classes scopées par page : la
+// page d'accueil génère ".quickaccess-v2-item", les pages catégorie niveau 2
+// (hp-cat-lvl2) le même HTML avec ".quickaccess-lvl2-item" — confirmé en
+// comparant au code déjà exporté par cette même app (src/templates/macarons-v2/export.ts).
+// N'ajouter un préfixe ici qu'après confirmation, pas par anticipation.
+const QUICKACCESS_ITEM_CLASSES = ["quickaccess-v2-item", "quickaccess-lvl2-item"];
+
+function selectorFor(suffix: string): string {
+  return QUICKACCESS_ITEM_CLASSES.map((c) => `.${c}${suffix}`).join(", ");
+}
+
 /**
- * Reconstruit les tuiles quickaccess v2 à partir du HTML déjà exporté vers
+ * Reconstruit les tuiles quickaccess à partir du HTML déjà exporté vers
  * le CMS (cas: pas de brief à dupliquer, le code vient d'être récupéré
- * directement dans le CMS). Un champ non reconnu ne bloque pas l'import : il
+ * directement dans le CMS — page d'accueil ou catégorie niveau 2, cf.
+ * QUICKACCESS_ITEM_CLASSES). Un champ non reconnu ne bloque pas l'import : il
  * est laissé vide et signalé dans le commentaire de la tuile.
  */
 export function parseQuickaccessV2HTML(html: string, briefWeek: number): ImportQuickaccessV2Result {
   const doc = parseHtmlFragment(html);
-  const nodes = Array.from(doc.querySelectorAll(".quickaccess-v2-item"));
+  const nodes = Array.from(doc.querySelectorAll(selectorFor("")));
   if (nodes.length === 0) {
-    throw new Error("Aucune tuile quickaccess v2 reconnue dans le code collé.");
+    throw new Error("Aucune tuile quickaccess reconnue dans le code collé.");
   }
 
   let issueCount = 0;
 
   const items: MacaronItem[] = nodes.map((node, index) => {
-    const label = textOf(node.querySelector(".quickaccess-v2-item__label"));
+    const label = textOf(node.querySelector(selectorFor("__label")));
     const link = parseCmsLink(node.getAttribute("href"));
     const imagePath = parseCmsImagePath(node.querySelector("img")?.getAttribute("src"));
     const listPosition = index + 1;

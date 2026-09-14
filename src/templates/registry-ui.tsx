@@ -23,6 +23,7 @@ import type {
   GlobalHeaderContent,
   ImgSousMenuContent,
   Locale,
+  MacaronItem,
   MacaronsContent,
   MeaContent,
   MeaV2Content,
@@ -111,6 +112,20 @@ function itemLabel(content: unknown, itemId: string): string | undefined {
   return item?.label ?? item?.title;
 }
 
+/**
+ * Import CMS de macarons v2 : items et chemin de section posés en un seul
+ * appel à `onChange`. Exportée (plutôt que gardée en ligne dans le JSX
+ * ci-dessous) pour rester testable sans rendu React — cf.
+ * MacaronsEditorProps.onImport pour le pourquoi de l'appel unique.
+ */
+export function mergeQuickaccessImport(
+  content: unknown,
+  items: MacaronItem[],
+  customPath: string,
+): MacaronsContent {
+  return { ...((content ?? {}) as MacaronsContent), items, customPath };
+}
+
 export const TEMPLATE_UI: Record<string, TemplateUi> = {
   macarons: {
     Editor: ({ content, brief, onChange, onOpenMedia, onDropFile }) => (
@@ -144,6 +159,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
           onChange({ ...((content ?? {}) as MacaronsContent), customPath })
         }
         onChange={(items) => onChange(withItems(content, items))}
+        onImport={(items, customPath) => onChange(mergeQuickaccessImport(content, items, customPath))}
         onOpenMediaLibrary={(itemId) => onOpenMedia(itemId, "macaron_v2")}
         onDropFile={(itemId, file) => onDropFile(itemId, "macaron_v2", file)}
       />

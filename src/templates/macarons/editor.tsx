@@ -42,6 +42,15 @@ interface MacaronsEditorProps {
   /** Chemin CMS custom de la section, hérité par les items qui l'activent. */
   sectionCustomPath?: string;
   onSectionCustomPathChange?: (path: string) => void;
+  /**
+   * Import CMS uniquement : items et chemin de section doivent changer dans
+   * le même geste. Appeler `onChange` puis `onSectionCustomPathChange` l'un
+   * après l'autre perd le premier — les deux reconstruisent le contenu à
+   * partir du même objet reçu par l'éditeur, capturé avant qu'aucun des deux
+   * appels n'ait été pris en compte (aucun rendu entre les deux), donc le
+   * second écrase le premier. Repli sur l'ancien enchaînement si absent.
+   */
+  onImport?: (items: MacaronItem[], customPath: string) => void;
 }
 
 export function MacaronsEditor({
@@ -55,6 +64,7 @@ export function MacaronsEditor({
   variant = "v1",
   sectionCustomPath = "",
   onSectionCustomPathChange,
+  onImport,
 }: MacaronsEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -116,10 +126,14 @@ export function MacaronsEditor({
     }
     try {
       const { items: imported, customPath, issueCount } = parseQuickaccessV2HTML(html, briefWeek);
-      onChange(imported);
-      // Toujours réappliqué (même vide) : l'import remplace la section entière,
-      // un chemin resté de l'import précédent serait trompeur.
-      onSectionCustomPathChange?.(customPath);
+      if (onImport) {
+        // customPath toujours réappliqué (même vide) : l'import remplace la
+        // section entière, un chemin resté de l'import précédent serait trompeur.
+        onImport(imported, customPath);
+      } else {
+        onChange(imported);
+        onSectionCustomPathChange?.(customPath);
+      }
       setImportOpen(false);
       toast.success(
         issueCount > 0
@@ -166,7 +180,7 @@ export function MacaronsEditor({
         <ImportCmsDialog
           open={importOpen}
           onOpenChange={setImportOpen}
-          description="Colle le code HTML d'une section quickaccess v2 déjà exportée vers le CMS : les tuiles sont reconstruites automatiquement, les champs non reconnus sont signalés dans leur commentaire."
+          description="Colle le code HTML d'une section quickaccess déjà exportée vers le CMS — page d'accueil ou catégorie niveau 2 : les tuiles sont reconstruites automatiquement, les champs non reconnus sont signalés dans leur commentaire."
           onImport={handleImport}
         />
       )}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TEMPLATE_UI } from "@/templates/registry-ui";
+import { TEMPLATE_UI, mergeQuickaccessImport } from "@/templates/registry-ui";
 
 const URL = "https://example.test/new.jpg";
 
@@ -54,6 +54,30 @@ describe("TEMPLATE_UI setImage", () => {
       cards: [{ imageUrl: "" }, { imageUrl: URL }],
     });
     expect(setImage(content, "focus", URL)).toMatchObject({ focus: { imageUrl: URL } });
+  });
+});
+
+describe("mergeQuickaccessImport", () => {
+  // Régression : l'import CMS affichait « 8 macarons importés » sans que rien
+  // n'apparaisse dans la section. `MacaronsEditor.handleImport` appelait
+  // `onChange(items)` puis `onSectionCustomPathChange(customPath)` : les deux
+  // reconstruisaient le contenu à partir du même `content` reçu par l'éditeur
+  // à ce rendu (comme `withItems`/`setImage` ci-dessus), inchangé entre les
+  // deux appels synchrones (aucun rendu entre les deux) — le second écrasait
+  // le premier avec une base ne contenant pas encore les items importés.
+  // Fixé en un seul appel `onImport(items, customPath)`, qui passe par cette
+  // fonction — cf. MacaronsEditorProps.onImport pour le détail du mécanisme.
+  it("pose les items importés et le chemin de section ensemble", () => {
+    const content = { customPath: "ancien-chemin", items: [{ id: "old" }] };
+    const imported = [{ id: "a", label: "Ensembles" }, { id: "b", label: "Sweats" }];
+    expect(mergeQuickaccessImport(content, imported as never, "hp-cat-lvl2/bbf")).toEqual({
+      items: imported,
+      customPath: "hp-cat-lvl2/bbf",
+    });
+  });
+
+  it("fonctionne même sans contenu existant (première section)", () => {
+    expect(mergeQuickaccessImport(null, [] as never, "")).toEqual({ items: [], customPath: "" });
   });
 });
 
