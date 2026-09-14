@@ -1,5 +1,7 @@
 "use client";
 
+import { Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,15 +11,18 @@ import {
 } from "@/components/ui/dialog";
 import { DEMO_GALLERY, type DemoImageKind } from "./config";
 
-// Médiathèque réduite : les visuels de démo du format demandé, sans upload.
+// Médiathèque réduite : les visuels de démo du format demandé, plus un bouton
+// vers l'upload (recadrage inclus, cf. ImageUploadDialog/localOnly).
 // Vignettes carrées + libellé, comme la vraie médiathèque.
 export function GalleryDialog({
   kind,
   onSelect,
+  onUploadNew,
   onClose,
 }: {
   kind: DemoImageKind;
   onSelect: (url: string) => void;
+  onUploadNew: () => void;
   onClose: () => void;
 }) {
   const images = DEMO_GALLERY.filter((image) => image.kind === kind);
@@ -27,8 +32,12 @@ export function GalleryDialog({
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Médiathèque</DialogTitle>
-          <DialogDescription>Choisissez un visuel pour cet emplacement.</DialogDescription>
+          <DialogDescription>Choisissez un visuel pour cet emplacement, ou uploadez le vôtre.</DialogDescription>
         </DialogHeader>
+        <Button variant="outline" onClick={onUploadNew} className="self-start">
+          <Upload className="mr-1.5 h-4 w-4" />
+          Uploader une image
+        </Button>
         {/* Le défilement est porté par ce conteneur, pas par la grille : une
             grille à hauteur max tasse ses lignes au lieu de défiler. */}
         <div className="max-h-[60vh] overflow-y-auto pr-1">

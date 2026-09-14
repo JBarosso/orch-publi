@@ -72,6 +72,10 @@ interface ImageUploadDialogProps {
   onFileSelected?: (file: File) => void;
   onUploaded: (url: string) => void;
   onClose: () => void;
+  /** Démo publique : le crop/resize reste 100% client-side (déjà le cas ici),
+   * on saute juste l'envoi vers /api/assets — `onUploaded` reçoit directement
+   * la data URL recadrée, jamais persistée nulle part. */
+  localOnly?: boolean;
 }
 
 // Crop client-side (WYSIWYG) : pixelCrop est exprimé dans le repère de
@@ -161,6 +165,7 @@ export function ImageUploadDialog({
   onFileSelected,
   onUploaded,
   onClose,
+  localOnly = false,
 }: ImageUploadDialogProps) {
   const [selectedType, setSelectedType] = useState<AssetType>(assetType);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -368,6 +373,14 @@ export function ImageUploadDialog({
             effTargetWidth,
             effTargetHeight
           );
+
+      if (localOnly) {
+        // Démo publique : rien à envoyer, le recadrage ci-dessus a déjà
+        // produit le fichier final — c'est directement lui l'« upload ».
+        toast.success(isVideo ? "Vidéo ajoutée" : "Image ajoutée");
+        onUploaded(finalBase64);
+        return;
+      }
 
       // Upload direct quand il est disponible : seule l'URL transite par la
       // route, quel que soit le poids du fichier.

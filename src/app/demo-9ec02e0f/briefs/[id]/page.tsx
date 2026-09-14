@@ -3,12 +3,13 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, FileCode, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
+import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
 import { TEMPLATE_UI } from "@/templates/registry-ui";
-import { DEMO_BASE, type DemoImageKind } from "../../_demo/config";
+import type { AssetType } from "@/types";
+import { DEMO_BASE } from "../../_demo/config";
 import { GalleryDialog } from "../../_demo/gallery-dialog";
 import { DemoLoading, DemoNotFound } from "../../_demo/states";
 import {
@@ -21,14 +22,22 @@ import {
   type DemoSection,
 } from "../../_demo/store";
 
+// Cible d'un emplacement image : "gallery" pour la médiathèque réduite,
+// "upload" pour l'upload direct — clic sur "Uploader une image" (fichier
+// choisi ensuite) ou glisser-déposer sur l'emplacement (fichier déjà connu),
+// comme dans la vraie app.
+type MediaAction =
+  | { mode: "gallery"; sectionId: string; target: string; assetType: AssetType }
+  | { mode: "upload"; sectionId: string; target: string; assetType: AssetType; file?: File };
+
+function kindFor(assetType: AssetType) {
+  return assetType === "macaron_v2" ? "quickaccess" : "mea";
+}
+
 export default function DemoBriefPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const briefs = useDemoBriefs();
-  const [picker, setPicker] = useState<{
-    sectionId: string;
-    target: string;
-    kind: DemoImageKind;
-  } | null>(null);
+  const [mediaAction, setMediaAction] = useState<MediaAction | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   if (!briefs) return <DemoLoading />;
@@ -41,6 +50,14 @@ export default function DemoBriefPage({ params }: { params: Promise<{ id: string
 
   const updateSection = (sectionId: string, updater: (section: DemoSection) => DemoSection) =>
     updateSections((sections) => sections.map((s) => (s.id === sectionId ? updater(s) : s)));
+
+  // Même rangement que dans la vraie app (registre UI) : semaine et position
+  // figées redeviennent dynamiques.
+  const applyImage = (action: { sectionId: string; target: string }, url: string) =>
+    updateSection(action.sectionId, (s) => ({
+      ...s,
+      content: TEMPLATE_UI[s.type].setImage!(s.content, action.target, url),
+    }));
 
   const briefCtx = { year: brief.year, week: brief.week, locale: brief.locale };
 
@@ -120,13 +137,11 @@ export default function DemoBriefPage({ params }: { params: Promise<{ id: string
                       brief={briefCtx}
                       onChange={(content) => updateSection(section.id, (s) => ({ ...s, content }))}
                       onOpenMedia={(target, assetType) =>
-                        setPicker({
-                          sectionId: section.id,
-                          target,
-                          kind: assetType === "macaron_v2" ? "quickaccess" : "mea",
-                        })
+                        setMediaAction({ mode: "gallery", sectionId: section.id, target, assetType })
                       }
-                      onDropFile={() => toast.info("Dans la démo, les visuels se choisissent dans la médiathèque.")}
+                      onDropFile={(target, assetType, file) =>
+                        setMediaAction({ mode: "upload", sectionId: section.id, target, assetType, file })
+                      }
                       onOpenVideoUpload={() => {}}
                     />
                   </div>
@@ -156,19 +171,30 @@ export default function DemoBriefPage({ params }: { params: Promise<{ id: string
         </div>
       </div>
 
-      {picker && (
+      {mediaAction?.mode === "gallery" && (
         <GalleryDialog
-          kind={picker.kind}
-          onClose={() => setPicker(null)}
+          kind={kindFor(mediaAction.assetType)}
+          onClose={() => setMediaAction(null)}
+          onUploadNew={() => setMediaAction({ ...mediaAction, mode: "upload" })}
           onSelect={(url) => {
-            // Même rangement que dans la vraie app (registre UI) : semaine et
-            // position figées redeviennent dynamiques.
-            updateSection(picker.sectionId, (s) => ({
-              ...s,
-              content: TEMPLATE_UI[s.type].setImage!(s.content, picker.target, url),
-            }));
-            setPicker(null);
+            applyImage(mediaAction, url);
+            setMediaAction(null);
           }}
+        />
+      )}
+
+      {mediaAction?.mode === "upload" && (
+        <ImageUploadDialog
+          localOnly
+          assetType={mediaAction.assetType}
+          initialFile={mediaAction.file}
+          defaultWeek={brief.week}
+          defaultYear={brief.year}
+          onUploaded={(url) => {
+            applyImage(mediaAction, url);
+            setMediaAction(null);
+          }}
+          onClose={() => setMediaAction(null)}
         />
       )}
 

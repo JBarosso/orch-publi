@@ -80,6 +80,13 @@ export interface TemplateUi {
     /** Emplacement qui reçoit la vignette capturée sur la 1re frame. */
     poster: (target: string) => { target: string; assetType: AssetType };
   };
+  /**
+   * Nom déjà connu pour l'emplacement visé (label/titre de l'item ou de la
+   * carte) — pré-rempli dans le champ Label de l'upload pour éviter de le
+   * ressaisir. Absent = champ vide (ex: ariane, global_header, sans notion de
+   * label par item).
+   */
+  labelFor?: (content: unknown, target: string) => string | undefined;
 }
 
 /** Remplace la liste d'items en conservant les réglages de section (ex: customPath). */
@@ -94,6 +101,14 @@ function setItemImage(content: unknown, itemId: string, url: string): unknown {
     item.id === itemId ? { ...item, imageUrl: url, imageWeek: null, exportPosition: null } : item,
   );
   return withItems(content, items);
+}
+
+/** Label ou titre déjà saisi sur l'item visé — les deux noms coexistent selon le template. */
+function itemLabel(content: unknown, itemId: string): string | undefined {
+  const item = ((content as { items?: { id: string }[] })?.items ?? []).find(
+    (i) => i.id === itemId,
+  ) as { label?: string; title?: string } | undefined;
+  return item?.label ?? item?.title;
 }
 
 export const TEMPLATE_UI: Record<string, TemplateUi> = {
@@ -111,6 +126,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
     ),
     Preview: ({ content }) => <MacaronsPreview items={(content as MacaronsContent)?.items ?? []} />,
     setImage: setItemImage,
+    labelFor: itemLabel,
   },
 
   macarons_v2: {
@@ -134,6 +150,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
     ),
     Preview: ({ content }) => <MacaronsV2Preview items={(content as MacaronsContent)?.items ?? []} />,
     setImage: setItemImage,
+    labelFor: itemLabel,
   },
 
   mea: {
@@ -150,6 +167,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
     ),
     Preview: ({ content }) => <MeaPreview items={(content as MeaContent)?.items ?? []} />,
     setImage: setItemImage,
+    labelFor: itemLabel,
   },
 
   mea_v2: {
@@ -194,6 +212,14 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       },
       poster: () => ({ target: "focus", assetType: "mea_v2_focus" }),
     },
+    // Content en {cards, focus} (pas {items}) : la recherche générique
+    // (itemLabel) ne le voit pas, d'où l'absence de pré-remplissage constatée
+    // jusqu'ici — contrairement aux macarons, où le même geste marchait déjà.
+    labelFor: (content, target) => {
+      const c = content as MeaV2Content;
+      if (target === "focus") return c.focus?.title;
+      return c.cards?.[Number(target.replace("card-", ""))]?.title;
+    },
   },
 
   custom: {
@@ -230,6 +256,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
     ),
     Preview: ({ content }) => <EditoPreview items={(content as EditoContent)?.items ?? []} />,
     setImage: setItemImage,
+    labelFor: itemLabel,
   },
 
   img_sous_menu: {
@@ -246,6 +273,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       <ImgSousMenuPreview items={(content as ImgSousMenuContent)?.items ?? []} />
     ),
     setImage: setItemImage,
+    labelFor: itemLabel,
   },
 
   cat_banner: {
@@ -276,6 +304,8 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       );
       return withItems(content, items);
     },
+    // Le target porte un suffixe (":desktop"/":mobile") absent de l'id de l'item.
+    labelFor: (content, target) => itemLabel(content, target.split(":")[0]),
   },
 
   miniature_offre: {
@@ -292,6 +322,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       <MiniatureOffrePreview items={(content as MiniatureOffreContent)?.items ?? []} />
     ),
     setImage: setItemImage,
+    labelFor: itemLabel,
   },
 
   carousel: {

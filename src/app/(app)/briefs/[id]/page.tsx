@@ -28,7 +28,7 @@ import {
   Separator as PanelResizeHandle,
   useGroupRef,
 } from "react-resizable-panels";
-import type { BriefSection, BriefStatus, CustomTemplate, MacaronItem, MeaItem } from "@/types";
+import type { BriefSection, BriefStatus, CustomTemplate } from "@/types";
 import { TEMPLATE_UI } from "@/templates/registry-ui";
 import { useBriefSections } from "./use-brief-sections";
 import { StatusActions } from "@/components/editor/status-actions";
@@ -37,14 +37,6 @@ import { MediaLibraryDialog } from "@/components/media/media-library-dialog";
 import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
 import { captureVideoFirstFrame, dataUrlToFile } from "@/lib/capture-video-frame";
 import type { AssetType } from "@/types";
-
-function isMacaronItem(item: MacaronItem | MeaItem): item is MacaronItem {
-  return "label" in item;
-}
-
-function isMeaItem(item: MacaronItem | MeaItem): item is MeaItem {
-  return "title" in item;
-}
 
 export default function BriefEditorPage({
   params,
@@ -756,24 +748,18 @@ export default function BriefEditorPage({
       {showUpload && (() => {
         if (!mediaTarget) return null;
         const section = sections.find((s) => s.id === mediaTarget.sectionId);
-        const items = ((section?.content as { items?: (MacaronItem | MeaItem)[] })?.items ?? []);
-        const targetItem = items.find((i) => i.id === mediaTarget.itemId) as
-          | MacaronItem
-          | MeaItem
-          | undefined;
+        // Nom déjà connu pour cet emplacement (label/titre de l'item ou de la
+        // carte visée) — chaque template dit comment le retrouver dans son
+        // propre contenu, cf. TEMPLATE_UI[type].labelFor.
+        const defaultLabel = section
+          ? TEMPLATE_UI[section.type]?.labelFor?.(section.content, mediaTarget.itemId)?.replace(/\n/g, " ")
+          : undefined;
         // Recadrage/dimensions : délégués aux ASSET_SPECS via assetType (pas de
         // surcharge en dur ici — évite de devoir dupliquer la config à chaque
         // nouveau type d'asset ajouté).
         return (
           <ImageUploadDialog
-            defaultLabel={
-              (targetItem && isMacaronItem(targetItem)
-                ? targetItem.label
-                : undefined)?.replace(/\n/g, " ") ??
-              (targetItem && isMeaItem(targetItem)
-                ? targetItem.title
-                : undefined)?.replace(/\n/g, " ")
-            }
+            defaultLabel={defaultLabel}
             defaultWeek={brief.week}
             defaultYear={brief.year}
             initialFile={droppedFile}
