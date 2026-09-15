@@ -104,6 +104,45 @@ export function pickGenerationSize(width: number, height: number): string {
   return `${best.width}x${best.height}`;
 }
 
+export interface GenerationFrame {
+  /** Format demandé au modèle, parmi les seuls qu'il sait produire. */
+  size: string;
+  /** Toile envoyée au modèle : l'image cible complétée au format ci-dessus. */
+  width: number;
+  height: number;
+  /** Position de l'image cible dans cette toile. */
+  offsetX: number;
+  offsetY: number;
+}
+
+/**
+ * Prépare une toile au ratio exact du format généré.
+ *
+ * Sans cela, le modèle reçoit une image d'un ratio et doit en rendre une d'un
+ * autre : il l'étire ou la recadre à sa guise, et le décor reconstitué ne
+ * s'aligne plus avec l'original — une ligne d'horizon, un rebord de marche ou
+ * une plinthe se décale visiblement à la jonction. En complétant nous-mêmes
+ * l'image jusqu'au bon ratio (les marges ajoutées sont à générer puis
+ * découpées), le modèle n'a plus aucun écart à rattraper et le retour à la
+ * taille cible redevient un simple agrandissement uniforme.
+ */
+export function planGeneration(width: number, height: number): GenerationFrame {
+  const size = pickGenerationSize(width, height);
+  const [genWidth, genHeight] = size.split("x").map(Number);
+  const ratio = genWidth / genHeight;
+
+  const paddedWidth = width / height > ratio ? width : Math.round(height * ratio);
+  const paddedHeight = width / height > ratio ? Math.round(width / ratio) : height;
+
+  return {
+    size,
+    width: paddedWidth,
+    height: paddedHeight,
+    offsetX: Math.floor((paddedWidth - width) / 2),
+    offsetY: Math.floor((paddedHeight - height) / 2),
+  };
+}
+
 // Consigne volontairement restrictive : on veut le prolongement le plus bête
 // possible du décor existant (un mur continue en mur), surtout pas une
 // "amélioration" créative qui inventerait des objets ou des personnes.

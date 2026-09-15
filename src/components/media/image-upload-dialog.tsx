@@ -215,6 +215,7 @@ export function ImageUploadDialog({
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiAvailable, setAiAvailable] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
+  const [aiElapsed, setAiElapsed] = useState(0);
   // Résultat généré, en attente de validation : tant qu'il est là, c'est lui
   // qui sera uploadé, et le recadrage est figé derrière l'aperçu.
   const [aiResult, setAiResult] = useState<string | null>(null);
@@ -406,6 +407,17 @@ export function ImageUploadDialog({
     setShowBefore(false);
   };
 
+  // Le service ne rapporte aucune progression : plutôt qu'une barre qui
+  // avancerait au hasard, on affiche le temps réellement écoulé et l'ordre de
+  // grandeur attendu — de quoi savoir si l'attente est normale.
+  useEffect(() => {
+    if (!aiBusy) return;
+    setAiElapsed(0);
+    const started = Date.now();
+    const timer = setInterval(() => setAiElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [aiBusy]);
+
   const handleGenerate = async () => {
     if (!imageSrc || !croppedAreaPixels || !blankBands) return;
     setAiBusy(true);
@@ -591,6 +603,16 @@ export function ImageUploadDialog({
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="relative">
+            {aiBusy && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg bg-background/85 backdrop-blur-sm">
+                <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                <p className="text-sm font-medium">Génération des zones vides…</p>
+                <p className="text-xs text-muted-foreground">
+                  {aiElapsed} s écoulées — compte en général 15 à 40 s
+                </p>
+              </div>
+            )}
             {aiResult ? (
               <div className="space-y-2">
                 <div className="relative max-h-80 w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
@@ -659,6 +681,7 @@ export function ImageUploadDialog({
                 />
               </div>
             )}
+            </div>
 
             <p className="text-xs text-muted-foreground/60">
               {isVideo
