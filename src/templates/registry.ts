@@ -117,7 +117,8 @@ export const TEMPLATES: Record<string, TemplateDefinition<unknown>> = {
   macarons_v2: defineTemplate<MacaronsContent>({
     createEmptyContent: emptyItems,
     normalizeContent: normalizeMacaronsContent,
-    generateHTML: (c, ctx) => generateQuickaccessV2HTML(c?.items ?? [], ctx, c?.customPath),
+    generateHTML: (c, ctx) =>
+      generateQuickaccessV2HTML(c?.items ?? [], ctx, c?.customPath, c?.placement),
     getImages: getMacaronsV2Images,
     freezeWeek: freezeItemsWithVisible,
   }),

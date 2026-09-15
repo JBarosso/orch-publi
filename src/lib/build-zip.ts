@@ -4,6 +4,7 @@ import { PassThrough, Readable } from "stream";
 import { readAsset } from "@/lib/storage";
 import type { ImageEntry } from "@/lib/section-images";
 import { cmsLocalePath } from "@/lib/utils";
+import { looksLikeSvgBuffer } from "@/lib/upload-specs";
 
 export interface ZipGroup {
   // "" pour l'export simple (comportement historique) — un chemin type
@@ -69,6 +70,19 @@ async function prepareImage(img: ImageEntry, group: ZipGroup): Promise<PreparedI
     // Un seul sharp() pour les deux sorties : les clones partagent l'entrée au
     // lieu de la décoder deux fois.
     const source = sharp(buffer);
+
+    if (img.vectorOrPng) {
+      // Le SVG ne passe pas par sharp : le rasteriser reviendrait à jeter ce
+      // pour quoi on l'a choisi. Il doit matcher brandLogoExtension côté HTML.
+      if (looksLikeSvgBuffer(buffer)) {
+        return { entries: [{ name: `${subFolder}/${img.baseName}.svg`, buffer }] };
+      }
+      return {
+        entries: [
+          { name: `${subFolder}/${img.baseName}.png`, buffer: await source.png().toBuffer() },
+        ],
+      };
+    }
     const pipeline = () => {
       const p = source.clone();
       if (img.width && img.height) p.resize(img.width, img.height, { fit: "cover" });

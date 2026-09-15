@@ -151,6 +151,10 @@ function parseRegularCard(
     customPath,
     showBrandLogo: logoEl ? !hasClass(logoEl, "d-none") : base.showBrandLogo,
     brandLogoPath: logoEl ? (logoEl.getAttribute("src") ?? "").split("?")[0] : base.brandLogoPath,
+    // Le HTML importé ne référence qu'un chemin CMS : l'image uploadée, elle,
+    // n'existe que dans la médiathèque de l'outil et ne se retrouve pas ici.
+    brandLogoSource: "path",
+    brandLogoWidth: Number(logoEl?.getAttribute("width")) || base.brandLogoWidth,
     showBadge: badgeEl ? !hasClass(badgeEl, "d-none") : base.showBadge,
     badgeText: badgeEl ? textOf(badgeEl) : base.badgeText,
     showMarketingTitle: marketingEl ? !hasClass(marketingEl, "d-none") : base.showMarketingTitle,

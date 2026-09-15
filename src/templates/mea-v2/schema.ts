@@ -2,6 +2,7 @@ import type { MeaV2Card, MeaV2FocusCard, MeaV2Content } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { createEmptyButton, normalizeButtons } from "../mea/schema";
 import { withDefaults } from "@/lib/normalize-content";
+import { DEFAULT_BRAND_LOGO_PATH, DEFAULT_BRAND_LOGO_WIDTH } from "./brand-logo";
 
 export { createEmptyButton };
 
@@ -23,7 +24,11 @@ export function createEmptyMeaV2Card(id: string): MeaV2Card {
     useCustomPath: false,
     customPath: "",
     showBrandLogo: false,
-    brandLogoPath: "logo-puericulture/svg/premaman-blc.svg",
+    brandLogoSource: "path",
+    brandLogoPath: DEFAULT_BRAND_LOGO_PATH,
+    brandLogoUrl: "",
+    brandLogoImageId: uuidv4().slice(0, 8),
+    brandLogoWidth: DEFAULT_BRAND_LOGO_WIDTH,
     showBadge: false,
     badgeText: "",
     showMarketingTitle: false,

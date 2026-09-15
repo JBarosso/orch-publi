@@ -54,6 +54,13 @@ export default function SettingsPage() {
   const [savedColors, setSavedColors] = useState<HeaderColor[] | null>(null);
   const [savingColors, setSavingColors] = useState(false);
 
+  // La clé enregistrée n'est jamais renvoyée par l'API : le champ reste vide
+  // et ne sert qu'à en poser une nouvelle, l'indice affichant celle en place.
+  const [apiKey, setApiKey] = useState("");
+  const [keyHint, setKeyHint] = useState("");
+  const [keyConfigured, setKeyConfigured] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
+
   useEffect(() => {
     (async () => {
       const res = await fetch("/api/settings");
@@ -71,8 +78,32 @@ export default function SettingsPage() {
       setAutoPurge(data.autoPurgeEnabled === true);
       setCronConfigured(data.cronConfigured === true);
       setLastScheduledPurge(data.lastScheduledPurge ?? null);
+      setKeyConfigured(data.openaiKeyConfigured === true);
+      setKeyHint(data.openaiKeyHint ?? "");
     })();
   }, []);
+
+  const saveApiKey = async (key: string) => {
+    setSavingKey(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ openaiApiKey: key }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Erreur lors de la sauvegarde");
+        return;
+      }
+      setKeyConfigured(data.openaiKeyConfigured);
+      setKeyHint(data.openaiKeyHint ?? "");
+      setApiKey("");
+      toast.success(key ? "Clé API enregistrée" : "Clé API supprimée");
+    } finally {
+      setSavingKey(false);
+    }
+  };
 
   const fetchPreview = useCallback(async () => {
     setLoadingPreview(true);
@@ -556,6 +587,58 @@ export default function SettingsPage() {
             )}
           </div>
         )}
+      </section>
+
+      <section className="mt-6 rounded-lg border border-border/60 bg-card p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-foreground">
+          Complétion IA des images
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Permet de compléter les zones vides laissées par un recadrage dézoomé,
+          directement au moment de l&apos;upload. Nécessite une clé API OpenAI
+          (plateforme facturée à l&apos;usage, de l&apos;ordre de quelques
+          centimes par image). Sans clé, l&apos;option n&apos;apparaît pas dans
+          la fenêtre d&apos;upload.
+        </p>
+        <div className="mt-4 flex items-end gap-3">
+          <div className="flex-1 space-y-1.5">
+            <Label htmlFor="openai-key">
+              Clé API OpenAI
+              {keyConfigured && (
+                <span className="ml-2 font-normal text-emerald-600">
+                  enregistrée {keyHint}
+                </span>
+              )}
+            </Label>
+            <Input
+              id="openai-key"
+              type="password"
+              autoComplete="off"
+              placeholder={keyConfigured ? "Saisir une nouvelle clé pour la remplacer" : "sk-..."}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+            />
+          </div>
+          <Button onClick={() => saveApiKey(apiKey.trim())} disabled={!apiKey.trim() || savingKey}>
+            {savingKey ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-1.5 h-4 w-4" />
+            )}
+            Enregistrer
+          </Button>
+          {keyConfigured && (
+            <Button
+              variant="outline"
+              onClick={() => saveApiKey("")}
+              disabled={savingKey}
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Supprimer
+            </Button>
+          )}
+        </div>
       </section>
 
       <section className="mt-6 rounded-lg border border-border/60 bg-card p-5 shadow-sm">

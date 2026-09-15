@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ImportCmsDialog } from "@/components/editor/import-cms-dialog";
 import { v4 as uuidv4 } from "uuid";
-import type { MacaronItem } from "@/types";
+import type { MacaronItem, QuickaccessPlacement } from "@/types";
 import { createEmptyMacaron } from "./schema";
 import { MacaronItemEditor } from "./macaron-item-editor";
 import { parseQuickaccessV2HTML } from "../macarons-v2/import";
@@ -50,7 +50,10 @@ interface MacaronsEditorProps {
    * appels n'ait été pris en compte (aucun rendu entre les deux), donc le
    * second écrase le premier. Repli sur l'ancien enchaînement si absent.
    */
-  onImport?: (items: MacaronItem[], customPath: string) => void;
+  onImport?: (items: MacaronItem[], customPath: string, placement: QuickaccessPlacement) => void;
+  /** Emplacement CMS de la section (quickaccess v2) : décide des classes exportées. */
+  placement?: QuickaccessPlacement;
+  onPlacementChange?: (placement: QuickaccessPlacement) => void;
 }
 
 export function MacaronsEditor({
@@ -65,6 +68,8 @@ export function MacaronsEditor({
   sectionCustomPath = "",
   onSectionCustomPathChange,
   onImport,
+  placement = "homepage",
+  onPlacementChange,
 }: MacaronsEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -125,11 +130,16 @@ export function MacaronsEditor({
       return;
     }
     try {
-      const { items: imported, customPath, issueCount } = parseQuickaccessV2HTML(html, briefWeek);
+      const {
+        items: imported,
+        customPath,
+        placement: importedPlacement,
+        issueCount,
+      } = parseQuickaccessV2HTML(html, briefWeek);
       if (onImport) {
         // customPath toujours réappliqué (même vide) : l'import remplace la
         // section entière, un chemin resté de l'import précédent serait trompeur.
-        onImport(imported, customPath);
+        onImport(imported, customPath, importedPlacement);
       } else {
         onChange(imported);
         onSectionCustomPathChange?.(customPath);
@@ -152,6 +162,17 @@ export function MacaronsEditor({
           <h3 className="text-sm font-medium text-muted-foreground">
             Macarons ({items.length})
           </h3>
+          {variant === "v2" && onPlacementChange && (
+            <select
+              value={placement}
+              onChange={(e) => onPlacementChange(e.target.value as QuickaccessPlacement)}
+              className="h-7 rounded-md border border-input bg-transparent px-2 text-xs outline-none"
+              title="Décide des classes CSS écrites à l'export — elles diffèrent entre la page d'accueil et une page catégorie niveau 2"
+            >
+              <option value="homepage">Page d&apos;accueil</option>
+              <option value="cat_lvl2">Catégorie niveau 2</option>
+            </select>
+          )}
           {variant === "v2" && onSectionCustomPathChange && (
             <Input
               placeholder="Chemin custom de la section (ex: landing-pages/fille/campagne)"

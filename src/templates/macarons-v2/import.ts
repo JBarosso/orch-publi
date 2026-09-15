@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import type { MacaronItem } from "@/types";
+import type { MacaronItem, QuickaccessPlacement } from "@/types";
 import {
   freezeImportedPosition,
   isEmptyCmsLink,
@@ -16,18 +16,31 @@ export interface ImportQuickaccessV2Result {
   items: MacaronItem[];
   /** Chemin custom commun à toutes les tuiles, à poser sur la section. */
   customPath: string;
+  /** Emplacement déduit des classes du HTML collé. */
+  placement: QuickaccessPlacement;
   issueCount: number;
 }
 
 // Même composant CMS sur deux emplacements, classes scopées par page : la
 // page d'accueil génère ".quickaccess-v2-item", les pages catégorie niveau 2
-// (hp-cat-lvl2) le même HTML avec ".quickaccess-lvl2-item" — confirmé en
-// comparant au code déjà exporté par cette même app (src/templates/macarons-v2/export.ts).
-// N'ajouter un préfixe ici qu'après confirmation, pas par anticipation.
-const QUICKACCESS_ITEM_CLASSES = ["quickaccess-v2-item", "quickaccess-lvl2-item"];
+// (hp-cat-lvl2) le même HTML avec ".quickaccess-lvl2-item" — relevé sur le
+// HTML réel des deux pages. L'emplacement détecté ici est conservé dans le
+// contenu : c'est lui qui décide des classes réécrites à l'export, sans quoi
+// une section importée d'une page catégorie ressortirait habillée en page
+// d'accueil, donc sans style sur sa page d'origine.
+const ITEM_CLASS_BY_PLACEMENT: Record<QuickaccessPlacement, string> = {
+  homepage: "quickaccess-v2-item",
+  cat_lvl2: "quickaccess-lvl2-item",
+};
 
 function selectorFor(suffix: string): string {
-  return QUICKACCESS_ITEM_CLASSES.map((c) => `.${c}${suffix}`).join(", ");
+  return Object.values(ITEM_CLASS_BY_PLACEMENT)
+    .map((c) => `.${c}${suffix}`)
+    .join(", ");
+}
+
+function detectPlacement(doc: Document): QuickaccessPlacement {
+  return doc.querySelector(`.${ITEM_CLASS_BY_PLACEMENT.cat_lvl2}`) ? "cat_lvl2" : "homepage";
 }
 
 /**
@@ -92,5 +105,5 @@ export function parseQuickaccessV2HTML(html: string, briefWeek: number): ImportQ
     });
   }
 
-  return { items, customPath, issueCount };
+  return { items, customPath, placement: detectPlacement(doc), issueCount };
 }

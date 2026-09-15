@@ -17,6 +17,7 @@ import { WeekField } from "@/components/editor/week-field";
 import type { MeaV2Card, MeaButton, MeaPricingMode } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "./schema";
+import { DEFAULT_BRAND_LOGO_WIDTH } from "./brand-logo";
 import { useFileDrop } from "@/lib/use-file-drop";
 
 interface MeaV2CardEditorProps {
@@ -25,6 +26,9 @@ interface MeaV2CardEditorProps {
   briefWeek: number;
   onUpdate: (updates: Partial<MeaV2Card>) => void;
   onOpenMediaLibrary: () => void;
+  /** Médiathèque pour le logo marque, distincte du visuel de la carte. */
+  onOpenBrandLogoLibrary: () => void;
+  onDropBrandLogo?: (file: File) => void;
   onDropFile?: (file: File) => void;
   /** Chemin custom de la section, hérité par la carte qui n'en définit pas. */
   sectionCustomPath?: string;
@@ -40,6 +44,8 @@ export function MeaV2CardEditor({
   briefWeek,
   onUpdate,
   onOpenMediaLibrary,
+  onOpenBrandLogoLibrary,
+  onDropBrandLogo,
   onDropFile,
   sectionCustomPath = "",
   briefYear,
@@ -47,11 +53,16 @@ export function MeaV2CardEditor({
   minimal = false,
 }: MeaV2CardEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
+  const { isDraggingOver: isDraggingLogo, dropHandlers: logoDropHandlers } = useFileDrop((file) =>
+    onDropBrandLogo?.(file),
+  );
   // Anciennes données sans les champs prix/badge/marque (ajoutés après coup) :
   // mêmes defaults que createEmptyMeaV2Card, résolus ici pour ne jamais passer
   // undefined à un Switch/Input contrôlé.
   const buttons: MeaButton[] = card.buttons ?? [createEmptyButton()];
   const showBrandLogo = card.showBrandLogo ?? false;
+  const brandLogoSource = card.brandLogoSource ?? "path";
+  const brandLogoWidth = card.brandLogoWidth ?? DEFAULT_BRAND_LOGO_WIDTH;
   const showBadge = card.showBadge ?? false;
   const showMarketingTitle = card.showMarketingTitle ?? false;
   const pricingMode = card.pricingMode ?? "standard";
@@ -117,12 +128,69 @@ export function MeaV2CardEditor({
               className="scale-75"
             />
             {showBrandLogo && (
-              <Input
-                placeholder="logo-puericulture/svg/marque.svg"
-                value={card.brandLogoPath ?? ""}
-                onChange={(e) => onUpdate({ brandLogoPath: e.target.value })}
-                className="h-6 w-48 text-xs px-1"
-              />
+              <>
+                {([
+                  ["path", "Chemin"],
+                  ["image", "Image"],
+                ] as const).map(([source, text]) => (
+                  <button
+                    key={source}
+                    type="button"
+                    onClick={() => onUpdate({ brandLogoSource: source })}
+                    className={cn(
+                      "h-6 rounded px-1.5 text-[10px] transition-colors",
+                      brandLogoSource === source
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {text}
+                  </button>
+                ))}
+                {brandLogoSource === "image" ? (
+                  <button
+                    type="button"
+                    onClick={onOpenBrandLogoLibrary}
+                    {...logoDropHandlers}
+                    className={cn(
+                      "flex h-6 items-center gap-1 rounded border border-dashed border-muted-foreground/30 px-1.5 text-[10px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground",
+                      isDraggingLogo && "border-primary bg-primary/10 text-foreground",
+                    )}
+                  >
+                    {card.brandLogoUrl ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={card.brandLogoUrl} alt="" className="h-4 w-auto max-w-10 object-contain" />
+                        Changer
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="h-3 w-3" />
+                        Choisir
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <Input
+                    placeholder="logo-puericulture/svg/marque.svg"
+                    value={card.brandLogoPath ?? ""}
+                    onChange={(e) => onUpdate({ brandLogoPath: e.target.value })}
+                    className="h-6 w-48 text-xs px-1"
+                  />
+                )}
+                <Input
+                  type="number"
+                  min={10}
+                  max={1000}
+                  value={brandLogoWidth}
+                  onChange={(e) =>
+                    onUpdate({ brandLogoWidth: Number(e.target.value) || DEFAULT_BRAND_LOGO_WIDTH })
+                  }
+                  title="Largeur d'affichage du logo, en pixels"
+                  className="h-6 w-14 text-xs px-1"
+                />
+                <span className="text-[10px] text-muted-foreground">px</span>
+              </>
             )}
           </div>
 

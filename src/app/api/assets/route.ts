@@ -21,9 +21,12 @@ import {
   MAX_SOURCE_DIMENSION,
   MAX_TIFF_SOURCE_BYTES,
   MAX_VIDEO_SOURCE_BYTES,
+  SVG_MIME_TYPE,
   formatBytes,
+  looksLikeSvgBuffer,
   normalizeAssetLabel,
   resolveAssetType,
+  sanitizeSvg,
 } from "@/lib/upload-specs";
 
 function toIntOrNull(value: unknown): number | null {
@@ -172,71 +175,80 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const metadata = await sharp(imageBuffer).metadata();
-    if (!metadata.format || !ACCEPTED_SHARP_FORMATS.includes(metadata.format)) {
-      return NextResponse.json(
-        { error: `Format non supporté. Formats acceptés : ${ACCEPTED_FORMATS_LABEL}.` },
-        { status: 400 },
-      );
-    }
-
-    let processed = sharp(imageBuffer);
-
-    if (crop) {
-      processed = processed.extract({
-        left: Math.round(crop.x),
-        top: Math.round(crop.y),
-        width: Math.round(crop.width),
-        height: Math.round(crop.height),
-      });
-    }
-
-    // Dimensions imposées par le type d'asset — le client ne peut pas les contourner.
-    // Sans dimensions cibles (type "other"), l'image garde ses dimensions d'origine.
-    if (spec.targetWidth && spec.targetHeight) {
-      processed = processed
-        .resize(spec.targetWidth, spec.targetHeight, {
-          fit: "contain",
-          background: { r: 255, g: 255, b: 255, alpha: 1 },
-        })
-        .flatten({ background: { r: 255, g: 255, b: 255 } });
-    } else {
-      // Pas de dimensions imposées (upload libre) : on plafonne quand même le
-      // plus grand côté pour que le fichier sauvegardé reste optimisé, sans
-      // jamais agrandir une image plus petite que le plafond.
-      processed = processed.resize(MAX_SOURCE_DIMENSION, MAX_SOURCE_DIMENSION, {
-        fit: "inside",
-        withoutEnlargement: true,
-      });
-    }
-
-    // "source" : format d'origine conservé, ré-encodé pour optimiser le poids.
-    // Un AVIF (« heif » pour sharp) tombe dans le cas PNG ci-dessous : sans
-    // perte, transparence conservée.
-    const outputFormat =
-      spec.outputFormat === "source"
-        ? (metadata.format as "jpeg" | "png" | "webp")
-        : spec.outputFormat;
-
     let outputBuffer: Buffer;
     let extension: string;
     let mimeType: string;
-    if (outputFormat === "jpeg") {
-      outputBuffer = await processed
-        .flatten({ background: { r: 255, g: 255, b: 255 } })
-        .jpeg({ quality: 85 })
-        .toBuffer();
-      extension = "jpg";
-      mimeType = "image/jpeg";
-    } else if (outputFormat === "webp") {
-      outputBuffer = await processed.webp({ quality: 85 }).toBuffer();
-      extension = "webp";
-      mimeType = "image/webp";
+
+    // SVG (logo marque) : stocké tel quel, jamais passé dans sharp qui le
+    // rasteriserait — seul le contenu exécutable est retiré (cf. sanitizeSvg).
+    if (spec.allowSvg && looksLikeSvgBuffer(imageBuffer)) {
+      outputBuffer = Buffer.from(sanitizeSvg(imageBuffer.toString("utf-8")), "utf-8");
+      extension = "svg";
+      mimeType = SVG_MIME_TYPE;
     } else {
-      // PNG : compression sans perte (la transparence est conservée en upload libre)
-      outputBuffer = await processed.png({ compressionLevel: 9 }).toBuffer();
-      extension = "png";
-      mimeType = "image/png";
+      const metadata = await sharp(imageBuffer).metadata();
+      if (!metadata.format || !ACCEPTED_SHARP_FORMATS.includes(metadata.format)) {
+        return NextResponse.json(
+          { error: `Format non supporté. Formats acceptés : ${ACCEPTED_FORMATS_LABEL}.` },
+          { status: 400 },
+        );
+      }
+
+      let processed = sharp(imageBuffer);
+
+      if (crop) {
+        processed = processed.extract({
+          left: Math.round(crop.x),
+          top: Math.round(crop.y),
+          width: Math.round(crop.width),
+          height: Math.round(crop.height),
+        });
+      }
+
+      // Dimensions imposées par le type d'asset — le client ne peut pas les contourner.
+      // Sans dimensions cibles (type "other"), l'image garde ses dimensions d'origine.
+      if (spec.targetWidth && spec.targetHeight) {
+        processed = processed
+          .resize(spec.targetWidth, spec.targetHeight, {
+            fit: "contain",
+            background: { r: 255, g: 255, b: 255, alpha: 1 },
+          })
+          .flatten({ background: { r: 255, g: 255, b: 255 } });
+      } else {
+        // Pas de dimensions imposées (upload libre) : on plafonne quand même le
+        // plus grand côté pour que le fichier sauvegardé reste optimisé, sans
+        // jamais agrandir une image plus petite que le plafond.
+        processed = processed.resize(MAX_SOURCE_DIMENSION, MAX_SOURCE_DIMENSION, {
+          fit: "inside",
+          withoutEnlargement: true,
+        });
+      }
+
+      // "source" : format d'origine conservé, ré-encodé pour optimiser le poids.
+      // Un AVIF (« heif » pour sharp) tombe dans le cas PNG ci-dessous : sans
+      // perte, transparence conservée.
+      const outputFormat =
+        spec.outputFormat === "source"
+          ? (metadata.format as "jpeg" | "png" | "webp")
+          : spec.outputFormat;
+
+      if (outputFormat === "jpeg") {
+        outputBuffer = await processed
+          .flatten({ background: { r: 255, g: 255, b: 255 } })
+          .jpeg({ quality: 85 })
+          .toBuffer();
+        extension = "jpg";
+        mimeType = "image/jpeg";
+      } else if (outputFormat === "webp") {
+        outputBuffer = await processed.webp({ quality: 85 }).toBuffer();
+        extension = "webp";
+        mimeType = "image/webp";
+      } else {
+        // PNG : compression sans perte (la transparence est conservée en upload libre)
+        outputBuffer = await processed.png({ compressionLevel: 9 }).toBuffer();
+        extension = "png";
+        mimeType = "image/png";
+      }
     }
 
     const filename = `${uuidv4()}.${extension}`;

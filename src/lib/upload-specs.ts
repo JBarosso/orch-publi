@@ -17,6 +17,15 @@ export const MAX_SOURCE_BYTES = 40 * 1024 * 1024; // 40 Mo
 // déjà plus petite (withoutEnlargement).
 export const MAX_SOURCE_DIMENSION = 2400;
 
+// SVG à part : accepté uniquement par les specs qui le déclarent (allowSvg),
+// et jamais passé dans sharp, qui le rasteriserait — c'est précisément le
+// vectoriel qu'on veut conserver pour un logo.
+export const SVG_MIME_TYPE = "image/svg+xml";
+
+export function looksLikeSvg(file: { type: string; name?: string }): boolean {
+  return file.type === SVG_MIME_TYPE || /\.svg$/i.test(file.name ?? "");
+}
+
 export const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/tiff"];
 // Windows ne rapporte pas toujours le type MIME des .tif/.tiff/.avif (file.type
 // peut être vide) : on ajoute l'extension, comme pour le .mp4 plus bas.
@@ -66,6 +75,9 @@ export interface AssetSpec {
   requireLabel: boolean;
   // "video" = pipeline dédiée (pas de sharp, pas de crop/dimensions). Défaut "image".
   kind?: "image" | "video";
+  // Accepte aussi le SVG, stocké tel quel (logo marque). Réservé aux types
+  // sans recadrage ni dimensions imposées : un vectoriel n'a rien à y gagner.
+  allowSvg?: boolean;
 }
 
 export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
@@ -125,6 +137,14 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
     outputFormat: "source",
     requireLabel: false,
     kind: "video",
+  },
+  mea_v2_logo: {
+    displayName: "MEA v2 - Logo marque",
+    // Upload libre : un logo a ses propres proportions, jamais recadré, et le
+    // format d'origine est conservé pour garder la transparence du PNG.
+    outputFormat: "source",
+    requireLabel: false,
+    allowSvg: true,
   },
   edito: {
     displayName: "Edito",
@@ -203,6 +223,7 @@ const KNOWN_ASSET_TYPES: AssetType[] = [
   "mea_v2",
   "mea_v2_focus",
   "mea_v2_video",
+  "mea_v2_logo",
   "edito",
   "carousel",
   "carousel_title",
@@ -220,6 +241,26 @@ export function resolveAssetType(type: unknown): AssetType {
     : "other";
 }
 
+/**
+ * Retire d'un SVG ce qui peut s'exécuter. Un logo n'a jamais besoin de script,
+ * et le fichier finit servi tel quel (ici comme sur le CMS) : sans ce nettoyage
+ * on accepterait du code arbitraire dans un fichier déposé par l'utilisateur.
+ */
+export function sanitizeSvg(svg: string): string {
+  return svg
+    .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
+    .replace(/<script[^>]*\/>/gi, "")
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject\s*>/gi, "")
+    // Gestionnaires inline (onload, onclick...), guillemets simples ou doubles.
+    .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "")
+    .replace(/javascript:/gi, "");
+}
+
+export function looksLikeSvgBuffer(buffer: Buffer): boolean {
+  return /<svg[\s>]/i.test(buffer.subarray(0, 1024).toString("utf-8"));
+}
+
 export function normalizeAssetLabel(label: string): string {
   return label.replace(/\s+/g, " ").trim();
 }
@@ -229,12 +270,15 @@ export function formatBytes(bytes: number): string {
   return `${Math.round(bytes / 1024)} Ko`;
 }
 
-export function validateSourceFile(file: {
-  type: string;
-  size: number;
-  name?: string;
-}): string | null {
-  if (
+export function validateSourceFile(
+  file: { type: string; size: number; name?: string },
+  allowSvg = false,
+): string | null {
+  if (looksLikeSvg(file)) {
+    if (!allowSvg) {
+      return "Le SVG n'est accepté que pour le logo marque — utilisez un PNG pour ce type d'image.";
+    }
+  } else if (
     !ACCEPTED_MIME_TYPES.includes(file.type) &&
     !looksLikeTiff(file) &&
     !/\.avif$/i.test(file.name ?? "")

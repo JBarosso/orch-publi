@@ -85,14 +85,30 @@ describe("mergeQuickaccessImport", () => {
   it("pose les items importés et le chemin de section ensemble", () => {
     const content = { customPath: "ancien-chemin", items: [{ id: "old" }] };
     const imported = [{ id: "a", label: "Ensembles" }, { id: "b", label: "Sweats" }];
-    expect(mergeQuickaccessImport(content, imported as never, "hp-cat-lvl2/bbf")).toEqual({
+    expect(mergeQuickaccessImport(content, imported as never, "hp-cat-lvl2/bbf", "cat_lvl2")).toEqual({
       items: imported,
       customPath: "hp-cat-lvl2/bbf",
+      placement: "cat_lvl2",
     });
   });
 
+  // Régression : l'emplacement détecté à l'import était perdu, et l'export
+  // réécrivait les classes de la page d'accueil sur une section venue d'une
+  // page catégorie niveau 2 — qui se retrouvait donc sans style.
+  it("conserve l'emplacement détecté dans le HTML importé", () => {
+    const withLvl2 = mergeQuickaccessImport({ placement: "cat_lvl2" }, [] as never, "", "cat_lvl2");
+    expect(withLvl2.placement).toBe("cat_lvl2");
+    // Un import de page d'accueil sur une section auparavant en lvl2 la ramène
+    // bien à "homepage" plutôt que de garder l'ancienne valeur.
+    expect(mergeQuickaccessImport(withLvl2, [] as never, "", "homepage").placement).toBe("homepage");
+  });
+
   it("fonctionne même sans contenu existant (première section)", () => {
-    expect(mergeQuickaccessImport(null, [] as never, "")).toEqual({ items: [], customPath: "" });
+    expect(mergeQuickaccessImport(null, [] as never, "")).toEqual({
+      items: [],
+      customPath: "",
+      placement: "homepage",
+    });
   });
 });
 

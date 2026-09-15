@@ -13,15 +13,17 @@ import {
   getLastScheduledPurge,
 } from "@/lib/retention";
 import { getHeaderColors, setHeaderColors, type HeaderColor } from "@/lib/header-colors";
+import { getOpenAiApiKey, maskApiKey, setOpenAiApiKey } from "@/lib/openai-key";
 
 export async function GET() {
-  const [retentionMonths, videoRetentionDays, headerColors, autoPurgeEnabled, lastScheduledPurge] =
+  const [retentionMonths, videoRetentionDays, headerColors, autoPurgeEnabled, lastScheduledPurge, openaiApiKey] =
     await Promise.all([
       getRetentionMonths(),
       getVideoRetentionDays(),
       getHeaderColors(),
       getAutoPurgeEnabled(),
       getLastScheduledPurge(),
+      getOpenAiApiKey(),
     ]);
   return NextResponse.json({
     retentionMonths,
@@ -29,6 +31,10 @@ export async function GET() {
     headerColors,
     autoPurgeEnabled,
     lastScheduledPurge,
+    // Jamais la clé elle-même : seulement de quoi afficher qu'elle est en
+    // place et laquelle, sans qu'elle transite vers le navigateur.
+    openaiKeyConfigured: openaiApiKey !== "",
+    openaiKeyHint: maskApiKey(openaiApiKey),
     // Sans secret, la route de cron refuse tous les appels : le passage
     // automatique ne tournerait jamais, et l'interface doit le dire.
     cronConfigured: !!process.env.CRON_SECRET,
@@ -102,6 +108,19 @@ export async function PUT(request: NextRequest) {
     }
     await setHeaderColors(colors);
     return NextResponse.json({ headerColors: colors });
+  }
+
+  if (body.openaiApiKey !== undefined) {
+    if (typeof body.openaiApiKey !== "string") {
+      return NextResponse.json({ error: "Clé API invalide" }, { status: 400 });
+    }
+    const key = body.openaiApiKey.trim();
+    // Chaîne vide = suppression volontaire de la clé enregistrée.
+    if (key !== "" && key.length < 20) {
+      return NextResponse.json({ error: "Clé API trop courte pour être valide" }, { status: 400 });
+    }
+    await setOpenAiApiKey(key);
+    return NextResponse.json({ openaiKeyConfigured: key !== "", openaiKeyHint: maskApiKey(key) });
   }
 
   return NextResponse.json({ error: "Aucun champ à mettre à jour" }, { status: 400 });

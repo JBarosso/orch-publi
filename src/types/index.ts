@@ -22,6 +22,7 @@ export type AssetType =
   | "mea_v2"
   | "mea_v2_focus"
   | "mea_v2_video"
+  | "mea_v2_logo"
   | "edito"
   | "carousel"
   | "carousel_title"
@@ -151,11 +152,22 @@ export interface MacaronItem {
   customPath: string;
 }
 
+/**
+ * Emplacement CMS d'un quickaccess v2. Le même composant vit sur la page
+ * d'accueil et sur les pages catégorie niveau 2, avec des classes scopées
+ * différentes de chaque côté : exporter les mauvaises laisse la section sans
+ * style sur la page de destination.
+ */
+export type QuickaccessPlacement = "homepage" | "cat_lvl2";
+
 export interface MacaronsContent {
   items: MacaronItem[];
   // Chemin CMS personnalisé partagé par les items de la section (quickaccess
   // v2) — chaque item peut le surcharger. Absent des contenus créés avant.
   customPath?: string;
+  // Absent des contenus créés avant : traité comme "homepage", l'export
+  // historique, pour ne rien changer aux sections existantes.
+  placement?: QuickaccessPlacement;
 }
 
 export type MeaOverlayType = "none" | "label" | "text";
@@ -310,11 +322,17 @@ export interface MeaV2Card {
   useCustomPath: boolean;
   customPath: string;
 
-  // Logo marque : chemin CMS complet (pas de préfixe imposé, contrairement à
-  // MeaItem.brandLogoPath) pour couvrir aussi bien la bibliothèque
-  // "logo-puericulture/..." qu'un logo de campagne ponctuel ailleurs.
+  // Logo marque, au choix : un chemin CMS complet (pas de préfixe imposé,
+  // contrairement à MeaItem.brandLogoPath) pour couvrir aussi bien la
+  // bibliothèque "logo-puericulture/..." qu'un logo de campagne ailleurs — ou
+  // une image uploadée, exportée avec les autres visuels de la section.
   showBrandLogo: boolean;
+  brandLogoSource: "path" | "image";
   brandLogoPath: string;
+  brandLogoUrl: string;
+  brandLogoImageId: string;
+  /** Attribut width du <img>, en pixels. La hauteur reste automatique. */
+  brandLogoWidth: number;
 
   // Badge texte (hp-cat-header-mea__badge, ex: "Best Price")
   showBadge: boolean;

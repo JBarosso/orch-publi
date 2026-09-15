@@ -17,6 +17,11 @@ export interface ImageEntry {
   folder?: string;
   // N'exporte que le .jpg, pas de variante .webp (cat-banner : pas de <picture>)
   jpgOnly?: boolean;
+  // Un seul fichier, sans redimensionnement ni aplatissement sur fond blanc
+  // (logo marque MEA v2) : un SVG est copié tel quel, tout le reste devient un
+  // PNG. La transparence fait tout l'intérêt du fichier — un JPEG poserait le
+  // logo sur un carré blanc par-dessus la photo.
+  vectorOrPng?: boolean;
   // Image "globale" (quickaccess v2, MEA v2) : omet le segment locale dans le
   // chemin CMS du zip (doit matcher buildCmsImagePath côté export HTML).
   noLocale?: boolean;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import {
@@ -13,8 +13,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Sparkles, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import {
+  computeBlankBands,
+  describeBlankSides,
+  hasFillableBlanks,
+  type BlankBands,
+} from "@/lib/ai-fill";
 import type { AssetType } from "@/types";
 import {
   ACCEPTED_FORMATS_LABEL,
@@ -25,6 +32,7 @@ import {
   MAX_SOURCE_BYTES,
   MAX_SOURCE_DIMENSION,
   MAX_VIDEO_SOURCE_BYTES,
+  SVG_MIME_TYPE,
   formatBytes,
   looksLikeMp4,
   looksLikeTiff,
@@ -127,6 +135,24 @@ async function getCroppedImg(
   return canvas.toDataURL("image/jpeg", 0.95);
 }
 
+// Masque attendu par l'API d'édition : opaque là où l'image doit rester
+// intacte, transparent sur les bandes vides — ce sont elles, et rien d'autre,
+// que le modèle a le droit de peindre.
+function buildMaskDataUrl(bands: BlankBands): string {
+  const canvas = document.createElement("canvas");
+  canvas.width = bands.canvasWidth;
+  canvas.height = bands.canvasHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No 2d context");
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, bands.left, canvas.height);
+  ctx.clearRect(canvas.width - bands.right, 0, bands.right, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, bands.top);
+  ctx.clearRect(0, canvas.height - bands.bottom, canvas.width, bands.bottom);
+  return canvas.toDataURL("image/png");
+}
+
 // Upload libre (pas de crop) d'un TIFF converti : imageSrc est une object URL
 // (potentiellement en pleine résolution TIFF, donc énorme). On la ramène au
 // même plafond que le serveur applique de toute façon (MAX_SOURCE_DIMENSION)
@@ -186,6 +212,15 @@ export function ImageUploadDialog({
   // image standard sur cette requête.
   const sourceWasTiffRef = useRef(false);
 
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiAvailable, setAiAvailable] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  // Résultat généré, en attente de validation : tant qu'il est là, c'est lui
+  // qui sera uploadé, et le recadrage est figé derrière l'aperçu.
+  const [aiResult, setAiResult] = useState<string | null>(null);
+  const [aiOriginal, setAiOriginal] = useState<string | null>(null);
+  const [showBefore, setShowBefore] = useState(false);
+
   const spec = ASSET_SPECS[selectedType];
   // Les props explicites (éditeur de brief) priment sur la spec du type
   const effCropShape = cropShape ?? spec.cropShape;
@@ -242,7 +277,7 @@ export function ImageUploadDialog({
         return;
       }
 
-      const fileError = validateSourceFile(file);
+      const fileError = validateSourceFile(file, activeSpec.allowSvg === true);
       if (fileError) {
         toast.error(fileError);
         return;
@@ -341,6 +376,66 @@ export function ImageUploadDialog({
     setCroppedAreaPixels(croppedPixels);
   }, []);
 
+  // L'option n'a de sens que si une clé API est enregistrée (cf. Paramétrage)
+  // — et jamais en démo publique, qui n'appelle aucune route.
+  useEffect(() => {
+    if (localOnly) return;
+    fetch("/api/settings")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setAiAvailable(data?.openaiKeyConfigured === true))
+      .catch(() => setAiAvailable(false));
+  }, [localOnly]);
+
+  const blankBands = useMemo(() => {
+    if (skipCrop || !croppedAreaPixels || !sourceDims) return null;
+    const bands = computeBlankBands(
+      croppedAreaPixels,
+      sourceDims.width,
+      sourceDims.height,
+      effTargetWidth,
+      effTargetHeight,
+    );
+    return hasFillableBlanks(bands) ? bands : null;
+  }, [skipCrop, croppedAreaPixels, sourceDims, effTargetWidth, effTargetHeight]);
+
+  const canFillBlanks = aiAvailable && !localOnly && blankBands !== null;
+
+  const discardAiResult = () => {
+    setAiResult(null);
+    setAiOriginal(null);
+    setShowBefore(false);
+  };
+
+  const handleGenerate = async () => {
+    if (!imageSrc || !croppedAreaPixels || !blankBands) return;
+    setAiBusy(true);
+    try {
+      const cropped = await getCroppedImg(
+        imageSrc,
+        croppedAreaPixels,
+        effTargetWidth,
+        effTargetHeight,
+      );
+      const res = await fetch("/api/ai-fill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: cropped, mask: buildMaskDataUrl(blankBands), bands: blankBands }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Échec de la génération IA");
+        return;
+      }
+      setAiOriginal(cropped);
+      setAiResult(data.image);
+      setShowBefore(false);
+    } catch {
+      toast.error("Échec de la génération IA");
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -363,16 +458,18 @@ export function ImageUploadDialog({
       // Cas particulier upload libre + TIFF : imageSrc est une object URL en
       // pleine résolution (potentiellement énorme) — on la ramène au plafond
       // avant de basculer sur le format JSON/base64 attendu par /api/assets.
-      const finalBase64 = skipCrop
-        ? sourceWasTiffRef.current
-          ? await downscaleForUpload(imageSrc, MAX_SOURCE_DIMENSION)
-          : imageSrc
-        : await getCroppedImg(
-            imageSrc,
-            croppedAreaPixels as Area,
-            effTargetWidth,
-            effTargetHeight
-          );
+      const finalBase64 =
+        aiResult ??
+        (skipCrop
+          ? sourceWasTiffRef.current
+            ? await downscaleForUpload(imageSrc, MAX_SOURCE_DIMENSION)
+            : imageSrc
+          : await getCroppedImg(
+              imageSrc,
+              croppedAreaPixels as Area,
+              effTargetWidth,
+              effTargetHeight
+            ));
 
       if (localOnly) {
         // Démo publique : rien à envoyer, le recadrage ci-dessus a déjà
@@ -481,14 +578,46 @@ export function ImageUploadDialog({
             <input
               ref={fileInputRef}
               type="file"
-              accept={isVideo ? ACCEPTED_VIDEO_MIME_ATTR : ACCEPTED_MIME_ATTR}
+              accept={
+                isVideo
+                  ? ACCEPTED_VIDEO_MIME_ATTR
+                  : spec.allowSvg
+                    ? `${ACCEPTED_MIME_ATTR},${SVG_MIME_TYPE},.svg`
+                    : ACCEPTED_MIME_ATTR
+              }
               className="hidden"
               onChange={handleFileChange}
             />
           </div>
         ) : (
           <div className="space-y-4">
-            {isVideo ? (
+            {aiResult ? (
+              <div className="space-y-2">
+                <div className="relative max-h-80 w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={showBefore ? (aiOriginal as string) : aiResult}
+                    alt={showBefore ? "Avant génération" : "Après génération"}
+                    className="max-h-80 w-auto max-w-full object-contain"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  {([false, true] as const).map((before) => (
+                    <Button
+                      key={String(before)}
+                      variant={showBefore === before ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowBefore(before)}
+                    >
+                      {before ? "Avant" : "Après"}
+                    </Button>
+                  ))}
+                  <span className="text-xs text-muted-foreground">
+                    Seules les zones vides ont été peintes — le reste de l&apos;image est intact.
+                  </span>
+                </div>
+              </div>
+            ) : isVideo ? (
               <div className="relative max-h-80 w-full overflow-hidden rounded-lg bg-black flex items-center justify-center">
                 <video
                   src={imageSrc}
@@ -543,7 +672,7 @@ export function ImageUploadDialog({
                   } · ${spec.outputFormat === "jpeg" ? "JPEG" : "PNG"}`}
             </p>
 
-            {!skipCrop && (
+            {!skipCrop && !aiResult && (
               <div className="flex items-center gap-2">
                 <Label className="text-xs text-muted-foreground w-12">Zoom</Label>
                 <input
@@ -555,6 +684,22 @@ export function ImageUploadDialog({
                   onChange={(e) => setZoom(Number(e.target.value))}
                   className="flex-1"
                 />
+              </div>
+            )}
+
+            {canFillBlanks && !aiResult && (
+              <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <div className="flex-1">
+                  <Label htmlFor="ai-fill" className="text-sm">
+                    Compléter les zones vides avec l&apos;IA
+                  </Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Le dézoom laisse du vide {describeBlankSides(blankBands)}. L&apos;IA prolonge
+                    le décor existant ; le reste de l&apos;image n&apos;est pas retouché.
+                  </p>
+                </div>
+                <Switch id="ai-fill" checked={aiEnabled} onCheckedChange={setAiEnabled} />
               </div>
             )}
 
@@ -605,15 +750,40 @@ export function ImageUploadDialog({
           <Button variant="outline" onClick={onClose}>
             Annuler
           </Button>
-          {imageSrc && (
-            <Button
-              onClick={handleUpload}
-              disabled={uploading || (spec.requireLabel && !normalizeAssetLabel(label))}
-            >
-              {uploading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-              Uploader
-            </Button>
+          {aiResult && (
+            <>
+              <Button variant="ghost" onClick={discardAiResult} disabled={uploading || aiBusy}>
+                Revenir au recadrage
+              </Button>
+              <Button variant="outline" onClick={handleGenerate} disabled={uploading || aiBusy}>
+                {aiBusy ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1 h-4 w-4" />
+                )}
+                Relancer
+              </Button>
+            </>
           )}
+          {imageSrc &&
+            (aiEnabled && canFillBlanks && !aiResult ? (
+              <Button onClick={handleGenerate} disabled={aiBusy}>
+                {aiBusy ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1 h-4 w-4" />
+                )}
+                {aiBusy ? "Génération en cours…" : "Générer les zones vides"}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleUpload}
+                disabled={uploading || aiBusy || (spec.requireLabel && !normalizeAssetLabel(label))}
+              >
+                {uploading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                Uploader
+              </Button>
+            ))}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,4 +1,4 @@
-import type { MacaronItem } from "@/types";
+import type { MacaronItem, QuickaccessPlacement } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 import { buildCmsImagePath } from "@/lib/cms-image-path";
@@ -130,11 +130,32 @@ function getHref(item: MacaronItem): string {
   return esc(item.link.trim().replace(/\s/g, ""));
 }
 
+/**
+ * Classes CMS par emplacement. Même structure HTML des deux côtés, seuls les
+ * noms de classes changent — y compris la classe de conteneur, qui n'est pas
+ * au même endroit : sur le <nav> pour la page d'accueil, sur le <ul> pour la
+ * catégorie niveau 2. Relevé sur le HTML réel des deux pages.
+ */
+const PLACEMENT_CLASSES: Record<QuickaccessPlacement, { nav: string; list: string; item: string }> = {
+  homepage: {
+    nav: "quickaccess-v2 hp-cat-container",
+    list: "quickaccess-v2__list",
+    item: "quickaccess-v2-item",
+  },
+  cat_lvl2: {
+    nav: "quickaccess-lvl2",
+    list: "quickaccess-lvl2__list hp-cat-lvl2-container",
+    item: "quickaccess-lvl2-item",
+  },
+};
+
 export function generateQuickaccessV2HTML(
   items: MacaronItem[],
   ctx: ExportContext,
   sectionCustomPath?: string | null,
+  placement: QuickaccessPlacement = "homepage",
 ): string {
+  const cls = PLACEMENT_CLASSES[placement] ?? PLACEMENT_CLASSES.homepage;
   const visibleItems = items.filter((item) => item.visible);
 
   const itemsHTML = visibleItems
@@ -153,28 +174,28 @@ export function generateQuickaccessV2HTML(
       const plainLabel = esc(item.label.replace(/\n/g, " "));
 
       return `    <li>
-      <a href="${getHref(item)}" class="quickaccess-v2-item">
-        <picture class="quickaccess-v2-item__picture">
+      <a href="${getHref(item)}" class="${cls.item}">
+        <picture class="${cls.item}__picture">
           <source srcset="${imgPath}.webp?$staticlink$" type="image/webp" />
           <source srcset="${imgPath}.jpg?$staticlink$" type="image/jpeg" />
           <img
             src="${imgPath}.jpg?$staticlink$"
             alt=""
-            class="quickaccess-v2-item__img"
+            class="${cls.item}__img"
             width="200"
             height="300"
             aria-hidden="true"
           />
         </picture>
-        <h3 class="quickaccess-v2-item__label">${plainLabel}</h3>
+        <h3 class="${cls.item}__label">${plainLabel}</h3>
       </a>
     </li>`;
     })
     .join("\n");
 
   // Pas de <style> : le CSS existe déjà côté CMS, on n'exporte que le HTML.
-  return `<nav class="quickaccess-v2 hp-cat-container" aria-label="Accès rapide aux catégories">
-  <ul class="quickaccess-v2__list" role="list">
+  return `<nav class="${cls.nav}" aria-label="Accès rapide aux catégories">
+  <ul class="${cls.list}" role="list">
 ${itemsHTML}
   </ul>
 </nav>`;

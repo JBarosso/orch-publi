@@ -31,12 +31,10 @@ export function MediaLibraryDialog({
   const [search, setSearch] = useState("");
   const [filterWeek, setFilterWeek] = useState("");
   const [filterYear, setFilterYear] = useState("");
-  // Moodboard est freeform : ses images ne sont pas rangées sous le type
-  // "moodboard" (elles viennent de partout), donc filtrer dessus par défaut
-  // ne montrerait jamais rien tant qu'aucun asset n'a encore ce type.
-  const [filterType, setFilterType] = useState<AssetType | "">(
-    initialType === "moodboard" ? "" : initialType,
-  );
+  const [filterType, setFilterType] = useState<AssetType | "">(initialType);
+  // Un filtre choisi à la main est respecté tel quel, même s'il ne ramène
+  // rien — seul le filtre déduit du contexte peut être abandonné (cf. plus bas).
+  const filterPickedByUser = useRef(false);
   const [yearOptions, setYearOptions] = useState<number[]>([]);
   const [weekOptions, setWeekOptions] = useState<number[]>([]);
   const [typeOptions, setTypeOptions] = useState<AssetType[]>([]);
@@ -76,6 +74,15 @@ export function MediaLibraryDialog({
         return;
       }
       const data = await res.json();
+      // Le dialogue s'ouvre pré-filtré sur le type de l'emplacement visé, ce
+      // qui tombe à vide pour un type récent dont aucune image n'a encore été
+      // taguée : on affichait alors une médiathèque vide alors que la
+      // bibliothèque est pleine. On élargit à tous les types plutôt que de
+      // laisser l'utilisateur deviner qu'il doit toucher au filtre.
+      if (data.length === 0 && filterType && !filterPickedByUser.current) {
+        setFilterType("");
+        return;
+      }
       setAssets(data);
       setLoading(false);
     };
@@ -156,7 +163,10 @@ export function MediaLibraryDialog({
         <div className="grid grid-cols-3 gap-2">
           <select
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as AssetType | "")}
+            onChange={(e) => {
+              filterPickedByUser.current = true;
+              setFilterType(e.target.value as AssetType | "");
+            }}
             className="h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none"
           >
             <option value="">Tous les types</option>

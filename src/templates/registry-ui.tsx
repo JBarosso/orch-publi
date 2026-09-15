@@ -25,6 +25,7 @@ import type {
   Locale,
   MacaronItem,
   MacaronsContent,
+  QuickaccessPlacement,
   MeaContent,
   MeaV2Content,
   MiniatureOffreContent,
@@ -125,8 +126,16 @@ export function mergeQuickaccessImport(
   content: unknown,
   items: MacaronItem[],
   customPath: string,
+  placement: QuickaccessPlacement = "homepage",
 ): MacaronsContent {
-  return { ...((content ?? {}) as MacaronsContent), items, customPath };
+  return { ...((content ?? {}) as MacaronsContent), items, customPath, placement };
+}
+
+/** Cible MEA v2 -> type d'asset : chaque emplacement a ses contraintes propres. */
+function meaV2AssetType(target: string): AssetType {
+  if (target === "focus") return "mea_v2_focus";
+  if (target.startsWith("logo-")) return "mea_v2_logo";
+  return "mea_v2";
 }
 
 export const TEMPLATE_UI: Record<string, TemplateUi> = {
@@ -162,7 +171,13 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
           onChange({ ...((content ?? {}) as MacaronsContent), customPath })
         }
         onChange={(items) => onChange(withItems(content, items))}
-        onImport={(items, customPath) => onChange(mergeQuickaccessImport(content, items, customPath))}
+        onImport={(items, customPath, placement) =>
+          onChange(mergeQuickaccessImport(content, items, customPath, placement))
+        }
+        placement={(content as MacaronsContent)?.placement ?? "homepage"}
+        onPlacementChange={(placement) =>
+          onChange({ ...((content ?? {}) as MacaronsContent), placement })
+        }
         onOpenMediaLibrary={(itemId) => onOpenMedia(itemId, "macaron_v2")}
         onDropFile={(itemId, file) => onDropFile(itemId, "macaron_v2", file)}
       />
@@ -198,22 +213,28 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
         briefYear={brief.year}
         briefLocale={brief.locale}
         onChange={(next) => onChange(next)}
-        // La carte focus a son propre type d'asset (dimensions différentes).
-        onOpenMediaLibrary={(target) =>
-          onOpenMedia(target, target === "focus" ? "mea_v2_focus" : "mea_v2")
-        }
-        onDropFile={(target, file) =>
-          onDropFile(target, target === "focus" ? "mea_v2_focus" : "mea_v2", file)
-        }
+        // La carte focus et le logo marque ont leur propre type d'asset
+        // (dimensions imposées différentes, ou upload libre pour le logo).
+        onOpenMediaLibrary={(target) => onOpenMedia(target, meaV2AssetType(target))}
+        onDropFile={(target, file) => onDropFile(target, meaV2AssetType(target), file)}
         onOpenVideoUpload={() => onOpenVideoUpload("focus")}
       />
     ),
     Preview: ({ content }) => <MeaV2Preview content={content as MeaV2Content} />,
-    // Targets : "focus" ou "card-<index>".
+    // Targets : "focus", "card-<index>" ou "logo-<index>".
     setImage: (content, target, url) => {
       const c = content as MeaV2Content;
       if (target === "focus") {
         return { ...c, focus: { ...c.focus, imageUrl: url, imageWeek: null } };
+      }
+      if (target.startsWith("logo-")) {
+        const index = Number(target.replace("logo-", ""));
+        return {
+          ...c,
+          cards: c.cards.map((card, i) =>
+            i === index ? { ...card, brandLogoUrl: url, brandLogoSource: "image" } : card,
+          ),
+        };
       }
       const index = Number(target.replace("card-", ""));
       return {

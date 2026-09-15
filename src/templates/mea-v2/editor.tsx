@@ -17,7 +17,8 @@ interface MeaV2EditorProps {
   briefYear: number;
   briefLocale: string;
   onChange: (content: MeaV2Content) => void;
-  // "card-0".."card-3" ciblent une carte régulière, "focus" la carte focus
+  // "card-0".."card-3" ciblent une carte régulière, "logo-0".."logo-3" son
+  // logo marque, "focus" la carte focus
   onOpenMediaLibrary: (target: string) => void;
   onDropFile?: (target: string, file: File) => void;
   onOpenVideoUpload: () => void;
@@ -115,6 +116,8 @@ export function MeaV2Editor({
             briefWeek={briefWeek}
             onUpdate={(updates) => updateCard(i, updates)}
             onOpenMediaLibrary={() => onOpenMediaLibrary(`card-${i}`)}
+            onOpenBrandLogoLibrary={() => onOpenMediaLibrary(`logo-${i}`)}
+            onDropBrandLogo={onDropFile ? (file) => onDropFile(`logo-${i}`, file) : undefined}
             onDropFile={onDropFile ? (file) => onDropFile(`card-${i}`, file) : undefined}
             sectionCustomPath={sectionCustomPath}
             briefYear={briefYear}

@@ -1,6 +1,7 @@
 import type { MeaV2Content } from "@/types";
 import { withPosition, type ImageEntry } from "@/lib/section-images";
 import { resolveCustomFolder, resolveImageBaseName } from "@/lib/cms-image-path";
+import { brandLogoBaseName, usesUploadedBrandLogo } from "./brand-logo";
 
 // 4 cartes numérotées mea-1..4 + la carte focus figée sur mea-5. En mode
 // vidéo, la vignette et la vidéo partagent le même nom de base (seule
@@ -18,6 +19,23 @@ export function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
       noLocale: card.isGlobalImage,
       customFolder: resolveCustomFolder(card, sectionPath) || undefined,
     }));
+
+  // Logo marque uploadé : même dossier que la carte, en PNG non redimensionné
+  // pour garder la transparence et les proportions d'origine (seule la largeur
+  // d'affichage est imposée, côté HTML).
+  for (const { item: card, position } of withPosition(content?.cards ?? [])) {
+    if (!usesUploadedBrandLogo(card)) continue;
+    entries.push({
+      imageUrl: card.brandLogoUrl,
+      imageWeek: card.imageWeek,
+      baseName: brandLogoBaseName(card, `mea-${position}`),
+      width: null,
+      height: null,
+      noLocale: card.isGlobalImage,
+      customFolder: resolveCustomFolder(card, sectionPath) || undefined,
+      vectorOrPng: true,
+    });
+  }
 
   const focus = content?.focus;
   const focusFolder = focus ? resolveCustomFolder(focus, sectionPath) || undefined : undefined;

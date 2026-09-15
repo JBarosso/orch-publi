@@ -2,6 +2,13 @@ import type { MeaV2Content, MeaV2Card, MeaV2FocusCard, MeaButton } from "@/types
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 import { buildCmsImagePath } from "@/lib/cms-image-path";
+import {
+  DEFAULT_BRAND_LOGO_PATH,
+  DEFAULT_BRAND_LOGO_WIDTH,
+  brandLogoCmsPath,
+  brandLogoExtension,
+  usesUploadedBrandLogo,
+} from "./brand-logo";
 import { getPricingHTML, type ClubIconConfig } from "../mea/export";
 import { focusCardHasContent } from "./schema";
 
@@ -162,8 +169,11 @@ const cssStyle = `
 
   .hp-cat-header-mea__marque {
     pointer-events: none;
-    height: 32px;
-    max-width: 60%;
+    /* Hauteur libre : c'est l'attribut width du <img> (réglable par carte) qui
+       dimensionne le logo. Une hauteur fixe l'écraserait et rendrait ce réglage
+       sans effet. Le max-width garde un garde-fou sur les petites cartes. */
+    height: auto;
+    max-width: 90%;
     object-fit: contain;
     position: absolute;
     z-index: 2;
@@ -361,11 +371,29 @@ function getBrandLogoSrc(path: string, isPreview: boolean): string {
   return `https://fr.shop-orchestra.com/${path}`;
 }
 
-function getBrandLogoHTML(card: MeaV2Card, isPreview: boolean): string {
+// Logo uploadé : le PNG déposé dans le ZIP à côté des autres visuels de la
+// carte (cf. brand-logo.ts, qui nomme le fichier des deux côtés).
+function brandLogoExportSrc(
+  card: MeaV2Card,
+  ctx: ExportContext,
+  cardDefaultName: string,
+  sectionCustomPath?: string | null,
+): string {
+  return usesUploadedBrandLogo(card)
+    ? `${brandLogoCmsPath(card, ctx, cardDefaultName, sectionCustomPath)}.${brandLogoExtension(card)}?$staticlink$`
+    : getBrandLogoSrc(card.brandLogoPath || DEFAULT_BRAND_LOGO_PATH, false);
+}
+
+function brandLogoPreviewSrc(card: MeaV2Card): string {
+  return usesUploadedBrandLogo(card)
+    ? card.brandLogoUrl
+    : getBrandLogoSrc(card.brandLogoPath || DEFAULT_BRAND_LOGO_PATH, true);
+}
+
+function getBrandLogoHTML(card: MeaV2Card, src: string): string {
   const dnone = card.showBrandLogo ? "" : " d-none";
-  const path = card.brandLogoPath || "logo-puericulture/svg/premaman-blc.svg";
-  const src = getBrandLogoSrc(path, isPreview);
-  return `          <img src="${esc(src)}" alt="Logo marque" class="hp-cat-header-mea__marque${dnone}">\n`;
+  const width = card.brandLogoWidth || DEFAULT_BRAND_LOGO_WIDTH;
+  return `          <img src="${esc(src)}" alt="Logo marque" class="hp-cat-header-mea__marque${dnone}" width="${width}">\n`;
 }
 
 function getBadgeHTML(card: MeaV2Card): string {
@@ -441,7 +469,7 @@ function regularCardHTML(
           <img src="${imgPath}.jpg?$staticlink$" alt="" class="hp-cat-header-mea__img" width="1000" height="600" aria-hidden="true" />
         </picture>
         <div class="hp-cat-header-mea__container">
-${getBrandLogoHTML(card, false)}${getBadgeHTML(card)}${getMarketingTitleHTML(card)}          <h3 class="hp-cat-header-mea__title">${plainTitle}</h3>
+${getBrandLogoHTML(card, brandLogoExportSrc(card, ctx, `mea-${index + 1}`, sectionCustomPath))}${getBadgeHTML(card)}${getMarketingTitleHTML(card)}          <h3 class="hp-cat-header-mea__title">${plainTitle}</h3>
 ${getPricingHTML(card, false, LABEL_CLUB_ICON)}
           <div class="hp-cat-header-mea__buttons">
 ${buttonsHTML(card.buttons, false)}
@@ -526,7 +554,7 @@ ${commentHtml}
           <img src="${esc(card.imageUrl || "")}" alt="" class="hp-cat-header-mea__img" aria-hidden="true" />
         </picture>
         <div class="hp-cat-header-mea__container">
-${getBrandLogoHTML(card, true)}${getBadgeHTML(card)}${getMarketingTitleHTML(card)}          <h3 class="hp-cat-header-mea__title">${plainTitle}</h3>
+${getBrandLogoHTML(card, brandLogoPreviewSrc(card))}${getBadgeHTML(card)}${getMarketingTitleHTML(card)}          <h3 class="hp-cat-header-mea__title">${plainTitle}</h3>
 ${getPricingHTML(card, true, LABEL_CLUB_ICON)}
           <div class="hp-cat-header-mea__buttons">
 ${buttonsHTML(card.buttons, true)}

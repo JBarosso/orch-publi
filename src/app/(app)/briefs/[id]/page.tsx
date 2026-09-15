@@ -264,7 +264,7 @@ export default function BriefEditorPage({
   const [previewSections, setPreviewSections] = useState<Record<string, boolean>>({});
   const [createOpen, setCreateOpen] = useState(false);
   // "macarons" | "mea" | "custom" (vierge) | "tpl:<id>" (depuis un template publié)
-  const [newSectionType, setNewSectionType] = useState<string>("macarons");
+  const [newSectionType, setNewSectionType] = useState<string>("macarons_v2");
   const [publishedTemplates, setPublishedTemplates] = useState<CustomTemplate[]>([]);
   const [pendingDeleteSectionId, setPendingDeleteSectionId] = useState<string | null>(null);
   const panelGroupContainerRef = useRef<HTMLDivElement | null>(null);
@@ -577,13 +577,13 @@ export default function BriefEditorPage({
               { value: "ariane", label: "Fil d'ariane" },
               { value: "global_header", label: "Global header" },
               { value: "img_sous_menu", label: "Img sous menu" },
-              { value: "macarons", label: "Macaron" },
-              { value: "macarons_v2", label: "Macaron v2" },
-              { value: "mea", label: "MEA" },
-              { value: "mea_v2", label: "MEA v2" },
+              { value: "macarons", label: "Macaron (old)" },
+              { value: "macarons_v2", label: "Macaron" },
+              { value: "mea", label: "MEA (old)" },
+              { value: "mea_v2", label: "MEA" },
               { value: "miniature_offre", label: "Miniature offre" },
-              { value: "moodboard", label: "Moodboard (tableau libre, non exporté)" },
-              { value: "custom", label: "Section personnalisée (vierge)" },
+              { value: "moodboard", label: "Moodboard" },
+              { value: "custom", label: "Section custom" },
               { value: "carousel", label: "Slider" },
               ...publishedTemplates.map((template) => ({
                 value: `tpl:${template.id}`,
@@ -601,13 +601,13 @@ export default function BriefEditorPage({
               <SelectItem value="ariane">Fil d&apos;ariane</SelectItem>
               <SelectItem value="global_header">Global header</SelectItem>
               <SelectItem value="img_sous_menu">Img sous menu</SelectItem>
-              <SelectItem value="macarons">Macaron</SelectItem>
-              <SelectItem value="macarons_v2">Macaron v2</SelectItem>
-              <SelectItem value="mea">MEA</SelectItem>
-              <SelectItem value="mea_v2">MEA v2</SelectItem>
+              <SelectItem value="macarons">Macaron (old)</SelectItem>
+              <SelectItem value="macarons_v2">Macaron</SelectItem>
+              <SelectItem value="mea">MEA (old)</SelectItem>
+              <SelectItem value="mea_v2">MEA</SelectItem>
               <SelectItem value="miniature_offre">Miniature offre</SelectItem>
-              <SelectItem value="moodboard">Moodboard (tableau libre, non exporté)</SelectItem>
-              <SelectItem value="custom">Section personnalisée (vierge)</SelectItem>
+              <SelectItem value="moodboard">Moodboard</SelectItem>
+              <SelectItem value="custom">Section custom</SelectItem>
               <SelectItem value="carousel">Slider</SelectItem>
               {publishedTemplates.map((template) => (
                 <SelectItem key={template.id} value={`tpl:${template.id}`}>
