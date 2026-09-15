@@ -143,14 +143,11 @@ export function planGeneration(width: number, height: number): GenerationFrame {
   };
 }
 
-// Consigne volontairement restrictive : on veut le prolongement le plus bête
-// possible du décor existant (un mur continue en mur), surtout pas une
-// "amélioration" créative qui inventerait des objets ou des personnes.
+// Consigne courte et directe, calquée sur celle qui donne un bon résultat dans
+// le chat ChatGPT — les versions longues et très restrictives essayées avant
+// n'amélioraient rien. Une seule garde : ne rien inventer de nouveau.
 export const FILL_PROMPT =
-  "Extend the existing photograph outward to fill the transparent regions, and nothing else. " +
-  "Only continue what is already touching each transparent edge: a wall stays an empty wall, " +
-  "a floor stays a floor, a plain backdrop stays plain. " +
-  "Match the adjacent pixels exactly in color, lighting, texture, grain, blur and perspective. " +
-  "Absolutely do not invent or add anything: no people, no objects, no products, no furniture, " +
-  "no patterns, no shadows, no text, no logos. Do not duplicate, move or alter anything already " +
-  "present in the photo. The result must look like the exact same photograph, simply framed wider.";
+  "Complète les zones blanches de l'image en prolongeant naturellement la scène existante. " +
+  "Conserve exactement le cadrage : la taille et la position de ce qui est déjà visible ne " +
+  "doivent pas changer. N'ajoute aucune personne, aucun objet et aucun texte qui ne soit " +
+  "déjà visible.";

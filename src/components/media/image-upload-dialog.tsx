@@ -16,12 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Sparkles, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-import {
-  computeBlankBands,
-  describeBlankSides,
-  hasFillableBlanks,
-  type BlankBands,
-} from "@/lib/ai-fill";
+import { computeBlankBands, describeBlankSides, hasFillableBlanks } from "@/lib/ai-fill";
 import type { AssetType } from "@/types";
 import {
   ACCEPTED_FORMATS_LABEL,
@@ -133,24 +128,6 @@ async function getCroppedImg(
   ctx.restore();
 
   return canvas.toDataURL("image/jpeg", 0.95);
-}
-
-// Masque attendu par l'API d'édition : opaque là où l'image doit rester
-// intacte, transparent sur les bandes vides — ce sont elles, et rien d'autre,
-// que le modèle a le droit de peindre.
-function buildMaskDataUrl(bands: BlankBands): string {
-  const canvas = document.createElement("canvas");
-  canvas.width = bands.canvasWidth;
-  canvas.height = bands.canvasHeight;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("No 2d context");
-  ctx.fillStyle = "#000000";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.clearRect(0, 0, bands.left, canvas.height);
-  ctx.clearRect(canvas.width - bands.right, 0, bands.right, canvas.height);
-  ctx.clearRect(0, 0, canvas.width, bands.top);
-  ctx.clearRect(0, canvas.height - bands.bottom, canvas.width, bands.bottom);
-  return canvas.toDataURL("image/png");
 }
 
 // Upload libre (pas de crop) d'un TIFF converti : imageSrc est une object URL
@@ -431,7 +408,7 @@ export function ImageUploadDialog({
       const res = await fetch("/api/ai-fill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: cropped, mask: buildMaskDataUrl(blankBands), bands: blankBands }),
+        body: JSON.stringify({ image: cropped }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -635,7 +612,8 @@ export function ImageUploadDialog({
                     </Button>
                   ))}
                   <span className="text-xs text-muted-foreground">
-                    Seules les zones vides ont été peintes — le reste de l&apos;image est intact.
+                    L&apos;image entière est régénérée : vérifiez que le produit est
+                    resté fidèle avant d&apos;uploader.
                   </span>
                 </div>
               </div>
