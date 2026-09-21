@@ -122,6 +122,8 @@ export interface Asset {
   mimeType: string;
   year: number | null;
   week: number | null;
+  /** URL d'origine si glissée depuis une appli web (ex: SharePoint) */
+  originUrl: string | null;
   createdAt: Date;
 }
 

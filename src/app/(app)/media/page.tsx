@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Upload, Trash2, ImageOff, Pencil, Check, X } from "lucide-react";
+import { Search, Upload, Trash2, ImageOff, Pencil, Check, X, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import type { Asset, AssetType } from "@/types";
 import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
@@ -250,6 +250,19 @@ export default function MediaPage() {
                   <p className="text-[10px] text-muted-foreground/60">
                     {asset.year ?? "----"} / S{asset.week ?? "--"}
                   </p>
+                )}
+                {asset.originUrl && (
+                  <a
+                    href={asset.originUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={asset.originUrl}
+                    className="mt-0.5 flex items-center gap-1 text-[10px] text-primary/70 hover:text-primary truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{asset.originUrl}</span>
+                  </a>
                 )}
               </div>
               <button

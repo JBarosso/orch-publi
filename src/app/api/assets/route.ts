@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
   //   direct, cf. src/lib/storage.ts) — seule voie possible en production
   //   au-delà de 4,5 Mo ;
   // - `image` : data URL base64 dans le corps (dev local sans Blob).
-  const { image, sourceUrl, crop, label, week, year, type, fromTiff } = body;
+  const { image, sourceUrl, crop, label, week, year, type, fromTiff, originUrl } = body;
 
   if (!image && !sourceUrl) {
     return NextResponse.json({ error: "Image requise" }, { status: 400 });
@@ -156,6 +156,7 @@ export async function POST(request: NextRequest) {
       cleanLabel,
       toIntOrNull(week),
       toIntOrNull(year),
+      typeof originUrl === "string" && originUrl.startsWith("http") ? originUrl : null,
     );
   }
 
@@ -266,6 +267,7 @@ export async function POST(request: NextRequest) {
           mimeType,
           week: toIntOrNull(week),
           year: toIntOrNull(year),
+          originUrl: typeof originUrl === "string" && originUrl.startsWith("http") ? originUrl : null,
         })
         .returning();
     } catch (err) {
@@ -311,6 +313,7 @@ async function handleVideoUpload(
   cleanLabel: string,
   week: number | null,
   year: number | null,
+  originUrl: string | null = null,
 ) {
   try {
     let url: string;
@@ -344,6 +347,7 @@ async function handleVideoUpload(
           mimeType: "video/mp4",
           week,
           year,
+          originUrl,
         })
         .returning();
     } catch (err) {

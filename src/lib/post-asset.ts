@@ -40,6 +40,8 @@ export interface AssetFields {
   year: number | null;
   type: AssetType;
   fromTiff?: boolean;
+  /** URL d'origine si l'image provient d'un glisser-déposer web (ex: SharePoint) */
+  originUrl?: string | null;
 }
 
 /**
@@ -57,4 +59,20 @@ export async function postAsset(file: Blob, fields: AssetFields): Promise<Respon
       ...fields,
     }),
   });
+}
+
+/** Extrait l'URL d'origine depuis un DataTransfer de drag (applis web uniquement,
+ * ex: SharePoint). Retourne null pour les drags depuis le disque local. */
+export function extractDragOriginUrl(dt: DataTransfer): string | null {
+  const uriList = dt.getData("text/uri-list");
+  if (uriList) {
+    const url = uriList.split(/\r?\n/).find((l) => l && !l.startsWith("#") && l.startsWith("http"));
+    if (url) return url;
+  }
+  const html = dt.getData("text/html");
+  if (html) {
+    const m = /(?:src|href)="(https?:[^"]+)"/i.exec(html);
+    if (m) return m[1];
+  }
+  return null;
 }

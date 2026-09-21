@@ -269,6 +269,7 @@ export default function BriefEditorPage({
   } | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | undefined>(undefined);
+  const [droppedOriginUrl, setDroppedOriginUrl] = useState<string | null>(null);
   // Drop direct sur un bouton d'image (saute la médiathèque) : distingue ce
   // cas du clic normal (ouvre la médiathèque) pour qu'annuler le popin de
   // recadrage ne fasse pas apparaître une médiathèque jamais demandée.
@@ -952,8 +953,9 @@ export default function BriefEditorPage({
           onSelect={handleImageSelected}
           onClose={() => setMediaTarget(null)}
           initialType={mediaTarget.type}
-          onUploadNew={(file, type) => {
+          onUploadNew={(file, type, originUrl) => {
             setDroppedFile(file);
+            setDroppedOriginUrl(originUrl ?? null);
             setUploadAssetType(type ?? mediaTarget.type);
             setShowUpload(true);
           }}
@@ -978,16 +980,19 @@ export default function BriefEditorPage({
             defaultWeek={brief.week}
             defaultYear={brief.year}
             initialFile={droppedFile}
+            initialOriginUrl={droppedOriginUrl}
             assetType={uploadAssetType}
             onUploaded={(url) => {
               handleImageSelected(url);
               setShowUpload(false);
               setDroppedFile(undefined);
+              setDroppedOriginUrl(null);
               setDirectDropUpload(false);
             }}
             onClose={() => {
               setShowUpload(false);
               setDroppedFile(undefined);
+              setDroppedOriginUrl(null);
               // Drop direct annulé : ne pas laisser apparaître une
               // médiathèque jamais ouverte par l'utilisateur.
               if (directDropUpload) setMediaTarget(null);

@@ -35,7 +35,7 @@ import {
   validateSourceFile,
   validateSourceVideoFile,
 } from "@/lib/upload-specs";
-import { postAsset, uploadToTemp } from "@/lib/post-asset";
+import { postAsset, uploadToTemp, extractDragOriginUrl } from "@/lib/post-asset";
 
 interface ImageUploadDialogProps {
   defaultLabel?: string;
@@ -58,6 +58,8 @@ interface ImageUploadDialogProps {
    * on saute juste l'envoi vers /api/assets — `onUploaded` reçoit directement
    * la data URL recadrée, jamais persistée nulle part. */
   localOnly?: boolean;
+  /** URL d'origine si l'image a été glissée depuis une appli web (ex: SharePoint) */
+  initialOriginUrl?: string | null;
 }
 
 // Crop client-side (WYSIWYG) : pixelCrop est exprimé dans le repère de
@@ -148,6 +150,7 @@ export function ImageUploadDialog({
   onUploaded,
   onClose,
   localOnly = false,
+  initialOriginUrl = null,
 }: ImageUploadDialogProps) {
   const [selectedType, setSelectedType] = useState<AssetType>(assetType);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -168,6 +171,7 @@ export function ImageUploadDialog({
   // image standard sur cette requête.
   const sourceWasTiffRef = useRef(false);
 
+  const [originUrl, setOriginUrl] = useState<string | null>(initialOriginUrl ?? null);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiAvailable, setAiAvailable] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -454,6 +458,7 @@ export function ImageUploadDialog({
         year: year ? Number(year) : null,
         type: selectedType,
         fromTiff: sourceWasTiffRef.current,
+        originUrl,
       });
 
       if (!res.ok) {
@@ -477,6 +482,7 @@ export function ImageUploadDialog({
       e.preventDefault();
       const file = e.dataTransfer.files?.[0];
       if (!file) return;
+      setOriginUrl(extractDragOriginUrl(e.dataTransfer));
       loadFile(file);
     },
     [loadFile]

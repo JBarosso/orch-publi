@@ -9,15 +9,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Upload, Search, Video, Pencil, Check, X } from "lucide-react";
+import { Upload, Search, Video, Pencil, Check, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { looksLikeMp4 } from "@/lib/upload-specs";
+import { extractDragOriginUrl } from "@/lib/post-asset";
 import type { Asset, AssetType } from "@/types";
 
 interface MediaLibraryDialogProps {
   onSelect: (url: string) => void;
   onClose: () => void;
-  onUploadNew: (file?: File, type?: AssetType) => void;
+  onUploadNew: (file?: File, type?: AssetType, originUrl?: string | null) => void;
   initialType?: AssetType;
 }
 
@@ -126,7 +127,7 @@ export function MediaLibraryDialog({
       dragCounterRef.current = 0;
       const file = e.dataTransfer.files?.[0];
       if (file && (file.type.startsWith("image/") || file.type.startsWith("video/") || looksLikeMp4(file))) {
-        onUploadNew(file, filterType || initialType);
+        onUploadNew(file, filterType || initialType, extractDragOriginUrl(e.dataTransfer));
       }
     },
     [onUploadNew, filterType, initialType],
@@ -253,6 +254,19 @@ export function MediaLibraryDialog({
                       />
                     )}
                   </button>
+
+                  {asset.originUrl && (
+                    <a
+                      href={asset.originUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title={asset.originUrl}
+                      className="absolute left-1 top-1 rounded bg-black/60 p-1 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
 
                   {editingId === asset.id ? (
                     <div className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-black/80 px-1.5 py-1">

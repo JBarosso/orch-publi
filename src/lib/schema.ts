@@ -224,6 +224,9 @@ export const assets = pgTable("assets", {
   mimeType: varchar("mime_type", { length: 64 }).notNull().default("image/png"),
   year: integer("year"),
   week: integer("week"),
+  // URL d'origine si l'image a été glissée depuis une appli web (ex: SharePoint)
+  // — absent pour les uploads depuis le disque local.
+  originUrl: text("origin_url"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
