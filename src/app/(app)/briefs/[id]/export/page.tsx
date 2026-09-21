@@ -3,7 +3,8 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, ImageDown, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, ImageDown, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { hasCmsAsset, resolveCmsAsset } from "@/lib/cms-asset";
 import { Button } from "@/components/ui/button";
 import { CopyCodeButton } from "@/components/editor/copy-code-button";
 import { toast } from "sonner";
@@ -21,6 +22,7 @@ import type {
   CustomContent,
   ImgSousMenuContent,
   CatBannerContent,
+  CmsPage,
   MiniatureOffreContent,
 } from "@/types";
 import { StatusBadge } from "@/components/briefs/status-badge";
@@ -72,6 +74,43 @@ interface BriefWithSections extends Brief {
   sections: BriefSection[];
 }
 
+/**
+ * Asset Salesforce où coller le code de la section — informatif. Absent pour
+ * les sections sans code à coller ; signalé discrètement quand il manque, pour
+ * penser à choisir la page de la section (ou compléter l'onglet Assets CMS).
+ */
+function CmsAssetBadge({ section, pages }: { section?: BriefSection; pages: CmsPage[] }) {
+  if (!section || !hasCmsAsset(section.type)) return null;
+  const { assetId, page } = resolveCmsAsset(
+    { type: section.type, cmsPageId: section.cmsPageId ?? null, cmsAssetId: section.cmsAssetId ?? "" },
+    pages,
+  );
+
+  if (!assetId) {
+    return (
+      <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
+        <Info className="h-3 w-3" />
+        {page ? `Aucun asset défini pour « ${page.name} »` : "Asset CMS non renseigné"}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard.writeText(assetId);
+        toast.success("Identifiant d'asset copié");
+      }}
+      title={`Asset Salesforce où coller ce code${page ? ` (page « ${page.name} »)` : ""} — cliquer pour copier l'identifiant`}
+      className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] text-primary transition-colors hover:bg-primary/15"
+    >
+      <Info className="h-3 w-3" />
+      Asset CMS : <span className="font-mono">{assetId}</span>
+    </button>
+  );
+}
+
 export default function ExportPage({
   params,
 }: {
@@ -86,6 +125,14 @@ export default function ExportPage({
   >([]);
   const [downloadingImages, setDownloadingImages] = useState<string | null>(null);
   const [skippedCount, setSkippedCount] = useState(0);
+  const [cmsPages, setCmsPages] = useState<CmsPage[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/cms-pages");
+      if (res.ok) setCmsPages(await res.json());
+    })();
+  }, []);
   const [warnings, setWarnings] = useState<{ sectionId: string; title: string; message: string }[]>([]);
 
   useEffect(() => {
@@ -228,7 +275,10 @@ export default function ExportPage({
             className="overflow-hidden rounded-lg border border-border/60 bg-card shadow-sm"
           >
             <div className="flex items-center justify-between border-b border-border/60 px-5 py-3">
-              <h3 className="text-sm font-semibold">{exp.title}</h3>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <h3 className="text-sm font-semibold">{exp.title}</h3>
+                <CmsAssetBadge section={brief.sections.find((s) => s.id === exp.sectionId)} pages={cmsPages} />
+              </div>
               <div className="flex items-center gap-2">
                 {(exp.type === "macarons" ||
                   exp.type === "mea" ||

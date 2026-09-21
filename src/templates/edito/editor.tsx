@@ -19,19 +19,28 @@ import {
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { v4 as uuidv4 } from "uuid";
-import type { EditoCard } from "@/types";
+import type { EditoCard, Locale } from "@/types";
 import { createEmptyEditoCard } from "./schema";
 import { EditoCardEditor } from "./edito-card-editor";
 
 interface EditoEditorProps {
   items: EditoCard[];
   briefWeek: number;
+  /** Langue du brief : la bibliothèque de blocs est filtrée dessus. */
+  locale: Locale;
   onChange: (items: EditoCard[]) => void;
   onOpenMediaLibrary: (itemId: string) => void;
   onDropFile?: (itemId: string, file: File) => void;
 }
 
-export function EditoEditor({ items, briefWeek, onChange, onOpenMediaLibrary, onDropFile }: EditoEditorProps) {
+export function EditoEditor({
+  items,
+  briefWeek,
+  locale,
+  onChange,
+  onOpenMediaLibrary,
+  onDropFile,
+}: EditoEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -105,6 +114,7 @@ export function EditoEditor({ items, briefWeek, onChange, onOpenMediaLibrary, on
                 item={item}
                 isActive={item.id === activeId}
                 briefWeek={briefWeek}
+                locale={locale}
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
                 onOpenMediaLibrary={() => onOpenMediaLibrary(item.id)}

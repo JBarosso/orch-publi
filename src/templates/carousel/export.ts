@@ -1,6 +1,7 @@
 import type { CarouselButton, CarouselContent, CarouselSlide } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
+import { brandLogoExtension, brandLogoWidth, usesUploadedBrandLogo } from "@/lib/brand-logo";
 
 interface ExportContext {
   year: number;
@@ -309,17 +310,28 @@ function buttonsHTML(buttons: CarouselButton[], preview: boolean): string {
     .join("\n");
 }
 
-function productCalloutHTML(slide: CarouselSlide, preview: boolean): string {
+// Logo uploadé : rangé à côté du visuel de la slide, sous le même dossier et
+// la même semaine — doit matcher l'entrée ajoutée au ZIP (cf. images.ts).
+function brandLogoExportSrc(slide: CarouselSlide, slot: number, ctx: ExportContext): string {
+  const p = slide.productCallout;
+  if (!usesUploadedBrandLogo(p)) return `logo-puericulture/${p.brandLogoPath}?$staticlink$`;
+  const wk = String(slide.imageWeek ?? ctx.week).padStart(2, "0");
+  return `homepage/${ctx.year}/wk${wk}/${ctx.locale}/carousel-${slot}-logo.${brandLogoExtension(p)}?$staticlink$`;
+}
+
+function brandLogoPreviewSrc(slide: CarouselSlide): string {
+  const p = slide.productCallout;
+  return usesUploadedBrandLogo(p) ? (p.brandLogoUrl ?? "") : `${BRAND_LOGO_STAGING_BASE}${p.brandLogoPath}`;
+}
+
+function productCalloutHTML(slide: CarouselSlide, preview: boolean, logoSrc: string): string {
   const p = slide.productCallout;
   if (!p?.enabled) return "";
-  const logoSrc = preview
-    ? `${BRAND_LOGO_STAGING_BASE}${p.brandLogoPath}`
-    : `logo-puericulture/${p.brandLogoPath}?$staticlink$`;
   const clubIconSrc = preview ? CLUB_ICON_STAGING : "icons/ico-club.svg?$staticlink$";
 
   return `          <div class="carousel-product-container d-flex flex-row w-100 h-100 p-4 justify-content-end align-items-end align-items-xl-start">
             <div class="carousel-product ${p.side} d-flex flex-column align-items-start">
-              ${p.showBrandLogo ? `<img src="${logoSrc}" alt="Logo marque" height="32" class="pb-1">` : ""}
+              ${p.showBrandLogo ? `<img src="${esc(logoSrc)}" alt="Logo marque" width="${brandLogoWidth(p)}" class="pb-1">` : ""}
               <span class="font-weight-bold mb-1 text-left">${esc(p.label)}</span>
               <div class="d-flex align-items-center gap-1">
                 <span class="carousel-public-price">${esc(p.publicPrice)}</span>
@@ -357,7 +369,7 @@ function slideHTML(slide: CarouselSlide, slot: number, isFirst: boolean, ctx: Ex
 ${slide.darkOverlay ? '          <div class="background-filter-effect black"></div>\n' : ""}${mediaHTML}
         </div>
         <div class="carousel-caption d-flex flex-column flex-xl-row-reverse align-items-center w-100 position-relative" data-align="${slide.productCallout.side}">
-${productCalloutHTML(slide, false)}          <div class="carousel__content d-flex flex-column w-100 h-100 align-items-start justify-content-end">
+${productCalloutHTML(slide, false, brandLogoExportSrc(slide, slot, ctx))}          <div class="carousel__content d-flex flex-column w-100 h-100 align-items-start justify-content-end">
             <div class="carousel__heading d-flex flex-column align-items-start justify-content-start text-left px-4">
               ${titleHTML}
             </div>
@@ -411,7 +423,7 @@ ${commentHtml}        <div class="background-filter-container position-absolute 
 ${slide.darkOverlay ? '          <div class="background-filter-effect black"></div>\n' : ""}${mediaHTML}
         </div>
         <div class="carousel-caption d-flex flex-column flex-xl-row-reverse align-items-center w-100 position-relative" data-align="${slide.productCallout.side}">
-${productCalloutHTML(slide, true)}          <div class="carousel__content d-flex flex-column w-100 h-100 align-items-start justify-content-end">
+${productCalloutHTML(slide, true, brandLogoPreviewSrc(slide))}          <div class="carousel__content d-flex flex-column w-100 h-100 align-items-start justify-content-end">
             <div class="carousel__heading d-flex flex-column align-items-start justify-content-start text-left px-4">
               ${titleHTML}
             </div>

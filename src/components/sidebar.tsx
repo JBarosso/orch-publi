@@ -15,6 +15,7 @@ import {
   Settings,
   Code2,
   CalendarRange,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDevMode, setDevMode } from "@/lib/dev-mode";
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/media", label: "Médiathèque", icon: Image },
   { href: "/translations", label: "Traduction", icon: Languages },
+  { href: "/cms-assets", label: "Assets CMS", icon: Database },
   { href: "/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/programmation", label: "Programmation", icon: CalendarRange },
   { href: "/settings", label: "Paramétrage", icon: Settings },

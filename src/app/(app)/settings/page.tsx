@@ -61,6 +61,14 @@ export default function SettingsPage() {
   const [keyConfigured, setKeyConfigured] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
 
+  // Durée maximale d'un verrou de brief, enregistrée en minutes ; saisie dans
+  // l'unité choisie, en heures par défaut quand la valeur tombe juste.
+  const [lockValue, setLockValue] = useState("");
+  const [lockUnit, setLockUnit] = useState<"minutes" | "hours">("hours");
+  const [savedLockMinutes, setSavedLockMinutes] = useState<number | null>(null);
+  const [savingLock, setSavingLock] = useState(false);
+  const lockMinutes = Number(lockValue) * (lockUnit === "hours" ? 60 : 1);
+
   useEffect(() => {
     (async () => {
       const res = await fetch("/api/settings");
@@ -80,8 +88,37 @@ export default function SettingsPage() {
       setLastScheduledPurge(data.lastScheduledPurge ?? null);
       setKeyConfigured(data.openaiKeyConfigured === true);
       setKeyHint(data.openaiKeyHint ?? "");
+      const minutes: number = data.lockMaxMinutes;
+      setSavedLockMinutes(minutes);
+      if (minutes % 60 === 0) {
+        setLockValue(String(minutes / 60));
+        setLockUnit("hours");
+      } else {
+        setLockValue(String(minutes));
+        setLockUnit("minutes");
+      }
     })();
   }, []);
+
+  const saveLockDuration = async () => {
+    setSavingLock(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lockMaxMinutes: lockMinutes }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Erreur lors de la sauvegarde");
+        return;
+      }
+      setSavedLockMinutes(data.lockMaxMinutes);
+      toast.success("Durée de verrouillage enregistrée");
+    } finally {
+      setSavingLock(false);
+    }
+  };
 
   const saveApiKey = async (key: string) => {
     setSavingKey(true);
@@ -587,6 +624,53 @@ export default function SettingsPage() {
             )}
           </div>
         )}
+      </section>
+
+      <section className="mt-6 rounded-lg border border-border/60 bg-card p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-foreground">
+          Verrouillage des briefs
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Une personne verrouille un brief pour le modifier ; les autres le voient en lecture
+          seule, sans pouvoir reprendre la main. Le verrou se libère en quittant le brief, et
+          dans tous les cas au bout de cette durée, comptée depuis sa pose — pour qu&apos;un
+          onglet oublié ne bloque pas un brief indéfiniment. On est prévenu 5 minutes avant,
+          avec la possibilité de le prolonger.
+        </p>
+        <div className="mt-4 flex items-end gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="lock-duration">Durée maximale</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="lock-duration"
+                type="number"
+                min={1}
+                value={lockValue}
+                onChange={(e) => setLockValue(e.target.value)}
+                className="w-24"
+              />
+              <select
+                value={lockUnit}
+                onChange={(e) => setLockUnit(e.target.value as "minutes" | "hours")}
+                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm outline-none"
+              >
+                <option value="minutes">minutes</option>
+                <option value="hours">heures</option>
+              </select>
+            </div>
+          </div>
+          <Button
+            onClick={saveLockDuration}
+            disabled={savingLock || savedLockMinutes === null || lockMinutes === savedLockMinutes}
+          >
+            {savingLock ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-1.5 h-4 w-4" />
+            )}
+            Enregistrer
+          </Button>
+        </div>
       </section>
 
       <section className="mt-6 rounded-lg border border-border/60 bg-card p-5 shadow-sm">

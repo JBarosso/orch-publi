@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlignCenter,
   AlignLeft,
@@ -9,6 +9,7 @@ import {
   BringToFront,
   Copy,
   Image as ImageIcon,
+  Loader2,
   MoveUpRight,
   SendToBack,
   Square,
@@ -16,12 +17,26 @@ import {
   Type,
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { postAsset } from "@/lib/post-asset";
+import { validateSourceFile } from "@/lib/upload-specs";
 import type { MoodboardContent, MoodboardElement } from "@/types";
-import { createArrowElement, createImageElement, createShapeElement, createTextElement } from "./schema";
+import {
+  createArrowElement,
+  createImageElement,
+  createShapeElement,
+  createTextElement,
+  fitWithin,
+} from "./schema";
 import { MoodboardCanvas } from "./moodboard-canvas";
+
+// Cadre dans lequel une capture collée est réduite : la moitié du tableau,
+// assez pour la voir, sans masquer le reste de la composition.
+const PASTE_MAX_WIDTH = 640;
+const PASTE_MAX_HEIGHT = 360;
 
 interface MoodboardEditorProps {
   content: MoodboardContent;
@@ -40,6 +55,70 @@ function cascadePosition(count: number): { x: number; y: number } {
 export function MoodboardEditor({ content, onChange, onOpenMedia, onDropFile }: MoodboardEditorProps) {
   const [selectedId, onSelectedIdChange] = useState<string | null>(null);
   const selected = content.elements.find((e) => e.id === selectedId) ?? null;
+  const [pasting, setPasting] = useState(false);
+
+  // Contenu le plus récent, lu à la fin d'un envoi asynchrone : l'utilisateur
+  // a pu déplacer ou modifier des éléments pendant l'upload, et repartir du
+  // `content` capturé au moment du collage effacerait ces changements.
+  const contentRef = useRef(content);
+  useEffect(() => {
+    contentRef.current = content;
+  });
+
+  // Ctrl+V d'une capture d'écran. Écouté sur le conteneur du moodboard (et non
+  // sur toute la page) : seul le tableau sur lequel on vient de cliquer reçoit
+  // l'image, même s'il y en a plusieurs dans le brief. Le collage dans un champ
+  // texte (texte d'un élément, commentaire, réglages) reste un collage normal.
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+    const file = Array.from(e.clipboardData.items)
+      .find((item) => item.kind === "file" && item.type.startsWith("image/"))
+      ?.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+
+    const error = validateSourceFile(file);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
+    setPasting(true);
+    try {
+      const bitmap = await createImageBitmap(file);
+      const size = fitWithin(bitmap.width, bitmap.height, PASTE_MAX_WIDTH, PASTE_MAX_HEIGHT);
+      bitmap.close();
+
+      const res = await postAsset(file, {
+        label: `Capture ${new Date().toLocaleString("fr-FR")}`,
+        week: null,
+        year: null,
+        type: "moodboard",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ?? "Impossible d'importer la capture");
+        return;
+      }
+      const asset = await res.json();
+
+      const latest = contentRef.current;
+      const { x, y } = cascadePosition(latest.elements.length);
+      const el: MoodboardElement = {
+        ...createImageElement(latest.elements, x, y),
+        ...size,
+        imageUrl: asset.url,
+      };
+      onChange({ ...latest, elements: [...latest.elements, el] });
+      onSelectedIdChange(el.id);
+      toast.success("Capture ajoutée au tableau");
+    } catch {
+      toast.error("Impossible d'importer la capture");
+    } finally {
+      setPasting(false);
+    }
+  };
 
   const addElement = (factory: (elements: MoodboardElement[], x: number, y: number) => MoodboardElement) => {
     const { x, y } = cascadePosition(content.elements.length);
@@ -100,7 +179,9 @@ export function MoodboardEditor({ content, onChange, onOpenMedia, onDropFile }: 
   }, [selectedId, content]);
 
   return (
-    <div className="space-y-2">
+    // tabIndex -1 : un clic dans le tableau lui donne le focus, condition pour
+    // qu'il reçoive l'événement de collage (cf. handlePaste).
+    <div className="space-y-2 outline-none" tabIndex={-1} onPaste={handlePaste}>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" onClick={() => addElement(createTextElement)}>
           <Type className="mr-1 h-3.5 w-3.5" />
@@ -118,6 +199,12 @@ export function MoodboardEditor({ content, onChange, onOpenMedia, onDropFile }: 
           <MoveUpRight className="mr-1 h-3.5 w-3.5" />
           Flèche
         </Button>
+        {pasting && (
+          <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Import de la capture…
+          </span>
+        )}
         <span className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
           Fond
           <input
@@ -133,7 +220,8 @@ export function MoodboardEditor({ content, onChange, onOpenMedia, onDropFile }: 
       <div className="flex min-h-9 flex-wrap items-center gap-2 rounded-md bg-muted/40 px-2 py-1.5">
         {!selected ? (
           <span className="text-[11px] text-muted-foreground">
-            Cliquez un élément pour le modifier — glissez pour le déplacer, la poignée pour le redimensionner.
+            Cliquez un élément pour le modifier — glissez pour le déplacer, la poignée pour le
+            redimensionner. Cliquez sur le tableau puis Ctrl+V pour coller une capture d&apos;écran.
           </span>
         ) : (
           <>

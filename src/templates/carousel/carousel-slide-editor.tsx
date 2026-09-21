@@ -14,6 +14,7 @@ import {
 import { ButtonsEditor } from "@/components/editor/buttons-editor";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
+import { BrandLogoField } from "@/components/editor/brand-logo-field";
 import type { CarouselProductCallout, CarouselSlide } from "@/types";
 import { cn } from "@/lib/utils";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -27,6 +28,8 @@ interface CarouselSlideEditorProps {
   onDropFile?: (file: File) => void;
   onOpenTitleImageLibrary: () => void;
   onDropTitleFile?: (file: File) => void;
+  onOpenBrandLogoLibrary: () => void;
+  onDropBrandLogo?: (file: File) => void;
   onOpenVideoUpload: () => void;
 }
 
@@ -39,6 +42,8 @@ export function CarouselSlideEditor({
   onDropFile,
   onOpenTitleImageLibrary,
   onDropTitleFile,
+  onOpenBrandLogoLibrary,
+  onDropBrandLogo,
   onOpenVideoUpload,
 }: CarouselSlideEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
@@ -276,11 +281,12 @@ export function CarouselSlideEditor({
                     <span className="text-[9px] text-muted-foreground">logo marque</span>
                   </div>
                   {callout.showBrandLogo && (
-                    <Input
-                      placeholder="svg/marque.svg"
-                      value={callout.brandLogoPath}
-                      onChange={(e) => onUpdate({ productCallout: { ...callout, brandLogoPath: e.target.value } })}
-                      className="h-6 w-32 text-[10px]"
+                    <BrandLogoField
+                      logo={callout}
+                      onChange={(patch) => onUpdate({ productCallout: { ...callout, ...patch } })}
+                      onOpenLibrary={onOpenBrandLogoLibrary}
+                      onDropFile={onDropBrandLogo}
+                      pathPlaceholder="svg/marque.svg (après logo-puericulture/)"
                     />
                   )}
                   <div className="flex items-center gap-1">

@@ -45,6 +45,8 @@ export function CarouselEditor({
             onDropFile={onDropFile ? (file) => onDropFile(`slide-${i}`, file) : undefined}
             onOpenTitleImageLibrary={() => onOpenMediaLibrary(`title-${i}`)}
             onDropTitleFile={onDropFile ? (file) => onDropFile(`title-${i}`, file) : undefined}
+            onOpenBrandLogoLibrary={() => onOpenMediaLibrary(`logo-${i}`)}
+            onDropBrandLogo={onDropFile ? (file) => onDropFile(`logo-${i}`, file) : undefined}
             onOpenVideoUpload={() => onOpenVideoUpload(i)}
           />
         ))}

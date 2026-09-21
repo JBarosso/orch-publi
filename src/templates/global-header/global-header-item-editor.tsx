@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { LinkFields } from "@/components/editor/link-fields";
 import type { GlobalHeaderItem, GlobalHeaderLibraryItem, Locale } from "@/types";
 import { cn } from "@/lib/utils";
-import { LibraryItemPicker } from "./library-item-picker";
+import { LibraryPicker } from "@/components/editor/library-picker";
 
 interface GlobalHeaderItemEditorProps {
   item: GlobalHeaderItem;
@@ -111,7 +111,11 @@ export function GlobalHeaderItemEditor({
         </Button>
       </div>
 
-      <LibraryItemPicker locale={locale} onPick={loadFromLibrary} />
+      <LibraryPicker<GlobalHeaderLibraryItem>
+        endpoint="/api/global-header-items"
+        locale={locale}
+        onPick={loadFromLibrary}
+      />
 
       <div className="flex items-center gap-2">
         <span className="text-[10px] text-muted-foreground/70 shrink-0">Label</span>

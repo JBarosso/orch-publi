@@ -14,23 +14,34 @@ import {
 } from "@/lib/retention";
 import { getHeaderColors, setHeaderColors, type HeaderColor } from "@/lib/header-colors";
 import { getOpenAiApiKey, maskApiKey, setOpenAiApiKey } from "@/lib/openai-key";
+import { getLockMaxMinutes, setLockMaxMinutes } from "@/lib/brief-lock-server";
+import { MAX_LOCK_MAX_MINUTES, MIN_LOCK_MAX_MINUTES, clampLockMaxMinutes } from "@/lib/brief-lock";
 
 export async function GET() {
-  const [retentionMonths, videoRetentionDays, headerColors, autoPurgeEnabled, lastScheduledPurge, openaiApiKey] =
-    await Promise.all([
-      getRetentionMonths(),
-      getVideoRetentionDays(),
-      getHeaderColors(),
-      getAutoPurgeEnabled(),
-      getLastScheduledPurge(),
-      getOpenAiApiKey(),
-    ]);
+  const [
+    retentionMonths,
+    videoRetentionDays,
+    headerColors,
+    autoPurgeEnabled,
+    lastScheduledPurge,
+    openaiApiKey,
+    lockMaxMinutes,
+  ] = await Promise.all([
+    getRetentionMonths(),
+    getVideoRetentionDays(),
+    getHeaderColors(),
+    getAutoPurgeEnabled(),
+    getLastScheduledPurge(),
+    getOpenAiApiKey(),
+    getLockMaxMinutes(),
+  ]);
   return NextResponse.json({
     retentionMonths,
     videoRetentionDays,
     headerColors,
     autoPurgeEnabled,
     lastScheduledPurge,
+    lockMaxMinutes,
     // Jamais la clé elle-même : seulement de quoi afficher qu'elle est en
     // place et laquelle, sans qu'elle transite vers le navigateur.
     openaiKeyConfigured: openaiApiKey !== "",
@@ -108,6 +119,20 @@ export async function PUT(request: NextRequest) {
     }
     await setHeaderColors(colors);
     return NextResponse.json({ headerColors: colors });
+  }
+
+  if (body.lockMaxMinutes !== undefined) {
+    const minutes = clampLockMaxMinutes(body.lockMaxMinutes);
+    if (minutes === null) {
+      return NextResponse.json(
+        {
+          error: `Durée invalide : entre ${MIN_LOCK_MAX_MINUTES} minutes et ${MAX_LOCK_MAX_MINUTES / 60} heures`,
+        },
+        { status: 400 },
+      );
+    }
+    await setLockMaxMinutes(minutes);
+    return NextResponse.json({ lockMaxMinutes: minutes });
   }
 
   if (body.openaiApiKey !== undefined) {

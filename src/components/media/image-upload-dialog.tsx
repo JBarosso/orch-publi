@@ -35,28 +35,7 @@ import {
   validateSourceFile,
   validateSourceVideoFile,
 } from "@/lib/upload-specs";
-import { upload } from "@vercel/blob/client";
-
-// Upload direct navigateur → Vercel Blob, sous tmp/ (cf. src/lib/storage.ts).
-// Sur Vercel, une route refuse tout corps de requête au-delà de 4,5 Mo
-// (erreur 413) : c'est ce qui bloquait les TIFF, les vidéos et les images
-// lourdes. Renvoie null si l'upload direct est indisponible (dev local sans
-// Blob) : l'appelant envoie alors le fichier à la route, comme avant.
-async function uploadToTemp(body: Blob, contentType: string): Promise<string | null> {
-  try {
-    const blob = await upload("tmp/upload", body, {
-      access: "public",
-      handleUploadUrl: "/api/assets/blob-token",
-      contentType,
-      // Envoi en parties parallèles avec reprise, pour les gros TIFF.
-      multipart: body.size > 100 * 1024 * 1024,
-    });
-    return blob.url;
-  } catch (err) {
-    console.warn("Upload direct indisponible, envoi par la route :", err);
-    return null;
-  }
-}
+import { postAsset, uploadToTemp } from "@/lib/post-asset";
 
 interface ImageUploadDialogProps {
   defaultLabel?: string;
@@ -468,22 +447,13 @@ export function ImageUploadDialog({
         return;
       }
 
-      // Upload direct quand il est disponible : seule l'URL transite par la
-      // route, quel que soit le poids du fichier.
       const fileBlob = await fetch(finalBase64).then((r) => r.blob());
-      const sourceUrl = await uploadToTemp(fileBlob, fileBlob.type);
-
-      const res = await fetch("/api/assets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...(sourceUrl ? { sourceUrl } : { image: finalBase64 }),
-          label: cleanLabel,
-          week: week ? Number(week) : null,
-          year: year ? Number(year) : null,
-          type: selectedType,
-          fromTiff: sourceWasTiffRef.current,
-        }),
+      const res = await postAsset(fileBlob, {
+        label: cleanLabel,
+        week: week ? Number(week) : null,
+        year: year ? Number(year) : null,
+        type: selectedType,
+        fromTiff: sourceWasTiffRef.current,
       });
 
       if (!res.ok) {
@@ -512,8 +482,27 @@ export function ImageUploadDialog({
     [loadFile]
   );
 
+  // Fermeture implicite (clic à l'extérieur, Échap, croix) : confirmation dès
+  // qu'une image est chargée. Un clic malheureux à côté de la fenêtre faisait
+  // perdre le recadrage — voire une génération IA, lente et facturée. Le
+  // bouton « Annuler » reste un choix explicite et ferme sans demander.
+  const handleOpenChange = (open: boolean) => {
+    if (open) return;
+    if (
+      imageSrc &&
+      !window.confirm(
+        aiResult || aiBusy
+          ? "Fermer sans uploader ? L'image générée par l'IA sera perdue."
+          : "Fermer sans uploader ? L'image chargée et son recadrage seront perdus.",
+      )
+    ) {
+      return;
+    }
+    onClose();
+  };
+
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Uploader une image</DialogTitle>

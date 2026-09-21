@@ -138,6 +138,13 @@ function meaV2AssetType(target: string): AssetType {
   return "mea_v2";
 }
 
+/** Cible slider -> type d'asset. Le logo partage le type des logos MEA. */
+function carouselAssetType(target: string): AssetType {
+  if (target.startsWith("title-")) return "carousel_title";
+  if (target.startsWith("logo-")) return "mea_v2_logo";
+  return "carousel";
+}
+
 export const TEMPLATE_UI: Record<string, TemplateUi> = {
   macarons: {
     Editor: ({ content, brief, onChange, onOpenMedia, onDropFile }) => (
@@ -289,6 +296,7 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
       <EditoEditor
         items={(content as EditoContent)?.items ?? []}
         briefWeek={brief.week}
+        locale={brief.locale}
         onChange={(items) => onChange(withItems(content, items))}
         onOpenMediaLibrary={(itemId) => onOpenMedia(itemId, "edito")}
         onDropFile={(itemId, file) => onDropFile(itemId, "edito", file)}
@@ -372,17 +380,13 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
         content={content as CarouselContent}
         briefWeek={brief.week}
         onChange={(next) => onChange(next)}
-        onOpenMediaLibrary={(target) =>
-          onOpenMedia(target, target.startsWith("title-") ? "carousel_title" : "carousel")
-        }
-        onDropFile={(target, file) =>
-          onDropFile(target, target.startsWith("title-") ? "carousel_title" : "carousel", file)
-        }
+        onOpenMediaLibrary={(target) => onOpenMedia(target, carouselAssetType(target))}
+        onDropFile={(target, file) => onDropFile(target, carouselAssetType(target), file)}
         onOpenVideoUpload={(slideIndex) => onOpenVideoUpload(String(slideIndex))}
       />
     ),
     Preview: ({ content }) => <CarouselPreview content={content as CarouselContent} />,
-    // Targets : "slide-<index>" ou "title-<index>".
+    // Targets : "slide-<index>", "title-<index>" ou "logo-<index>".
     setImage: (content, target, url) => {
       const c = content as CarouselContent;
       const [kind, index] = target.split("-");
@@ -390,6 +394,12 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
         ...c,
         slides: c.slides.map((slide, i) => {
           if (i !== Number(index)) return slide;
+          if (kind === "logo") {
+            return {
+              ...slide,
+              productCallout: { ...slide.productCallout, brandLogoUrl: url, brandLogoSource: "image" },
+            };
+          }
           return kind === "title"
             ? { ...slide, titleImageUrl: url, titleImageWeek: null }
             : { ...slide, imageUrl: url, imageWeek: null };

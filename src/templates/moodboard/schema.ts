@@ -14,6 +14,16 @@ import type {
 export const MOODBOARD_WIDTH = 1280;
 export const MOODBOARD_HEIGHT = 720;
 
+/**
+ * Taille d'affichage d'une image collée : ses proportions d'origine, réduites
+ * pour tenir dans le cadre donné, jamais agrandies. Une capture plein écran
+ * collée à sa taille réelle recouvrirait tout le tableau.
+ */
+export function fitWithin(width: number, height: number, maxWidth: number, maxHeight: number) {
+  const scale = Math.min(1, maxWidth / width, maxHeight / height);
+  return { width: Math.round(width * scale), height: Math.round(height * scale) };
+}
+
 function nextZIndex(elements: MoodboardElement[]): number {
   return elements.length === 0 ? 1 : Math.max(...elements.map((e) => e.zIndex)) + 1;
 }

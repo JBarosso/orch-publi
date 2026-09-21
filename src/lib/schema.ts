@@ -38,6 +38,40 @@ export const briefs = pgTable("briefs", {
     .$onUpdate(() => new Date()),
 });
 
+// Verrou d'édition d'un brief (cf. src/lib/brief-lock.ts), une ligne au plus
+// par brief. Table à part plutôt que colonnes sur `briefs` : le signe de vie
+// toutes les 30 s y ferait bouger `briefs.updatedAt` en permanence.
+export const briefLocks = pgTable("brief_locks", {
+  briefId: uuid("brief_id")
+    .primaryKey()
+    .references(() => briefs.id, { onDelete: "cascade" }),
+  // Anonyme : empreinte de la session qui tient le verrou, jamais le jeton brut.
+  lockedBy: varchar("locked_by", { length: 64 }).notNull(),
+  // Pose du verrou : point de départ de la durée maximale (Paramétrage).
+  lockedAt: timestamp("locked_at", { withTimezone: true }).notNull(),
+  // Dernier signe de vie de l'onglet : sans nouvelles depuis quelques
+  // minutes (onglet planté, portable en veille), le verrou est libre.
+  heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }).notNull(),
+});
+
+// Pages du site (HP, HP cat bébé...) et, pour chacune, l'identifiant de
+// l'asset Salesforce où coller le code de chaque type de section — même
+// modèle que l'onglet Traduction (une ligne par clé, une valeur par colonne).
+// Commun à toutes les langues.
+export const cmsPages = pgTable("cms_pages", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  // { [type de section]: identifiant d'asset }
+  assets: jsonb("assets").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 export const briefSections = pgTable("brief_sections", {
   id: uuid("id").defaultRandom().primaryKey(),
   briefId: uuid("brief_id")
@@ -48,6 +82,12 @@ export const briefSections = pgTable("brief_sections", {
   order: integer("order").notNull().default(0),
   content: jsonb("content").notNull().default({}),
   visible: boolean("visible").notNull().default(true),
+  // Page du site visée par cette section : l'asset CMS en est déduit. Un même
+  // brief mélange des sections destinées à des pages différentes, d'où un
+  // choix par section et non par brief. Page supprimée = retour à « aucune ».
+  cmsPageId: uuid("cms_page_id").references(() => cmsPages.id, { onDelete: "set null" }),
+  // Identifiant saisi à la main, prioritaire sur la déduction ("" = déduire).
+  cmsAssetId: varchar("cms_asset_id", { length: 128 }).notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -112,6 +152,35 @@ export const globalHeaderItems = pgTable("global_header_items", {
   cgid: varchar("cgid", { length: 255 }).notNull().default(""),
   cid: varchar("cid", { length: 255 }).notNull().default(""),
   link: text("link").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+// Bibliothèque de blocs Edito, même principe que globalHeaderItems : un bloc
+// enregistré est rechargé comme snapshot dans une section, filtré par langue.
+// L'image est mémorisée par son URL de médiathèque seulement, jamais par son
+// chemin CMS : rechargée, elle repart dans le ZIP du brief en cours comme
+// n'importe quelle image choisie dans la médiathèque (le mécanisme « image
+// d'une autre semaine » ignore l'année, un bloc réutilisé d'une année sur
+// l'autre pointerait sinon vers un dossier CMS inexistant).
+export const editoItems = pgTable("edito_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  locale: varchar("locale", { length: 5 }).notNull(),
+  label: varchar("label", { length: 255 }).notNull(),
+  theme: varchar("theme", { length: 32 }).notNull().default("aqua"),
+  title: text("title").notNull().default(""),
+  text: text("text").notNull().default(""),
+  imageUrl: text("image_url").notNull().default(""),
+  linkType: varchar("link_type", { length: 16 }).notNull().default("cgid"),
+  cgid: varchar("cgid", { length: 255 }).notNull().default(""),
+  cid: varchar("cid", { length: 255 }).notNull().default(""),
+  link: text("link").notNull().default(""),
+  buttons: jsonb("buttons").notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

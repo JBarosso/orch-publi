@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { assets, briefs, briefSections, customTemplates, settings } from "@/lib/schema";
+import { assets, briefs, briefSections, customTemplates, editoItems, settings } from "@/lib/schema";
 import { and, eq, inArray, lt, notInArray } from "drizzle-orm";
 import { deleteAsset, purgeStaleTempUploads } from "@/lib/storage";
 
@@ -58,10 +58,12 @@ export function extractReferencedAssetUrls(value: unknown): string[] {
   return JSON.stringify(value ?? null).match(ASSET_URL_PATTERN) ?? [];
 }
 
-// URLs encore utilisées : sections des briefs conservés, et templates
-// personnalisés (qui embarquent leurs propres images).
+// URLs encore utilisées : sections des briefs conservés, templates
+// personnalisés (qui embarquent leurs propres images) et blocs de la
+// bibliothèque Edito — une image gardée par un bloc réutilisable ne doit pas
+// être purgée sous prétexte qu'aucun brief ne l'affiche en ce moment.
 async function collectReferencedAssetUrls(excludedBriefIds: string[]): Promise<Set<string>> {
-  const [sections, templates] = await Promise.all([
+  const [sections, templates, editoBlocks] = await Promise.all([
     db
       .select({ content: briefSections.content })
       .from(briefSections)
@@ -69,10 +71,12 @@ async function collectReferencedAssetUrls(excludedBriefIds: string[]): Promise<S
         excludedBriefIds.length > 0 ? notInArray(briefSections.briefId, excludedBriefIds) : undefined,
       ),
     db.select({ blocks: customTemplates.blocks }).from(customTemplates),
+    db.select({ imageUrl: editoItems.imageUrl }).from(editoItems),
   ]);
   return new Set([
     ...sections.flatMap((s) => extractReferencedAssetUrls(s.content)),
     ...templates.flatMap((t) => extractReferencedAssetUrls(t.blocks)),
+    ...editoBlocks.flatMap((b) => extractReferencedAssetUrls(b.imageUrl)),
   ]);
 }
 

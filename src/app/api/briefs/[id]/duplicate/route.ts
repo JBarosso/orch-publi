@@ -11,7 +11,8 @@ import {
 } from "@/lib/translate-content";
 import { freezeSectionContentWeek } from "@/templates/registry";
 import { detachGlobalHeaderLibraryLinks } from "@/templates/global-header/schema";
-import type { GlobalHeaderContent, Locale } from "@/types";
+import { detachEditoLibraryLinks } from "@/templates/edito/schema";
+import type { EditoContent, GlobalHeaderContent, Locale } from "@/types";
 
 export async function POST(
   request: NextRequest,
@@ -121,6 +122,9 @@ export async function POST(
         if (s.type === "global_header" && localeChanged) {
           content = detachGlobalHeaderLibraryLinks(content as GlobalHeaderContent);
         }
+        if (s.type === "edito" && localeChanged) {
+          content = detachEditoLibraryLinks(content as EditoContent);
+        }
         return {
           briefId: newBrief.id,
           type: s.type,
@@ -128,6 +132,10 @@ export async function POST(
           order: s.order,
           content: transformContent(s.type, content),
           visible: s.visible,
+          // L'asset CMS ne dépend pas de la langue : page et saisie manuelle
+          // suivent la section telles quelles.
+          cmsPageId: s.cmsPageId,
+          cmsAssetId: s.cmsAssetId,
         };
       }),
     );

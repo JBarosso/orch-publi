@@ -3,41 +3,47 @@
 import { useEffect, useState } from "react";
 import { Combobox } from "@base-ui/react/combobox";
 import { Search } from "lucide-react";
-import type { GlobalHeaderLibraryItem, Locale } from "@/types";
+import type { Locale } from "@/types";
 
-interface LibraryItemPickerProps {
+interface LibraryPickerProps<T> {
+  /** Route de la bibliothèque, filtrée par `locale` et `search` (label). */
+  endpoint: string;
   locale: Locale;
-  onPick: (item: GlobalHeaderLibraryItem) => void;
+  onPick: (item: T) => void;
 }
 
-// Recherche + sélection d'un item de bibliothèque (par label), filtrée sur
-// la locale du brief : charge son contenu dans le slot appelant. Se
-// réinitialise après chaque sélection (action ponctuelle, pas une valeur
-// persistante affichée).
-export function LibraryItemPicker({ locale, onPick }: LibraryItemPickerProps) {
+// Recherche + sélection d'un élément de bibliothèque (par label), filtrée sur
+// la locale du brief : l'appelant copie son contenu dans l'emplacement visé.
+// Se réinitialise après chaque sélection (action ponctuelle, pas une valeur
+// persistante affichée). Partagé par le Global header et l'Edito.
+export function LibraryPicker<T extends { id: string; label: string }>({
+  endpoint,
+  locale,
+  onPick,
+}: LibraryPickerProps<T>) {
   const [query, setQuery] = useState("");
-  const [items, setItems] = useState<GlobalHeaderLibraryItem[]>([]);
+  const [items, setItems] = useState<T[]>([]);
   const [resetKey, setResetKey] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
       const params = new URLSearchParams({ locale });
       if (query) params.set("search", query);
-      const res = await fetch(`/api/global-header-items?${params}`);
+      const res = await fetch(`${endpoint}?${params}`);
       if (res.ok) setItems(await res.json());
     }, 250);
     return () => clearTimeout(timer);
-  }, [query, locale]);
+  }, [endpoint, query, locale]);
 
   return (
     <Combobox.Root
       key={resetKey}
       items={items}
-      itemToStringLabel={(item: GlobalHeaderLibraryItem) => item.label}
+      itemToStringLabel={(item: T) => item.label}
       onInputValueChange={setQuery}
       onValueChange={(item) => {
         if (item) {
-          onPick(item as GlobalHeaderLibraryItem);
+          onPick(item as T);
           setQuery("");
           setResetKey((k) => k + 1);
         }
@@ -57,7 +63,7 @@ export function LibraryItemPicker({ locale, onPick }: LibraryItemPickerProps) {
               Aucun résultat
             </Combobox.Empty>
             <Combobox.List>
-              {(item: GlobalHeaderLibraryItem) => (
+              {(item: T) => (
                 <Combobox.Item
                   key={item.id}
                   value={item}

@@ -1,7 +1,8 @@
 import type { MeaV2Content } from "@/types";
 import { withPosition, type ImageEntry } from "@/lib/section-images";
 import { resolveCustomFolder, resolveImageBaseName } from "@/lib/cms-image-path";
-import { brandLogoBaseName, usesUploadedBrandLogo } from "./brand-logo";
+import { usesUploadedBrandLogo } from "@/lib/brand-logo";
+import { brandLogoBaseName } from "./brand-logo";
 
 // 4 cartes numérotées mea-1..4 + la carte focus figée sur mea-5. En mode
 // vidéo, la vignette et la vidéo partagent le même nom de base (seule

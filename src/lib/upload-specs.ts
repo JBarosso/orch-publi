@@ -138,8 +138,10 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
     requireLabel: false,
     kind: "video",
   },
+  // Clé historique « mea_v2_logo » conservée (les assets déjà en base la
+  // portent), mais le type sert désormais aussi au logo du slider.
   mea_v2_logo: {
-    displayName: "MEA v2 - Logo marque",
+    displayName: "Logo marque",
     // Upload libre : un logo a ses propres proportions, jamais recadré, et le
     // format d'origine est conservé pour garder la transparence du PNG.
     outputFormat: "source",

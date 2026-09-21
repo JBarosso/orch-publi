@@ -162,7 +162,8 @@ export async function POST(request: NextRequest) {
   try {
     const imageBuffer: Buffer = sourceUrl
       ? await readAsset(sourceUrl)
-      : Buffer.from(image.replace(/^data:image\/\w+;base64,/, ""), "base64");
+      : // Type MIME quelconque : "\w+" ratait le "+" de "image/svg+xml".
+        Buffer.from(image.replace(/^data:[^;,]+;base64,/, ""), "base64");
 
     // Upload libre (pas de crop) issu d'un TIFF converti : l'image reçue ici
     // est encore en pleine résolution — plafond TIFF plutôt que le plafond

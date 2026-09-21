@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2, Image as ImageIcon } from "lucide-react";
+import { GripVertical, Trash2, Image as ImageIcon, Save } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,8 @@ import { ButtonsEditor } from "@/components/editor/buttons-editor";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
-import type { EditoCard, MeaButton } from "@/types";
+import { LibraryPicker } from "@/components/editor/library-picker";
+import type { EditoCard, EditoLibraryItem, Locale, MeaButton } from "@/types";
 import { EDITO_THEMES } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "@/templates/mea/schema";
@@ -28,6 +30,7 @@ interface EditoCardEditorProps {
   item: EditoCard;
   isActive: boolean;
   briefWeek: number;
+  locale: Locale;
   onUpdate: (updates: Partial<EditoCard>) => void;
   onRemove: () => void;
   onOpenMediaLibrary: () => void;
@@ -38,6 +41,7 @@ export function EditoCardEditor({
   item,
   isActive,
   briefWeek,
+  locale,
   onUpdate,
   onRemove,
   onOpenMediaLibrary,
@@ -45,6 +49,66 @@ export function EditoCardEditor({
 }: EditoCardEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [savingToLibrary, setSavingToLibrary] = useState(false);
+
+  // Copie le bloc dans la carte. Semaine et position remises à zéro : l'image
+  // redevient une image du brief en cours, réexportée dans son ZIP, comme une
+  // image choisie dans la médiathèque (cf. table edito_items).
+  const loadFromLibrary = (block: EditoLibraryItem) => {
+    onUpdate({
+      sourceItemId: block.id,
+      label: block.label,
+      theme: block.theme,
+      title: block.title,
+      text: block.text,
+      imageUrl: block.imageUrl,
+      imageWeek: null,
+      exportPosition: null,
+      linkType: block.linkType,
+      cgid: block.cgid,
+      cid: block.cid,
+      link: block.link,
+      buttons: block.buttons?.length ? block.buttons : [createEmptyButton()],
+    });
+  };
+
+  const saveToLibrary = async () => {
+    const label = (item.label ?? "").trim();
+    if (!label) {
+      toast.error("Un label est requis pour enregistrer dans la bibliothèque");
+      return;
+    }
+    setSavingToLibrary(true);
+    try {
+      const payload = {
+        locale,
+        label,
+        theme: item.theme,
+        title: item.title,
+        text: item.text,
+        imageUrl: item.imageUrl,
+        linkType: item.linkType,
+        cgid: item.cgid,
+        cid: item.cid,
+        link: item.link,
+        buttons: item.buttons ?? [],
+      };
+      const res = await fetch("/api/edito-items", {
+        method: item.sourceItemId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item.sourceItemId ? { id: item.sourceItemId, ...payload } : payload),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Erreur lors de l'enregistrement");
+        return;
+      }
+      onUpdate({ sourceItemId: data.id });
+      toast.success("Bloc enregistré dans la bibliothèque");
+    } finally {
+      setSavingToLibrary(false);
+    }
+  };
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   });
@@ -115,6 +179,35 @@ export function EditoCardEditor({
           </div>
 
           <div className="min-w-80 flex-1 space-y-2">
+            <LibraryPicker<EditoLibraryItem>
+              endpoint="/api/edito-items"
+              locale={locale}
+              onPick={loadFromLibrary}
+            />
+
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 text-[10px] text-muted-foreground/70">Label</span>
+              <Input
+                placeholder="Label (pour retrouver ce bloc dans la bibliothèque)"
+                value={item.label ?? ""}
+                // Renommer détache le bloc de son original : l'enregistrement
+                // suivant crée un nouveau bloc au lieu d'écraser l'ancien.
+                onChange={(e) => onUpdate({ label: e.target.value, sourceItemId: null })}
+                className="h-8 flex-1 text-sm"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={saveToLibrary}
+                disabled={savingToLibrary}
+                className="h-8 shrink-0 text-xs"
+              >
+                <Save className="mr-1 h-3 w-3" />
+                {item.sourceItemId ? "Mettre à jour" : "Enregistrer"}
+              </Button>
+            </div>
+
             <WeekField
               imageWeek={item.imageWeek}
               briefWeek={briefWeek}

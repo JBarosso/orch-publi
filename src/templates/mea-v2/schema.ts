@@ -2,7 +2,8 @@ import type { MeaV2Card, MeaV2FocusCard, MeaV2Content } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { createEmptyButton, normalizeButtons } from "../mea/schema";
 import { withDefaults } from "@/lib/normalize-content";
-import { DEFAULT_BRAND_LOGO_PATH, DEFAULT_BRAND_LOGO_WIDTH } from "./brand-logo";
+import { DEFAULT_BRAND_LOGO_WIDTH } from "@/lib/brand-logo";
+import { DEFAULT_BRAND_LOGO_PATH } from "./brand-logo";
 
 export { createEmptyButton };
 

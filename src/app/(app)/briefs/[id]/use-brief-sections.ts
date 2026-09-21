@@ -31,6 +31,8 @@ function serializeSections(list: BriefSection[]): string {
       order: s.order,
       visible: s.visible,
       content: s.content,
+      cmsPageId: s.cmsPageId,
+      cmsAssetId: s.cmsAssetId,
     })),
   );
 }
@@ -134,6 +136,8 @@ export function useBriefSections(briefId: string) {
               title: section.title,
               visible: section.visible,
               order: section.order,
+              cmsPageId: section.cmsPageId ?? null,
+              cmsAssetId: section.cmsAssetId ?? "",
               // Permet au serveur de refuser d'écraser une modification faite
               // ailleurs depuis l'ouverture du brief (réponse 409).
               updatedAt: section.updatedAt,
@@ -145,6 +149,14 @@ export function useBriefSections(briefId: string) {
 
       // fetch ne rejette pas sur un statut d'erreur : sans ce contrôle, une
       // sauvegarde refusée s'afficherait quand même comme réussie.
+      if (results.some((r) => r.status === 423)) {
+        // Rien n'est perdu : les modifications restent à l'écran, et
+        // l'enregistrement repasse dès que le brief est reverrouillé.
+        toast.error(
+          "Enregistrement refusé : vous ne tenez pas le verrou de ce brief. Verrouillez-le pour enregistrer vos modifications.",
+        );
+        return;
+      }
       if (results.some((r) => r.status === 409)) {
         toast.error(
           "Ce brief a été modifié ailleurs. Recharge la page pour repartir de la version à jour.",

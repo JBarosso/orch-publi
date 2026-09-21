@@ -5,8 +5,23 @@ import {
   createImageElement,
   createShapeElement,
   createTextElement,
+  fitWithin,
   normalizeMoodboardContent,
 } from "./schema";
+
+describe("fitWithin (capture collée)", () => {
+  it("réduit une capture plein écran en gardant ses proportions", () => {
+    expect(fitWithin(1920, 1080, 640, 360)).toEqual({ width: 640, height: 360 });
+    // Plus haute que large : c'est la hauteur qui limite.
+    expect(fitWithin(800, 1600, 640, 360)).toEqual({ width: 180, height: 360 });
+  });
+
+  // Une petite capture (une zone d'écran) ne doit pas être agrandie :
+  // elle deviendrait floue.
+  it("n'agrandit jamais une capture déjà plus petite que le cadre", () => {
+    expect(fitWithin(300, 120, 640, 360)).toEqual({ width: 300, height: 120 });
+  });
+});
 
 describe("createEmptyMoodboardContent", () => {
   it("démarre sans élément, sur un fond blanc au format diapositive", () => {

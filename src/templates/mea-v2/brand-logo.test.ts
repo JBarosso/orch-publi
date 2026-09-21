@@ -1,12 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { MeaV2Card, MeaV2Content } from "@/types";
 import { createEmptyMeaV2Card, createEmptyMeaV2Content } from "./schema";
-import {
-  brandLogoBaseName,
-  brandLogoCmsPath,
-  brandLogoExtension,
-  usesUploadedBrandLogo,
-} from "./brand-logo";
+import { brandLogoExtension, usesUploadedBrandLogo } from "@/lib/brand-logo";
+import { brandLogoBaseName, brandLogoCmsPath } from "./brand-logo";
 import { generateMeaV2HTML } from "./export";
 import { getMeaV2Images } from "./images";
 

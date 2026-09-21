@@ -73,8 +73,19 @@ export interface BriefSection {
   order: number;
   content: unknown;
   visible: boolean;
+  /** Page du site visée (onglet Assets CMS) — l'asset en est déduit. */
+  cmsPageId: string | null;
+  /** Identifiant d'asset saisi à la main, prioritaire ("" = déduire). */
+  cmsAssetId: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Page du site et asset Salesforce de chaque type de section qu'elle porte. */
+export interface CmsPage {
+  id: string;
+  name: string;
+  assets: Partial<Record<SectionType, string>>;
 }
 
 // --- Programmation : tableau informatif, blocs (nom d'asset + période
@@ -424,10 +435,31 @@ export interface EditoCard {
   cid: string;
   link: string;
   buttons: MeaButton[];
+  // Bibliothèque de blocs (même principe que le Global header) : libellé pour
+  // retrouver le bloc, et bloc d'origine s'il en vient. Optionnels : absents
+  // des cartes créées avant la bibliothèque.
+  label?: string;
+  sourceItemId?: string | null;
 }
 
 export interface EditoContent {
   items: EditoCard[];
+}
+
+/** Bloc Edito enregistré en bibliothèque (table edito_items). */
+export interface EditoLibraryItem {
+  id: string;
+  locale: Locale;
+  label: string;
+  theme: EditoTheme;
+  title: string;
+  text: string;
+  imageUrl: string;
+  linkType: "cgid" | "url" | "cid";
+  cgid: string;
+  cid: string;
+  link: string;
+  buttons: MeaButton[];
 }
 
 // --- Img sous menu (liste d'images pleine largeur, un lien chacune) ---
@@ -506,6 +538,12 @@ export interface CarouselProductCallout {
   side: "left" | "right" | "center" | "only-center";
   showBrandLogo: boolean;
   brandLogoPath: string; // segment après logo-puericulture/, ex: "svg/premaman.svg"
+  // Mêmes réglages que le logo MEA v2 (cf. src/lib/brand-logo.ts). Optionnels :
+  // le slider n'a pas de normalisation de contenu, les slides enregistrées
+  // avant leur ajout ne les ont pas.
+  brandLogoSource?: "path" | "image";
+  brandLogoUrl?: string;
+  brandLogoWidth?: number;
   label: string;
   publicPrice: string;
   clubPrice: string;

@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X, GripVertical } from "lucide-react";
+import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X, GripVertical, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -45,7 +45,11 @@ import {
   Separator as PanelResizeHandle,
   useGroupRef,
 } from "react-resizable-panels";
-import type { BriefSection, BriefStatus, CustomTemplate } from "@/types";
+import type { BriefSection, BriefStatus, CmsPage, CustomTemplate } from "@/types";
+import { SectionCmsAssetRow } from "@/components/briefs/section-cms-asset-row";
+import { BriefLockButton } from "@/components/briefs/brief-lock-button";
+import { useBriefLockContext } from "./brief-lock-context";
+import { hasCmsAsset } from "@/lib/cms-asset";
 import { TEMPLATE_UI } from "@/templates/registry-ui";
 import { useBriefSections } from "./use-brief-sections";
 import { StatusActions } from "@/components/editor/status-actions";
@@ -213,6 +217,31 @@ export default function BriefEditorPage({
     refetch: fetchBrief,
   } = useBriefSections(id);
 
+  // Verrou d'édition : sans lui, le brief est en lecture seule. Porté par la
+  // mise en page du brief pour survivre au passage par l'export.
+  const briefLock = useBriefLockContext();
+  const canEdit = briefLock.mine;
+
+  // Clic dans l'éditeur sans le verrou : on explique, et on fait clignoter le
+  // bouton Verrouiller pour montrer où agir. Compteur plutôt que booléen :
+  // chaque nouveau clic relance la mise en évidence au lieu d'être ignoré.
+  const [lockHint, setLockHint] = useState(0);
+  useEffect(() => {
+    if (!lockHint) return;
+    const timer = setTimeout(() => setLockHint(0), 1600);
+    return () => clearTimeout(timer);
+  }, [lockHint]);
+  const signalReadOnly = () => {
+    toast.info(
+      briefLock.status?.state === "other"
+        ? "Ce brief est verrouillé par quelqu'un d'autre : lecture seule."
+        : "Brief en lecture seule — cliquez sur « Verrouiller » pour le modifier.",
+      // Même id : des clics répétés remplacent le message au lieu de l'empiler.
+      { id: "brief-read-only" },
+    );
+    setLockHint((n) => n + 1);
+  };
+
   const sectionDragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -360,6 +389,15 @@ export default function BriefEditorPage({
     });
     setMediaTarget(null);
   }, [mediaTarget, updateSection]);
+
+  // Pages de l'onglet Assets CMS, pour le choix de page de chaque section.
+  const [cmsPages, setCmsPages] = useState<CmsPage[]>([]);
+  useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/cms-pages");
+      if (res.ok) setCmsPages(await res.json());
+    })();
+  }, []);
 
   // Templates publiés proposés dans le dialogue de création de section
   useEffect(() => {
@@ -688,8 +726,9 @@ export default function BriefEditorPage({
             ) : (
               <button
                 type="button"
-                className="group flex items-center gap-1.5"
+                className="group flex items-center gap-1.5 disabled:cursor-default"
                 title={brief.name ? brief.slug : undefined}
+                disabled={!canEdit}
                 onClick={() => {
                   setNameValue(brief.name);
                   setEditingName(true);
@@ -703,6 +742,25 @@ export default function BriefEditorPage({
               {brief.year} · S{String(brief.week).padStart(2, "0")} · {brief.locale.toUpperCase()}
             </span>
             <StatusBadge status={brief.status as BriefStatus} />
+            <BriefLockButton
+              status={briefLock.status}
+              busy={briefLock.busy}
+              highlight={lockHint > 0}
+              onLock={briefLock.lock}
+              onUnlock={() => {
+                // Une fois déverrouillé, l'éditeur passe en lecture seule :
+                // des modifications en attente ne pourraient plus être enregistrées.
+                if (
+                  dirty &&
+                  !window.confirm(
+                    "Des modifications ne sont pas sauvegardées. Déverrouiller quand même ? Elles ne pourront plus être enregistrées.",
+                  )
+                ) {
+                  return;
+                }
+                briefLock.unlock();
+              }}
+            />
             {dirty && (
               <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">
                 Non sauvegardé
@@ -711,7 +769,7 @@ export default function BriefEditorPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <StatusActions status={brief.status} onChange={handleStatusChange} />
+          {canEdit && <StatusActions status={brief.status} onChange={handleStatusChange} />}
           <Button
             variant="outline"
             size="sm"
@@ -721,7 +779,12 @@ export default function BriefEditorPage({
             <FileCode className="mr-1.5 h-3.5 w-3.5" />
             Exporter
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving} className="rounded-lg shadow-sm shadow-primary/20">
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving || !canEdit}
+            className="rounded-lg shadow-sm shadow-primary/20"
+          >
             {saving ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -744,12 +807,54 @@ export default function BriefEditorPage({
                 size="sm"
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={() => setCreateOpen(true)}
+                disabled={!canEdit}
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Créer une section
               </Button>
             </div>
-            <div className="space-y-3">
+            {!canEdit && briefLock.status && (
+              // Collé en haut du panneau : reste visible même après avoir
+              // fait défiler loin dans le brief. Fond opaque pour que le
+              // contenu ne transparaisse pas en passant dessous.
+              <div
+                className={cn(
+                  "sticky top-0 z-20 mb-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs shadow-sm",
+                  briefLock.status.state === "other"
+                    ? "border-amber-300 bg-amber-50 text-amber-800"
+                    : "border-primary/30 bg-background text-foreground",
+                )}
+              >
+                <Lock className="h-3.5 w-3.5 shrink-0" />
+                <span className="flex-1">
+                  {briefLock.status.state === "other"
+                    ? "Ce brief est en cours de modification par quelqu'un d'autre : lecture seule. Il se libérera dès que cette personne le quittera."
+                    : "Lecture seule — verrouillez le brief pour le modifier."}
+                </span>
+                {briefLock.status.state === "free" && (
+                  <Button size="sm" className="h-6 px-2 text-xs" onClick={briefLock.lock} disabled={briefLock.busy}>
+                    <Lock className="mr-1 h-3 w-3" />
+                    Verrouiller
+                  </Button>
+                )}
+              </div>
+            )}
+            {/* Le conteneur extérieur n'est pas inert : un clic sur le
+                contenu inerte (qui n'est plus cliquable) retombe sur lui, ce
+                qui permet d'expliquer pourquoi rien ne se passe au lieu de
+                laisser l'utilisateur cliquer dans le vide. */}
+            <div
+              className={cn(!canEdit && briefLock.status && "cursor-not-allowed")}
+              onClick={canEdit || !briefLock.status ? undefined : signalReadOnly}
+            >
+            {/* inert : tant qu'on ne tient pas le verrou, plus aucune
+                interaction dans l'éditeur (saisie, glisser-déposer, collage,
+                boutons) — en un seul attribut, sans toucher à chaque template.
+                L'aperçu, lui, reste consultable. */}
+            <div
+              className={cn("space-y-3 transition-opacity", !canEdit && "opacity-60")}
+              inert={!canEdit}
+            >
               {sections.length === 0 && (
                 <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
                   Aucune section. Cliquez sur « Créer une section » pour commencer.
@@ -781,11 +886,19 @@ export default function BriefEditorPage({
                       onDuplicate={() => duplicateSection(section.id)}
                       onDelete={() => setPendingDeleteSectionId(section.id)}
                     >
+                      {hasCmsAsset(section.type) && (
+                        <SectionCmsAssetRow
+                          section={section}
+                          pages={cmsPages}
+                          onChange={(patch) => updateSection(section.id, patch)}
+                        />
+                      )}
                       {renderSectionEditor(section)}
                     </SortableSectionCard>
                   ))}
                 </SortableContext>
               </DndContext>
+            </div>
             </div>
           </div>
         </Panel>

@@ -5,6 +5,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { cloneBlocksWithNewIds } from "@/templates/custom/schema";
 import { createEmptySectionContent, normalizeSectionContent } from "@/templates/registry";
 import { normalizeTypeLabel } from "@/lib/section-labels";
+import { requireBriefLock } from "@/lib/brief-lock-server";
 import type { CustomBlock, CustomLayout } from "@/types";
 
 async function buildDefaultTitle(briefId: string, type: string): Promise<string> {
@@ -33,7 +34,7 @@ async function getNextOrder(briefId: string): Promise<number> {
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const { id, content, visible, order, title, updatedAt } = body;
+  const { id, content, visible, order, title, cmsPageId, cmsAssetId, updatedAt } = body;
 
   if (!id) {
     return NextResponse.json({ error: "id est requis" }, { status: 400 });
@@ -44,6 +45,10 @@ export async function PUT(request: NextRequest) {
   if (visible !== undefined) updateData.visible = visible;
   if (order !== undefined) updateData.order = order;
   if (title !== undefined) updateData.title = title;
+  if (cmsPageId !== undefined) updateData.cmsPageId = cmsPageId || null;
+  if (cmsAssetId !== undefined) {
+    updateData.cmsAssetId = typeof cmsAssetId === "string" ? cmsAssetId.trim().slice(0, 128) : "";
+  }
 
   // Garde-fou de concurrence : le client renvoie l'updatedAt qu'il a chargé.
   // S'il ne correspond plus, quelqu'un a enregistré entre-temps et écraser
@@ -53,13 +58,16 @@ export async function PUT(request: NextRequest) {
   // les lignes créées par defaultNow() portant des microsecondes que le JSON
   // du client a perdues.
   const [current] = await db
-    .select({ updatedAt: briefSections.updatedAt })
+    .select({ updatedAt: briefSections.updatedAt, briefId: briefSections.briefId })
     .from(briefSections)
     .where(eq(briefSections.id, id));
 
   if (!current) {
     return NextResponse.json({ error: "Section introuvable" }, { status: 404 });
   }
+
+  const locked = await requireBriefLock(request, current.briefId);
+  if (locked) return locked;
 
   if (updatedAt && current.updatedAt.getTime() !== new Date(updatedAt).getTime()) {
     return NextResponse.json(
@@ -102,6 +110,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Section source introuvable" }, { status: 404 });
     }
 
+    const sourceLocked = await requireBriefLock(request, source.briefId);
+    if (sourceLocked) return sourceLocked;
+
     const nextOrder = await getNextOrder(source.briefId);
     const [created] = await db
       .insert(briefSections)
@@ -112,6 +123,8 @@ export async function POST(request: NextRequest) {
         order: nextOrder,
         content: source.content,
         visible: source.visible,
+        cmsPageId: source.cmsPageId,
+        cmsAssetId: source.cmsAssetId,
       })
       .returning();
 
@@ -126,6 +139,9 @@ export async function POST(request: NextRequest) {
   if (!briefId || !type) {
     return NextResponse.json({ error: "briefId et type sont requis" }, { status: 400 });
   }
+
+  const locked = await requireBriefLock(request, briefId);
+  if (locked) return locked;
 
   let content: unknown = createEmptySectionContent(type);
   let templateName: string | null = null;
@@ -176,6 +192,16 @@ export async function DELETE(request: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: "id est requis" }, { status: 400 });
   }
+
+  const [target] = await db
+    .select({ briefId: briefSections.briefId })
+    .from(briefSections)
+    .where(eq(briefSections.id, id));
+  if (!target) {
+    return NextResponse.json({ error: "Section introuvable" }, { status: 404 });
+  }
+  const locked = await requireBriefLock(request, target.briefId);
+  if (locked) return locked;
 
   const [deleted] = await db
     .delete(briefSections)

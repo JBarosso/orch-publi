@@ -2,13 +2,8 @@ import type { MeaV2Content, MeaV2Card, MeaV2FocusCard, MeaButton } from "@/types
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 import { buildCmsImagePath } from "@/lib/cms-image-path";
-import {
-  DEFAULT_BRAND_LOGO_PATH,
-  DEFAULT_BRAND_LOGO_WIDTH,
-  brandLogoCmsPath,
-  brandLogoExtension,
-  usesUploadedBrandLogo,
-} from "./brand-logo";
+import { brandLogoExtension, brandLogoWidth, usesUploadedBrandLogo } from "@/lib/brand-logo";
+import { DEFAULT_BRAND_LOGO_PATH, brandLogoCmsPath } from "./brand-logo";
 import { getPricingHTML, type ClubIconConfig } from "../mea/export";
 import { focusCardHasContent } from "./schema";
 
@@ -392,8 +387,7 @@ function brandLogoPreviewSrc(card: MeaV2Card): string {
 
 function getBrandLogoHTML(card: MeaV2Card, src: string): string {
   const dnone = card.showBrandLogo ? "" : " d-none";
-  const width = card.brandLogoWidth || DEFAULT_BRAND_LOGO_WIDTH;
-  return `          <img src="${esc(src)}" alt="Logo marque" class="hp-cat-header-mea__marque${dnone}" width="${width}">\n`;
+  return `          <img src="${esc(src)}" alt="Logo marque" class="hp-cat-header-mea__marque${dnone}" width="${brandLogoWidth(card)}">\n`;
 }
 
 function getBadgeHTML(card: MeaV2Card): string {

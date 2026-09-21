@@ -1,5 +1,6 @@
 import type { CarouselButton, CarouselContent, CarouselProductCallout, CarouselSlide } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+import { DEFAULT_BRAND_LOGO_WIDTH } from "@/lib/brand-logo";
 
 export function createEmptyCarouselButton(): CarouselButton {
   return { text: "", linkType: "cgid", cgid: "", cid: "", link: "" };
@@ -10,7 +11,10 @@ export function createEmptyProductCallout(): CarouselProductCallout {
     enabled: false,
     side: "left",
     showBrandLogo: false,
+    brandLogoSource: "path",
     brandLogoPath: "svg/premaman.svg",
+    brandLogoUrl: "",
+    brandLogoWidth: DEFAULT_BRAND_LOGO_WIDTH,
     label: "",
     publicPrice: "",
     clubPrice: "",

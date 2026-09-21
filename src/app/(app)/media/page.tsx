@@ -7,6 +7,7 @@ import { Search, Upload, Trash2, ImageOff, Pencil, Check, X } from "lucide-react
 import { toast } from "sonner";
 import type { Asset, AssetType } from "@/types";
 import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
+import { deleteConfirmationMessage, type AssetUsage } from "@/lib/asset-usage";
 
 export default function MediaPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -255,7 +256,14 @@ export default function MediaPage() {
                 type="button"
                 onClick={async (e) => {
                   e.stopPropagation();
-                  if (!confirm("Supprimer cette image ?")) return;
+                  // Prévenir si l'image est encore utilisée, sans l'empêcher :
+                  // on peut supprimer sans repasser par chaque brief, qui
+                  // affichera alors une image manquante à sa place. Si la
+                  // vérification échoue, on retombe sur la question simple.
+                  const usageRes = await fetch(`/api/assets/usage?id=${asset.id}`).catch(() => null);
+                  const usage: AssetUsage | null = usageRes?.ok ? await usageRes.json() : null;
+                  const message = usage ? deleteConfirmationMessage(usage) : "Supprimer cette image ?";
+                  if (!confirm(message)) return;
                   const res = await fetch(`/api/assets?id=${asset.id}`, { method: "DELETE" });
                   if (res.ok) {
                     toast.success("Image supprimée");
