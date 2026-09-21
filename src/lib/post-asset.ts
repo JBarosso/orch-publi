@@ -64,15 +64,20 @@ export async function postAsset(file: Blob, fields: AssetFields): Promise<Respon
 /** Extrait l'URL d'origine depuis un DataTransfer de drag (applis web uniquement,
  * ex: SharePoint). Retourne null pour les drags depuis le disque local. */
 export function extractDragOriginUrl(dt: DataTransfer): string | null {
-  const uriList = dt.getData("text/uri-list");
-  if (uriList) {
-    const url = uriList.split(/\r?\n/).find((l) => l && !l.startsWith("#") && l.startsWith("http"));
-    if (url) return url;
-  }
-  const html = dt.getData("text/html");
-  if (html) {
-    const m = /(?:src|href)="(https?:[^"]+)"/i.exec(html);
-    if (m) return m[1];
+  try {
+    const uriList = dt.getData("text/uri-list");
+    if (uriList) {
+      const url = uriList.split(/\r?\n/).find((l) => l && !l.startsWith("#") && l.startsWith("http"));
+      if (url) return url;
+    }
+    const html = dt.getData("text/html");
+    if (html) {
+      const m = /(?:src|href)="(https?:[^"]+)"/i.exec(html);
+      if (m) return m[1];
+    }
+  } catch {
+    // Drag depuis le système de fichiers : getData peut lever une SecurityError
+    // sur certains navigateurs/environnements.
   }
   return null;
 }

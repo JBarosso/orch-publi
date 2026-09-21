@@ -482,7 +482,7 @@ export function ImageUploadDialog({
       e.preventDefault();
       const file = e.dataTransfer.files?.[0];
       if (!file) return;
-      setOriginUrl(extractDragOriginUrl(e.dataTransfer));
+      try { setOriginUrl(extractDragOriginUrl(e.dataTransfer)); } catch { /* OS file drag */ }
       loadFile(file);
     },
     [loadFile]

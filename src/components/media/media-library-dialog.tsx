@@ -127,7 +127,9 @@ export function MediaLibraryDialog({
       dragCounterRef.current = 0;
       const file = e.dataTransfer.files?.[0];
       if (file && (file.type.startsWith("image/") || file.type.startsWith("video/") || looksLikeMp4(file))) {
-        onUploadNew(file, filterType || initialType, extractDragOriginUrl(e.dataTransfer));
+        let originUrl: string | null = null;
+        try { originUrl = extractDragOriginUrl(e.dataTransfer); } catch { /* OS file drag */ }
+        onUploadNew(file, filterType || initialType, originUrl);
       }
     },
     [onUploadNew, filterType, initialType],
