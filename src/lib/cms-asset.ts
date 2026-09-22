@@ -7,7 +7,8 @@ import type { CmsPage, SectionType } from "@/types";
  * Types de section qui produisent du code à coller. Les autres n'ont pas
  * d'asset à désigner : l'image sous-menu et la miniature offre n'exportent
  * que des fichiers, le moodboard n'exporte rien. Les macarons v1 n'y sont
- * pas non plus : les macarons sont toujours faits en v2 désormais.
+ * pas non plus : les macarons sont toujours faits en v2 désormais. La cat
+ * banner non plus : chaque bannière se colle à la main sur sa page.
  */
 export const CMS_ASSET_SECTION_TYPES: SectionType[] = [
   "global_header",
@@ -16,7 +17,6 @@ export const CMS_ASSET_SECTION_TYPES: SectionType[] = [
   "macarons_v2",
   "mea_v2",
   "edito",
-  "cat_banner",
   "custom",
 ];
 
@@ -29,7 +29,6 @@ const COLUMN_LABELS: Partial<Record<SectionType, string>> = {
   macarons_v2: "Macaron",
   mea_v2: "MEA",
   edito: "Edito",
-  cat_banner: "Cat banner",
   custom: "Section perso",
 };
 

@@ -21,6 +21,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, ClipboardCopy, ClipboardPaste, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X, GripVertical, Lock } from "lucide-react";
 import { useCopiedSection, writeCopiedSection } from "@/lib/section-clipboard";
+import { PasteProvider, useTranslateConfirm } from "@/components/editor/paste-context";
+import { pasteSuccessMessage } from "@/components/editor/item-clipboard";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -525,21 +527,30 @@ export default function BriefEditorPage({
     else toast.error("Copie impossible : le navigateur refuse le stockage local");
   };
 
-  const pasteSection = () => {
+  // Fenêtre « traduire ou non » des collages d'une langue à l'autre (sections et items).
+  const translateConfirm = useTranslateConfirm();
+
+  const pasteSection = async () => {
     if (!brief || !copiedSection) return;
+    let translate = false;
+    if (copiedSection.sourceLocale.toUpperCase() !== brief.locale.toUpperCase()) {
+      const choice = await translateConfirm.ask(copiedSection.sourceLocale, brief.locale);
+      if (choice === null) return;
+      translate = choice;
+    }
     runGuarded("coller la section", async () => {
       const res = await fetch("/api/sections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ briefId: brief.id, pasted: copiedSection }),
+        body: JSON.stringify({ briefId: brief.id, pasted: copiedSection, translate }),
       });
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
         toast.error(data?.error ?? "Impossible de coller la section");
         return;
       }
       await fetchBrief();
-      toast.success("Section collée");
+      toast.success(pasteSuccessMessage("Section collée", data?.translation));
     });
   };
 
@@ -674,6 +685,7 @@ export default function BriefEditorPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {translateConfirm.dialog}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -918,6 +930,7 @@ export default function BriefEditorPage({
                   Aucune section. Cliquez sur « Créer une section » pour commencer.
                 </div>
               )}
+              <PasteProvider value={{ week: brief.week, locale: brief.locale, askTranslate: translateConfirm.ask }}>
               <DndContext
                 sensors={sectionDragSensors}
                 collisionDetection={closestCenter}
@@ -957,6 +970,7 @@ export default function BriefEditorPage({
                   ))}
                 </SortableContext>
               </DndContext>
+              </PasteProvider>
             </div>
             </div>
           </div>

@@ -20,6 +20,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { v4 as uuidv4 } from "uuid";
 import type { CatBannerItem } from "@/types";
+import { PasteItemButton, useCopyItem } from "@/components/editor/item-clipboard";
 import { createEmptyCatBannerItem } from "./schema";
 import { CatBannerItemEditor } from "./cat-banner-item-editor";
 
@@ -41,6 +42,7 @@ export function CatBannerEditor({
   onDropFile,
 }: CatBannerEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const copyItem = useCopyItem("cat_banner", { items });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -90,10 +92,13 @@ export function CatBannerEditor({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Bannières ({items.length})</h3>
-        <Button variant="outline" size="sm" onClick={addItem}>
-          <Plus className="mr-1 h-3 w-3" />
-          Ajouter
-        </Button>
+        <div className="flex items-center gap-2">
+          <PasteItemButton<CatBannerItem> sectionType="cat_banner" onPaste={(item) => onChange([...items, item])} />
+          <Button variant="outline" size="sm" onClick={addItem}>
+            <Plus className="mr-1 h-3 w-3" />
+            Ajouter
+          </Button>
+        </div>
       </div>
 
       <DndContext
@@ -112,6 +117,7 @@ export function CatBannerEditor({
                 briefWeek={briefWeek}
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
+                onCopy={copyItem ? () => copyItem(item.id) : undefined}
                 onOpenMediaLibrary={(slot) => onOpenMediaLibrary(`${item.id}:${slot}`)}
                 onDropFile={onDropFile ? (slot, file) => onDropFile(`${item.id}:${slot}`, file) : undefined}
               />

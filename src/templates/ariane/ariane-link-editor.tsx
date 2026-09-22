@@ -5,15 +5,18 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { LinkFields } from "@/components/editor/link-fields";
+import { CopyItemButton } from "@/components/editor/item-clipboard";
 import type { ArianeLink } from "@/types";
 
 interface ArianeLinkEditorProps {
   link: ArianeLink;
   onUpdate: (updates: Partial<ArianeLink>) => void;
   onRemove: () => void;
+  /** Absent hors d'un brief : pas de copier/coller de lien. */
+  onCopy?: () => void;
 }
 
-export function ArianeLinkEditor({ link, onUpdate, onRemove }: ArianeLinkEditorProps) {
+export function ArianeLinkEditor({ link, onUpdate, onRemove, onCopy }: ArianeLinkEditorProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: link.id,
   });
@@ -56,6 +59,7 @@ export function ArianeLinkEditor({ link, onUpdate, onRemove }: ArianeLinkEditorP
         inputClassName="h-8 w-40 text-sm"
       />
 
+      {onCopy && <CopyItemButton onClick={onCopy} />}
       <button
         type="button"
         onClick={onRemove}

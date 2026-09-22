@@ -21,8 +21,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { v4 as uuidv4 } from "uuid";
-import type { ArianeContent } from "@/types";
+import type { ArianeContent, ArianeLink } from "@/types";
 import { createEmptyArianeLink } from "./schema";
+import { PasteItemButton, useCopyItem } from "@/components/editor/item-clipboard";
 import { ArianeLinkEditor } from "./ariane-link-editor";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +34,7 @@ interface ArianeEditorProps {
 
 export function ArianeEditor({ content, onChange }: ArianeEditorProps) {
   const links = useMemo(() => content.links ?? [], [content.links]);
+  const copyItem = useCopyItem("ariane", content);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -74,10 +76,16 @@ export function ArianeEditor({ content, onChange }: ArianeEditorProps) {
 
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Liens ({links.length})</h3>
-        <Button variant="outline" size="sm" onClick={addLink}>
-          <Plus className="mr-1 h-3 w-3" />
-          Ajouter
-        </Button>
+        <div className="flex items-center gap-2">
+          <PasteItemButton<ArianeLink>
+            sectionType="ariane"
+            onPaste={(link) => onChange({ ...content, links: [...links, link] })}
+          />
+          <Button variant="outline" size="sm" onClick={addLink}>
+            <Plus className="mr-1 h-3 w-3" />
+            Ajouter
+          </Button>
+        </div>
       </div>
 
       <DndContext
@@ -93,6 +101,7 @@ export function ArianeEditor({ content, onChange }: ArianeEditorProps) {
                 link={link}
                 onUpdate={(updates) => updateLink(link.id, updates)}
                 onRemove={() => removeLink(link.id)}
+                onCopy={copyItem ? () => copyItem(link.id) : undefined}
               />
             ))}
           </div>

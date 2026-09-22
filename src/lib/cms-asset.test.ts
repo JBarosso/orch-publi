@@ -68,6 +68,7 @@ describe("hasCmsAsset", () => {
     expect(hasCmsAsset("moodboard")).toBe(false);
     expect(hasCmsAsset("img_sous_menu")).toBe(false);
     expect(hasCmsAsset("miniature_offre")).toBe(false);
+    expect(hasCmsAsset("cat_banner")).toBe(false);
   });
 
   // Une seule colonne « Macaron » dans l'onglet, qui désigne le macaron v2.

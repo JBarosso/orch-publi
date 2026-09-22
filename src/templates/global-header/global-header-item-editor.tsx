@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { CopyItemButton } from "@/components/editor/item-clipboard";
 import { LinkFields } from "@/components/editor/link-fields";
 import type { GlobalHeaderItem, GlobalHeaderLibraryItem, Locale } from "@/types";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,8 @@ interface GlobalHeaderItemEditorProps {
   locale: Locale;
   onUpdate: (updates: Partial<GlobalHeaderItem>) => void;
   onRemove: () => void;
+  /** Absent hors d'un brief : pas de copier/coller d'item. */
+  onCopy?: () => void;
 }
 
 export function GlobalHeaderItemEditor({
@@ -27,6 +30,7 @@ export function GlobalHeaderItemEditor({
   locale,
   onUpdate,
   onRemove,
+  onCopy,
 }: GlobalHeaderItemEditorProps) {
   const [saving, setSaving] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -101,14 +105,17 @@ export function GlobalHeaderItemEditor({
           </button>
           <span className="text-xs font-semibold text-muted-foreground">{label}</span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 shrink-0 text-muted-foreground/40 hover:text-destructive"
-          onClick={onRemove}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <div className="flex shrink-0 items-center">
+          {onCopy && <CopyItemButton onClick={onCopy} />}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0 text-muted-foreground/40 hover:text-destructive"
+            onClick={onRemove}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
 
       <LibraryPicker<GlobalHeaderLibraryItem>

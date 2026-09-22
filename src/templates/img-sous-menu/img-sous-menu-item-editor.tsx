@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2, Image as ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CopyItemButton } from "@/components/editor/item-clipboard";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
@@ -21,6 +22,8 @@ interface ImgSousMenuItemEditorProps {
   briefWeek: number;
   onUpdate: (updates: Partial<ImgSousMenuItem>) => void;
   onRemove: () => void;
+  /** Absent hors d'un brief : pas de copier/coller d'item. */
+  onCopy?: () => void;
   onOpenMediaLibrary: () => void;
   onDropFile?: (file: File) => void;
 }
@@ -31,6 +34,7 @@ export function ImgSousMenuItemEditor({
   briefWeek,
   onUpdate,
   onRemove,
+  onCopy,
   onOpenMediaLibrary,
   onDropFile,
 }: ImgSousMenuItemEditorProps) {
@@ -130,14 +134,17 @@ export function ImgSousMenuItemEditor({
           </div>
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 shrink-0 text-muted-foreground/40 hover:text-destructive"
-          onClick={() => setConfirmDeleteOpen(true)}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <div className="flex shrink-0 items-center">
+          {onCopy && <CopyItemButton onClick={onCopy} />}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0 text-muted-foreground/40 hover:text-destructive"
+            onClick={() => setConfirmDeleteOpen(true)}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
 
       <ConfirmDeleteDialog

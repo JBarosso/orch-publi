@@ -20,6 +20,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { v4 as uuidv4 } from "uuid";
 import type { ImgSousMenuItem } from "@/types";
+import { PasteItemButton, useCopyItem } from "@/components/editor/item-clipboard";
 import { createEmptyImgSousMenuItem } from "./schema";
 import { ImgSousMenuItemEditor } from "./img-sous-menu-item-editor";
 
@@ -39,6 +40,7 @@ export function ImgSousMenuEditor({
   onDropFile,
 }: ImgSousMenuEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const copyItem = useCopyItem("img_sous_menu", { items });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -90,10 +92,13 @@ export function ImgSousMenuEditor({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Images ({items.length})</h3>
-        <Button variant="outline" size="sm" onClick={addItem}>
-          <Plus className="mr-1 h-3 w-3" />
-          Ajouter
-        </Button>
+        <div className="flex items-center gap-2">
+          <PasteItemButton<ImgSousMenuItem> sectionType="img_sous_menu" onPaste={(item) => onChange([...items, item])} />
+          <Button variant="outline" size="sm" onClick={addItem}>
+            <Plus className="mr-1 h-3 w-3" />
+            Ajouter
+          </Button>
+        </div>
       </div>
 
       <DndContext
@@ -112,6 +117,7 @@ export function ImgSousMenuEditor({
                 briefWeek={briefWeek}
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
+                onCopy={copyItem ? () => copyItem(item.id) : undefined}
                 onOpenMediaLibrary={() => onOpenMediaLibrary(item.id)}
                 onDropFile={onDropFile ? (file) => onDropFile(item.id, file) : undefined}
               />

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { CopyItemButton } from "@/components/editor/item-clipboard";
 import {
   Select,
   SelectContent,
@@ -34,6 +35,8 @@ interface EditoCardEditorProps {
   locale: Locale;
   onUpdate: (updates: Partial<EditoCard>) => void;
   onRemove: () => void;
+  /** Absent hors d'un brief : pas de copier/coller d'item. */
+  onCopy?: () => void;
   onOpenMediaLibrary: () => void;
   onDropFile?: (file: File) => void;
 }
@@ -45,6 +48,7 @@ export function EditoCardEditor({
   locale,
   onUpdate,
   onRemove,
+  onCopy,
   onOpenMediaLibrary,
   onDropFile,
 }: EditoCardEditorProps) {
@@ -276,14 +280,17 @@ export function EditoCardEditor({
           </div>
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 shrink-0 text-muted-foreground/40 hover:text-destructive"
-          onClick={() => setConfirmDeleteOpen(true)}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <div className="flex shrink-0 items-center">
+          {onCopy && <CopyItemButton onClick={onCopy} />}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0 text-muted-foreground/40 hover:text-destructive"
+            onClick={() => setConfirmDeleteOpen(true)}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
 
       <ConfirmDeleteDialog

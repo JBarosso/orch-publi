@@ -19,6 +19,7 @@ import { ButtonsEditor } from "@/components/editor/buttons-editor";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { WeekField } from "@/components/editor/week-field";
 import { ImageRemoveButton } from "@/components/editor/image-remove-button";
+import { CopyItemButton } from "@/components/editor/item-clipboard";
 import type { MeaItem, MeaOverlayType, MeaPricingMode, MeaButton } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "./schema";
@@ -30,6 +31,8 @@ interface MeaItemEditorProps {
   briefWeek: number;
   onUpdate: (updates: Partial<MeaItem>) => void;
   onRemove: () => void;
+  /** Absent hors d'un brief : pas de copier/coller d'item. */
+  onCopy?: () => void;
   onOpenMediaLibrary: () => void;
   onDropFile?: (file: File) => void;
 }
@@ -40,6 +43,7 @@ export function MeaItemEditor({
   briefWeek,
   onUpdate,
   onRemove,
+  onCopy,
   onOpenMediaLibrary,
   onDropFile,
 }: MeaItemEditorProps) {
@@ -330,6 +334,7 @@ export function MeaItemEditor({
           <span className="text-[9px] text-muted-foreground/50">
             {item.visible ? "ON" : "OFF"}
           </span>
+          {onCopy && <CopyItemButton onClick={onCopy} />}
           <Button
             variant="ghost"
             size="icon"

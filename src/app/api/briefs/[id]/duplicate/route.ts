@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { briefs, briefSections, translations } from "@/lib/schema";
+import { briefs, briefSections } from "@/lib/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { buildSlug } from "@/lib/utils";
-import {
-  buildTranslationLookup,
-  translateSectionContent,
-  type GlossaryEntry,
-  type TranslateStats,
-} from "@/lib/translate-content";
+import { translateSectionContent, type TranslateStats } from "@/lib/translate-content";
+import { loadTranslationLookup } from "@/lib/translations";
 import { adaptSectionContentForBrief } from "@/templates/registry";
 import type { Locale } from "@/types";
 
@@ -85,15 +81,7 @@ export async function POST(
   let transformContent = (type: string, content: unknown) => content;
 
   if (shouldTranslate) {
-    const glossary = await db.select().from(translations);
-    const lookup = buildTranslationLookup(
-      glossary.map((e) => ({
-        key: e.key,
-        values: e.values as GlossaryEntry["values"],
-      })),
-      sourceLocale,
-      destLocale,
-    );
+    const lookup = await loadTranslationLookup(sourceLocale, destLocale);
     const s: TranslateStats = { translated: 0, missing: 0, ambiguous: 0 };
     stats = s;
     transformContent = (type, content) =>

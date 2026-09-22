@@ -26,6 +26,7 @@ import type { MacaronItem, QuickaccessPlacement } from "@/types";
 import { createEmptyMacaron } from "./schema";
 import { MacaronItemEditor } from "./macaron-item-editor";
 import { parseQuickaccessV2HTML } from "../macarons-v2/import";
+import { PasteItemButton, useCopyItem } from "@/components/editor/item-clipboard";
 
 interface MacaronsEditorProps {
   items: MacaronItem[];
@@ -73,6 +74,8 @@ export function MacaronsEditor({
 }: MacaronsEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const sectionType = variant === "v2" ? "macarons_v2" : "macarons";
+  const copyItem = useCopyItem(sectionType, { items });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -190,6 +193,7 @@ export function MacaronsEditor({
               Importer du CMS
             </Button>
           )}
+          <PasteItemButton<MacaronItem> sectionType={sectionType} onPaste={(item) => onChange([...items, item])} />
           <Button variant="outline" size="sm" onClick={addItem}>
             <Plus className="mr-1 h-3 w-3" />
             Ajouter
@@ -229,6 +233,7 @@ export function MacaronsEditor({
                 sectionCustomPath={sectionCustomPath}
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
+                onCopy={copyItem ? () => copyItem(item.id) : undefined}
                 onOpenMediaLibrary={() => onOpenMediaLibrary(item.id)}
                 onDropFile={onDropFile ? (file) => onDropFile(item.id, file) : undefined}
               />

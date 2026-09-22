@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import type { GlobalHeaderContent, GlobalHeaderItem, Locale } from "@/types";
 import type { HeaderColor } from "@/lib/header-colors";
 import { createEmptyGlobalHeaderItem, MAX_GLOBAL_HEADER_ITEMS } from "./schema";
+import { PasteItemButton, useCopyItem } from "@/components/editor/item-clipboard";
 import { GlobalHeaderItemEditor } from "./global-header-item-editor";
 
 interface GlobalHeaderEditorProps {
@@ -33,6 +34,7 @@ interface GlobalHeaderEditorProps {
 export function GlobalHeaderEditor({ content, locale, onChange }: GlobalHeaderEditorProps) {
   const items = useMemo(() => content.items ?? [], [content.items]);
   const [recommendedColors, setRecommendedColors] = useState<HeaderColor[]>([]);
+  const copyItem = useCopyItem("global_header", content);
 
   useEffect(() => {
     (async () => {
@@ -115,10 +117,17 @@ export function GlobalHeaderEditor({ content, locale, onChange }: GlobalHeaderEd
         <h3 className="text-sm font-medium text-muted-foreground">
           Items ({items.length}/{MAX_GLOBAL_HEADER_ITEMS})
         </h3>
-        <Button variant="outline" size="sm" onClick={addItem} disabled={items.length >= MAX_GLOBAL_HEADER_ITEMS}>
-          <Plus className="mr-1 h-3 w-3" />
-          Ajouter
-        </Button>
+        <div className="flex items-center gap-2">
+          <PasteItemButton<GlobalHeaderItem>
+            sectionType="global_header"
+            disabled={items.length >= MAX_GLOBAL_HEADER_ITEMS}
+            onPaste={(item) => onChange({ ...content, items: [...items, item] })}
+          />
+          <Button variant="outline" size="sm" onClick={addItem} disabled={items.length >= MAX_GLOBAL_HEADER_ITEMS}>
+            <Plus className="mr-1 h-3 w-3" />
+            Ajouter
+          </Button>
+        </div>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -132,6 +141,7 @@ export function GlobalHeaderEditor({ content, locale, onChange }: GlobalHeaderEd
                 locale={locale}
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
+                onCopy={copyItem ? () => copyItem(item.id) : undefined}
               />
             ))}
           </div>

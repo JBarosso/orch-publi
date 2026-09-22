@@ -20,6 +20,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { v4 as uuidv4 } from "uuid";
 import type { EditoCard, Locale } from "@/types";
+import { PasteItemButton, useCopyItem } from "@/components/editor/item-clipboard";
 import { createEmptyEditoCard } from "./schema";
 import { EditoCardEditor } from "./edito-card-editor";
 
@@ -42,6 +43,7 @@ export function EditoEditor({
   onDropFile,
 }: EditoEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const copyItem = useCopyItem("edito", { items });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -94,10 +96,13 @@ export function EditoEditor({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Cartes edito ({items.length})</h3>
-        <Button variant="outline" size="sm" onClick={addItem}>
-          <Plus className="mr-1 h-3 w-3" />
-          Ajouter
-        </Button>
+        <div className="flex items-center gap-2">
+          <PasteItemButton<EditoCard> sectionType="edito" onPaste={(item) => onChange([...items, item])} />
+          <Button variant="outline" size="sm" onClick={addItem}>
+            <Plus className="mr-1 h-3 w-3" />
+            Ajouter
+          </Button>
+        </div>
       </div>
 
       <DndContext
@@ -117,6 +122,7 @@ export function EditoEditor({
                 locale={locale}
                 onUpdate={(updates) => updateItem(item.id, updates)}
                 onRemove={() => removeItem(item.id)}
+                onCopy={copyItem ? () => copyItem(item.id) : undefined}
                 onOpenMediaLibrary={() => onOpenMediaLibrary(item.id)}
                 onDropFile={onDropFile ? (file) => onDropFile(item.id, file) : undefined}
               />

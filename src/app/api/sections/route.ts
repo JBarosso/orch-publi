@@ -10,6 +10,9 @@ import {
   normalizeSectionContent,
 } from "@/templates/registry";
 
+import { translatePastedContent } from "@/lib/translations";
+import type { TranslateStats } from "@/lib/translate-content";
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { normalizeTypeLabel } from "@/lib/section-labels";
 import { requireBriefLock } from "@/lib/brief-lock-server";
@@ -159,15 +162,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Brief introuvable" }, { status: 404 });
     }
 
-    const content = adaptSectionContentForBrief(
+    const from = {
+      week: Number.isInteger(pasted.sourceWeek) ? pasted.sourceWeek : target.week,
+      locale: typeof pasted.sourceLocale === "string" ? pasted.sourceLocale : target.locale,
+    };
+    let content = adaptSectionContentForBrief(
       pasted.type,
       pasted.content ?? createEmptySectionContent(pasted.type),
-      {
-        week: Number.isInteger(pasted.sourceWeek) ? pasted.sourceWeek : target.week,
-        locale: typeof pasted.sourceLocale === "string" ? pasted.sourceLocale : target.locale,
-      },
+      from,
       target,
     );
+    // Traduction via le glossaire, seulement si confirmée dans la fenêtre de collage.
+    let translation: TranslateStats | null = null;
+    if (body.translate === true && from.locale.toUpperCase() !== target.locale.toUpperCase()) {
+      const translated = await translatePastedContent(pasted.type, content, from.locale, target.locale);
+      content = translated.content;
+      translation = translated.stats;
+    }
 
     // Page CMS supprimée depuis la copie : la section repart sur la page par défaut.
     let cmsPageId: string | null = null;
@@ -192,7 +203,7 @@ export async function POST(request: NextRequest) {
       .returning();
 
     return NextResponse.json(
-      { ...created, content: normalizeSectionContent(created.type, created.content) },
+      { ...created, content: normalizeSectionContent(created.type, created.content), translation },
       { status: 201 },
     );
   }

@@ -11,6 +11,7 @@ import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
 import { ImageRemoveButton } from "@/components/editor/image-remove-button";
+import { CopyItemButton } from "@/components/editor/item-clipboard";
 import type { MacaronItem } from "@/types";
 import { cn } from "@/lib/utils";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -21,6 +22,8 @@ interface MacaronItemEditorProps {
   briefWeek: number;
   onUpdate: (updates: Partial<MacaronItem>) => void;
   onRemove: () => void;
+  /** Absent hors d'un brief : pas de copier/coller d'item. */
+  onCopy?: () => void;
   onOpenMediaLibrary: () => void;
   onDropFile?: (file: File) => void;
   // "v2" ajoute les toggles de chemin CMS (image globale, chemin custom),
@@ -38,6 +41,7 @@ export function MacaronItemEditor({
   briefWeek,
   onUpdate,
   onRemove,
+  onCopy,
   onOpenMediaLibrary,
   onDropFile,
   variant = "v1",
@@ -182,6 +186,7 @@ export function MacaronItemEditor({
           <span className="text-[9px] text-muted-foreground/50">
             {item.visible ? "ON" : "OFF"}
           </span>
+          {onCopy && <CopyItemButton onClick={onCopy} />}
           <Button
             variant="ghost"
             size="icon"
