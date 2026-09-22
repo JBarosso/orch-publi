@@ -109,11 +109,18 @@ export function CarouselSlideEditor({
             >
               {slide.videoUrl ? (
                 <>
-                  <video src={slide.videoUrl} muted className="h-14 w-full rounded object-cover" />
                   <div className="flex items-center gap-1 text-[10px] font-medium text-emerald-700">
                     <CheckCircle2 className="h-3 w-3" />
                     Vidéo uploadée
                   </div>
+                  <a
+                    href={slide.videoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-primary hover:underline"
+                  >
+                    Voir la vidéo
+                  </a>
                 </>
               ) : (
                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground">

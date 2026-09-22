@@ -313,12 +313,22 @@ export function ImageUploadDialog({
             // Upload direct : la route renvoie l'URL du PNG déposé sur Blob (sa
             // réponse aussi est plafonnée à 4,5 Mo), lisible d'ici car Blob
             // autorise toutes les origines.
-            const blob = sourceUrl
-              ? await fetch((await res.json()).url).then((r) => {
-                  if (!r.ok) throw new Error(`PNG converti illisible (${r.status})`);
-                  return r.blob();
-                })
-              : await res.blob();
+            let blob: Blob;
+            if (sourceUrl) {
+              const { url: pngUrl } = await res.json();
+              blob = await fetch(pngUrl).then((r) => {
+                if (!r.ok) throw new Error(`PNG converti illisible (${r.status})`);
+                return r.blob();
+              });
+              // Copie locale en main : le PNG sur Blob ne sert plus.
+              void fetch("/api/assets/convert-tiff", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: pngUrl }),
+              }).catch(() => {});
+            } else {
+              blob = await res.blob();
+            }
             showImage(URL.createObjectURL(blob));
           } catch {
             toast.error("Erreur lors de la conversion du fichier TIFF");

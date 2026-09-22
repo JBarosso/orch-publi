@@ -109,15 +109,18 @@ export function MeaV2FocusEditor({
           >
             {focus.videoUrl ? (
               <>
-                <video
-                  src={focus.videoUrl}
-                  muted
-                  className="h-16 w-full rounded object-cover"
-                />
                 <div className="flex items-center gap-1 text-[10px] font-medium text-emerald-700">
                   <CheckCircle2 className="h-3 w-3" />
                   Vidéo uploadée
                 </div>
+                <a
+                  href={focus.videoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] text-primary hover:underline"
+                >
+                  Voir la vidéo
+                </a>
               </>
             ) : (
               <div className="flex items-center gap-1 text-[10px] text-muted-foreground">

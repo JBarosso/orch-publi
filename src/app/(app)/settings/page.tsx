@@ -710,10 +710,10 @@ export default function SettingsPage() {
 
       <section className="rounded-lg border border-border/60 bg-card p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-foreground">
-          Vidéos MEA v2
+          Vidéos
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Les vidéos de la carte focus MEA v2 sont lourdes. Passé cette durée, une vidéo est purgée
+          Les vidéos (carte focus MEA v2, carousel) sont lourdes. Passé cette durée, une vidéo est purgée
           <strong> automatiquement chaque nuit</strong> (pas besoin de cliquer
           sur « Purger ») — sauf si elle est encore utilisée par une section de
           brief existante, jamais supprimée dans ce cas.

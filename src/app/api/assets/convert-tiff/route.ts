@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
       if ("error" in converted) {
         return NextResponse.json({ error: converted.error }, { status: 400 });
       }
-      // Aperçu de travail : effacé par le ménage quotidien de tmp/.
+      // Aperçu de travail : le navigateur le supprime (DELETE ci-dessous) dès
+      // qu'il l'a récupéré ; le ménage quotidien de tmp/ ne rattrape que les abandons.
       const url = await putAsset(converted.png, `${TEMP_UPLOAD_PREFIX}${uuidv4()}.png`, "image/png");
       return NextResponse.json({ url });
     } catch (err) {
@@ -57,6 +58,17 @@ export async function POST(request: NextRequest) {
   return new NextResponse(new Uint8Array(converted.png), {
     headers: { "Content-Type": "image/png" },
   });
+}
+
+// PNG converti récupéré par le navigateur : il pèse souvent 40 à 60 Mo, inutile
+// de le garder. Limité à tmp/ pour ne jamais pouvoir effacer un asset définitif.
+export async function DELETE(request: NextRequest) {
+  const { url } = await request.json().catch(() => ({}));
+  if (!isTempUploadUrl(url)) {
+    return NextResponse.json({ error: "Fichier invalide" }, { status: 400 });
+  }
+  await deleteAsset(url);
+  return NextResponse.json({ ok: true });
 }
 
 async function convertTiff(buffer: Buffer): Promise<{ png: Buffer } | { error: string }> {

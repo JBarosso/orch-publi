@@ -406,9 +406,11 @@ function slidePreviewHTML(slide: CarouselSlide, isFirst: boolean): string {
   const commentHtml = getPreviewCommentHtml(slide.comment);
   const plainTitle = esc(slide.titleText.replace(/\r?\n/g, " "));
 
+  // Vidéo : poster seul, sans src — l'aperçu est régénéré à chaque modification
+  // et re-téléchargeait la vidéo entière à chaque fois.
   const mediaHTML =
     slide.mediaType === "video" && slide.videoUrl
-      ? `        <video class="w-100 h-100" src="${esc(slide.videoUrl)}" poster="${esc(slide.imageUrl || "")}" playsinline autoplay loop muted></video>`
+      ? `        <video class="w-100 h-100" poster="${esc(slide.imageUrl || "")}" preload="none" playsinline muted></video>`
       : `        <img src="${esc(slide.imageUrl || "")}" alt="" class="w-100 h-100" style="object-fit:cover;" aria-hidden="true">`;
 
   const titleHTML =

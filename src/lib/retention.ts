@@ -140,7 +140,7 @@ export async function executePurge(months: number): Promise<PurgeResult> {
   };
 }
 
-// --- Rétention vidéo MEA v2 — automatique ---
+// --- Rétention vidéo (MEA v2 et carousel) — automatique ---
 // Les vidéos sont lourdes : purgées une fois expirées, SAUF si encore
 // référencées par une section de brief existante (même invariant que ci-dessus).
 // Contrairement à la purge briefs/images, celle-ci ne dépend d'aucun statut de
@@ -199,7 +199,7 @@ export async function computeVideoPurgePreview(
       createdAt: assets.createdAt,
     })
     .from(assets)
-    .where(and(eq(assets.type, "mea_v2_video"), lt(assets.createdAt, cutoff)));
+    .where(and(inArray(assets.type, ["mea_v2_video", "carousel_video"]), lt(assets.createdAt, cutoff)));
 
   const expiredVideos = oldVideos.filter((v) => !referencedUrls.has(v.url));
 

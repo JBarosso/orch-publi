@@ -5,7 +5,7 @@ import {
   getVideoRetentionDays,
 } from "@/lib/retention";
 
-// GET = dry-run : aperçu des vidéos MEA v2 expirées, sans rien toucher
+// GET = dry-run : aperçu des vidéos expirées, sans rien toucher
 export async function GET() {
   const days = await getVideoRetentionDays();
   const preview = await computeVideoPurgePreview(days);

@@ -564,9 +564,10 @@ function focusCardPreviewHTML(focus: MeaV2FocusCard): string {
   const hasComment = !!comment;
   const commentHtml = getPreviewCommentHtml(focus.comment);
 
+  // Vidéo : poster seul, sans src (cf. aperçu carousel).
   const mediaHTML =
     focus.mediaType === "video" && focus.videoUrl
-      ? `        <video class="hp-cat-header-mea__video" src="${esc(focus.videoUrl)}" poster="${esc(focus.imageUrl || "")}" playsinline autoplay loop muted aria-hidden="true"></video>`
+      ? `        <video class="hp-cat-header-mea__video" poster="${esc(focus.imageUrl || "")}" preload="none" playsinline muted aria-hidden="true"></video>`
       : `        <picture class="hp-cat-header-mea__picture">
           <img src="${esc(focus.imageUrl || "")}" alt="" class="hp-cat-header-mea__img" aria-hidden="true" />
         </picture>`;
