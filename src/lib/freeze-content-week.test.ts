@@ -1,8 +1,29 @@
 import { describe, it, expect } from "vitest";
-import { freezeSectionContentWeek } from "@/templates/registry";
+import { adaptSectionContentForBrief, freezeSectionContentWeek } from "@/templates/registry";
 import { createEmptyMacaron } from "@/templates/macarons/schema";
 import { createEmptyEditoCard } from "@/templates/edito/schema";
-import type { MacaronsContent, EditoContent } from "@/types";
+import type { MacaronsContent, EditoContent, GlobalHeaderContent } from "@/types";
+
+// Section recopiée dans un autre brief (duplication de brief, copier/coller).
+describe("adaptSectionContentForBrief", () => {
+  const items = () => [createEmptyMacaron("id-1")];
+
+  it("ne touche à rien entre deux briefs de même semaine et même langue", () => {
+    const content = { items: items() };
+    expect(adaptSectionContentForBrief("macarons_v2", content, { week: 32, locale: "FR" }, { week: 32, locale: "fr" })).toBe(content);
+  });
+
+  it("autre semaine : fige les images natives sur la semaine d'origine", () => {
+    const result = adaptSectionContentForBrief("macarons_v2", { items: items() }, { week: 32, locale: "FR" }, { week: 40, locale: "FR" }) as MacaronsContent;
+    expect([result.items[0].imageWeek, result.items[0].exportPosition]).toEqual([32, 1]);
+  });
+
+  it("autre langue : détache les items de bibliothèque du global header", () => {
+    const content = { bgColor: "#000", items: [{ id: "a", sourceItemId: "lib-1" }] } as unknown as GlobalHeaderContent;
+    const result = adaptSectionContentForBrief("global_header", content, { week: 32, locale: "FR" }, { week: 32, locale: "ES" }) as GlobalHeaderContent;
+    expect(result.items[0].sourceItemId).toBeNull();
+  });
+});
 
 // À la duplication d'un brief vers une autre semaine, un item natif de la
 // semaine source doit continuer de pointer vers le fichier qui existe

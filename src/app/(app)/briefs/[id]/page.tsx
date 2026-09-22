@@ -19,7 +19,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X, GripVertical, Lock } from "lucide-react";
+import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, ClipboardCopy, ClipboardPaste, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X, GripVertical, Lock } from "lucide-react";
+import { useCopiedSection, writeCopiedSection } from "@/lib/section-clipboard";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -72,6 +73,7 @@ interface SortableSectionCardProps {
   onVisibleChange: (visible: boolean) => void;
   onConvertToTemplate?: () => void;
   onDuplicate: () => void;
+  onCopy: () => void;
   onDelete: () => void;
   children: ReactNode;
 }
@@ -88,6 +90,7 @@ function SortableSectionCard({
   onVisibleChange,
   onConvertToTemplate,
   onDuplicate,
+  onCopy,
   onDelete,
   children,
 }: SortableSectionCardProps) {
@@ -165,6 +168,16 @@ function SortableSectionCard({
               title="Dupliquer la section"
             >
               <Copy className="h-3.5 w-3.5" />
+            </span>
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy();
+              }}
+              className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Copier la section (pour la coller dans ce brief ou un autre)"
+            >
+              <ClipboardCopy className="h-3.5 w-3.5" />
             </span>
             <span
               onClick={(e) => {
@@ -492,6 +505,44 @@ export default function BriefEditorPage({
     });
   };
 
+  const copiedSection = useCopiedSection();
+
+  // Instantané de la section telle qu'affichée (modifications non enregistrées
+  // comprises) ; remplace toute copie précédente.
+  const copySection = (section: BriefSection) => {
+    if (!brief) return;
+    const ok = writeCopiedSection({
+      type: section.type,
+      title: section.title,
+      content: section.content,
+      visible: section.visible,
+      cmsPageId: section.cmsPageId ?? null,
+      cmsAssetId: section.cmsAssetId ?? "",
+      sourceWeek: brief.week,
+      sourceLocale: brief.locale,
+    });
+    if (ok) toast.success(`« ${section.title || section.type} » copiée — « Coller » l'ajoute à n'importe quel brief`);
+    else toast.error("Copie impossible : le navigateur refuse le stockage local");
+  };
+
+  const pasteSection = () => {
+    if (!brief || !copiedSection) return;
+    runGuarded("coller la section", async () => {
+      const res = await fetch("/api/sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ briefId: brief.id, pasted: copiedSection }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ?? "Impossible de coller la section");
+        return;
+      }
+      await fetchBrief();
+      toast.success("Section collée");
+    });
+  };
+
   const deleteSection = () => {
     if (!pendingDeleteSectionId) return;
     const sectionId = pendingDeleteSectionId;
@@ -796,15 +847,29 @@ export default function BriefEditorPage({
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
                 Éditeur
               </h2>
-              <Button
-                size="sm"
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={() => setCreateOpen(true)}
-                disabled={!canEdit}
-              >
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Créer une section
-              </Button>
+              <div className="flex items-center gap-2">
+                {copiedSection && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={pasteSection}
+                    disabled={!canEdit}
+                    title={`Coller « ${copiedSection.title || copiedSection.type} »`}
+                  >
+                    <ClipboardPaste className="mr-1.5 h-3.5 w-3.5" />
+                    Coller
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={() => setCreateOpen(true)}
+                  disabled={!canEdit}
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Créer une section
+                </Button>
+              </div>
             </div>
             {!canEdit && briefLock.status && (
               // Collé en haut du panneau : reste visible même après avoir
@@ -877,6 +942,7 @@ export default function BriefEditorPage({
                         section.type === "custom" ? () => convertToTemplate(section.id) : undefined
                       }
                       onDuplicate={() => duplicateSection(section.id)}
+                      onCopy={() => copySection(section)}
                       onDelete={() => setPendingDeleteSectionId(section.id)}
                     >
                       {hasCmsAsset(section.type) && (

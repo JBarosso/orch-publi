@@ -65,8 +65,8 @@ import { normalizeMeaContent } from "@/templates/mea/schema";
 import { createEmptyMeaV2Content, normalizeMeaV2Content } from "@/templates/mea-v2/schema";
 import { createEmptyArianeContent } from "@/templates/ariane/schema";
 import { createEmptyCarouselContent } from "@/templates/carousel/schema";
-import { createEmptyGlobalHeaderContent } from "@/templates/global-header/schema";
-import { createEmptyEditoContent } from "@/templates/edito/schema";
+import { createEmptyGlobalHeaderContent, detachGlobalHeaderLibraryLinks } from "@/templates/global-header/schema";
+import { createEmptyEditoContent, detachEditoLibraryLinks } from "@/templates/edito/schema";
 import { createEmptyCatBannerContent } from "@/templates/cat-banner/schema";
 import { createEmptyImgSousMenuContent } from "@/templates/img-sous-menu/schema";
 import { createEmptyMiniatureOffreContent } from "@/templates/miniature-offre/schema";
@@ -244,4 +244,26 @@ export function freezeSectionContentWeek(
   const template = TEMPLATES[type];
   if (!template?.freezeWeek) return content;
   return template.freezeWeek(contentFor(type, content), originalWeek);
+}
+
+/**
+ * Contenu d'une section recopiée dans un autre brief (duplication de brief,
+ * copier/coller de section).
+ * - Autre semaine : les images natives de la semaine source sont figées sur
+ *   elle (semaine + position), leur fichier n'ayant jamais été réuploadé.
+ * - Autre langue : les items de bibliothèque (global header, edito), propres
+ *   à une langue, sont détachés de leur source.
+ */
+export function adaptSectionContentForBrief(
+  type: string,
+  content: unknown,
+  from: { week: number; locale: string },
+  to: { week: number; locale: string },
+): unknown {
+  let next = from.week !== to.week ? freezeSectionContentWeek(type, content, from.week) : content;
+  if (from.locale.toUpperCase() !== to.locale.toUpperCase()) {
+    if (type === "global_header") next = detachGlobalHeaderLibraryLinks(next as GlobalHeaderContent);
+    if (type === "edito") next = detachEditoLibraryLinks(next as EditoContent);
+  }
+  return next;
 }

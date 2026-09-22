@@ -9,10 +9,8 @@ import {
   type GlossaryEntry,
   type TranslateStats,
 } from "@/lib/translate-content";
-import { freezeSectionContentWeek } from "@/templates/registry";
-import { detachGlobalHeaderLibraryLinks } from "@/templates/global-header/schema";
-import { detachEditoLibraryLinks } from "@/templates/edito/schema";
-import type { EditoContent, GlobalHeaderContent, Locale } from "@/types";
+import { adaptSectionContentForBrief } from "@/templates/registry";
+import type { Locale } from "@/types";
 
 export async function POST(
   request: NextRequest,
@@ -102,29 +100,17 @@ export async function POST(
       translateSectionContent(type, content, lookup, s);
   }
 
-  // La semaine change réellement : les items natifs de la semaine source
-  // doivent être figés (semaine + position) pour ne pas glisser vers la
-  // nouvelle semaine du brief dupliqué alors que le fichier n'a jamais été
-  // réuploadé. Pas de gel si on duplique sur la même semaine (ex: juste pour
-  // une autre langue) — rien n'a besoin d'être figé dans ce cas.
-  const shouldFreezeWeek = week !== original.week;
-  // Indépendant de shouldTranslate (qui ne s'active que si "traduire" est
-  // coché) : la langue change dès que targetLocale diffère, même sans
-  // traduction demandée.
-  const localeChanged = destLocale !== sourceLocale;
-
   if (originalSections.length > 0) {
     await db.insert(briefSections).values(
       originalSections.map((s) => {
-        let content = shouldFreezeWeek
-          ? freezeSectionContentWeek(s.type, s.content, original.week)
-          : s.content;
-        if (s.type === "global_header" && localeChanged) {
-          content = detachGlobalHeaderLibraryLinks(content as GlobalHeaderContent);
-        }
-        if (s.type === "edito" && localeChanged) {
-          content = detachEditoLibraryLinks(content as EditoContent);
-        }
+        // Gel des semaines et détachement des bibliothèques : indépendants de
+        // la traduction, qui ne s'applique que si elle est demandée.
+        const content = adaptSectionContentForBrief(
+          s.type,
+          s.content,
+          { week: original.week, locale: sourceLocale },
+          { week, locale: destLocale },
+        );
         return {
           briefId: newBrief.id,
           type: s.type,

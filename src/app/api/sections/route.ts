@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { briefSections, customTemplates } from "@/lib/schema";
+import { briefSections, briefs, cmsPages, customTemplates } from "@/lib/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { cloneBlocksWithNewIds } from "@/templates/custom/schema";
-import { createEmptySectionContent, normalizeSectionContent } from "@/templates/registry";
+import {
+  TEMPLATES,
+  adaptSectionContentForBrief,
+  createEmptySectionContent,
+  normalizeSectionContent,
+} from "@/templates/registry";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { normalizeTypeLabel } from "@/lib/section-labels";
 import { requireBriefLock } from "@/lib/brief-lock-server";
 import type { CustomBlock, CustomLayout } from "@/types";
@@ -125,6 +132,62 @@ export async function POST(request: NextRequest) {
         visible: source.visible,
         cmsPageId: source.cmsPageId,
         cmsAssetId: source.cmsAssetId,
+      })
+      .returning();
+
+    return NextResponse.json(
+      { ...created, content: normalizeSectionContent(created.type, created.content) },
+      { status: 201 },
+    );
+  }
+
+  // Collage d'une section copiée : un instantané pris dans un brief,
+  // éventuellement un autre (cf. src/lib/section-clipboard.ts).
+  if (body.pasted) {
+    const { briefId, pasted } = body;
+    if (!briefId || typeof pasted !== "object" || typeof pasted.type !== "string" || !Object.hasOwn(TEMPLATES, pasted.type)) {
+      return NextResponse.json({ error: "Section copiée invalide" }, { status: 400 });
+    }
+    const locked = await requireBriefLock(request, briefId);
+    if (locked) return locked;
+
+    const [target] = await db
+      .select({ week: briefs.week, locale: briefs.locale })
+      .from(briefs)
+      .where(eq(briefs.id, briefId));
+    if (!target) {
+      return NextResponse.json({ error: "Brief introuvable" }, { status: 404 });
+    }
+
+    const content = adaptSectionContentForBrief(
+      pasted.type,
+      pasted.content ?? createEmptySectionContent(pasted.type),
+      {
+        week: Number.isInteger(pasted.sourceWeek) ? pasted.sourceWeek : target.week,
+        locale: typeof pasted.sourceLocale === "string" ? pasted.sourceLocale : target.locale,
+      },
+      target,
+    );
+
+    // Page CMS supprimée depuis la copie : la section repart sur la page par défaut.
+    let cmsPageId: string | null = null;
+    if (typeof pasted.cmsPageId === "string" && UUID.test(pasted.cmsPageId)) {
+      const [page] = await db.select({ id: cmsPages.id }).from(cmsPages).where(eq(cmsPages.id, pasted.cmsPageId));
+      cmsPageId = page?.id ?? null;
+    }
+
+    const title = typeof pasted.title === "string" ? pasted.title.trim().slice(0, 128) : "";
+    const [created] = await db
+      .insert(briefSections)
+      .values({
+        briefId,
+        type: pasted.type,
+        title: title || (await buildDefaultTitle(briefId, pasted.type)),
+        order: await getNextOrder(briefId),
+        content,
+        visible: pasted.visible !== false,
+        cmsPageId,
+        cmsAssetId: typeof pasted.cmsAssetId === "string" ? pasted.cmsAssetId.trim().slice(0, 128) : "",
       })
       .returning();
 
