@@ -199,8 +199,6 @@ export const TEMPLATES: Record<string, TemplateDefinition<unknown>> = {
   }),
 };
 
-export const SECTION_TYPES = Object.keys(TEMPLATES);
-
 function contentFor(type: string, raw: unknown): unknown {
   return TEMPLATES[type]?.normalizeContent?.(raw) ?? raw;
 }

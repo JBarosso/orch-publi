@@ -60,10 +60,6 @@ function getChromeRuntime(): ChromeRuntimeLike | null {
   return runtime?.sendMessage ? runtime : null;
 }
 
-export function isExtensionApiAvailable(): boolean {
-  return getChromeRuntime() !== null;
-}
-
 function sendToExtension<T>(message: unknown): Promise<T> {
   return new Promise((resolve, reject) => {
     const runtime = getChromeRuntime();

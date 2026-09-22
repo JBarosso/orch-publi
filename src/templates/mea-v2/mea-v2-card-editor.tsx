@@ -35,8 +35,6 @@ interface MeaV2CardEditorProps {
   sectionCustomPath?: string;
   briefYear: number;
   briefLocale: string;
-  /** Démo publique : sans réglages de chemin CMS (Global, chemin custom). */
-  minimal?: boolean;
 }
 
 export function MeaV2CardEditor({
@@ -51,7 +49,6 @@ export function MeaV2CardEditor({
   sectionCustomPath = "",
   briefYear,
   briefLocale,
-  minimal = false,
 }: MeaV2CardEditorProps) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   // Anciennes données sans les champs prix/badge/marque (ajoutés après coup) :
@@ -102,20 +99,16 @@ export function MeaV2CardEditor({
           briefWeek={briefWeek}
           imageId={card.imageId}
           onChange={(imageWeek) => onUpdate({ imageWeek })}
-          imagePath={
-            minimal
-              ? undefined
-              : {
-                  isGlobalImage,
-                  globalFileName,
-                  useCustomPath,
-                  customPath,
-                  sectionCustomPath,
-                  briefYear,
-                  briefLocale,
-                  onChange: onUpdate,
-                }
-          }
+          imagePath={{
+            isGlobalImage,
+            globalFileName,
+            useCustomPath,
+            customPath,
+            sectionCustomPath,
+            briefYear,
+            briefLocale,
+            onChange: onUpdate,
+          }}
         />
 
         <div className="flex items-center gap-2 flex-wrap">

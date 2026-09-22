@@ -105,7 +105,7 @@ function BoxElement({
       <div
         className={cn(
           "h-full w-full overflow-hidden",
-          interactive && selected && "outline outline-2 outline-offset-2 outline-primary",
+          interactive && selected && "outline-2 outline-offset-2 outline-primary",
         )}
       >
         {children}
@@ -187,7 +187,7 @@ function TextElementView({
             style={textStyle}
           />
         ) : (
-          <p className="w-full whitespace-pre-wrap break-words" style={textStyle}>
+          <p className="w-full whitespace-pre-wrap wrap-break-word" style={textStyle}>
             {el.text || (interactive ? <span className="opacity-40">Double-clic pour écrire…</span> : "")}
           </p>
         )}

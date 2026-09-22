@@ -56,10 +56,6 @@ interface ImageUploadDialogProps {
   onFileSelected?: (file: File) => void;
   onUploaded: (url: string) => void;
   onClose: () => void;
-  /** Démo publique : le crop/resize reste 100% client-side (déjà le cas ici),
-   * on saute juste l'envoi vers /api/assets — `onUploaded` reçoit directement
-   * la data URL recadrée, jamais persistée nulle part. */
-  localOnly?: boolean;
 }
 
 // Crop client-side (WYSIWYG) : pixelCrop est exprimé dans le repère de
@@ -171,7 +167,6 @@ export function ImageUploadDialog({
   onFileSelected,
   onUploaded,
   onClose,
-  localOnly = false,
 }: ImageUploadDialogProps) {
   const [selectedType, setSelectedType] = useState<AssetType>(assetType);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -364,15 +359,13 @@ export function ImageUploadDialog({
     setCroppedAreaPixels(croppedPixels);
   }, []);
 
-  // L'option n'a de sens que si une clé API est enregistrée (cf. Paramétrage)
-  // — et jamais en démo publique, qui n'appelle aucune route.
+  // L'option n'a de sens que si une clé API est enregistrée (cf. Paramétrage).
   useEffect(() => {
-    if (localOnly) return;
     fetch("/api/settings")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setAiAvailable(data?.openaiKeyConfigured === true))
       .catch(() => setAiAvailable(false));
-  }, [localOnly]);
+  }, []);
 
   const blankBands = useMemo(() => {
     if (skipCrop || !croppedAreaPixels || !sourceDims) return null;
@@ -386,7 +379,7 @@ export function ImageUploadDialog({
     return hasFillableBlanks(bands) ? bands : null;
   }, [skipCrop, croppedAreaPixels, sourceDims, effTargetWidth, effTargetHeight]);
 
-  const canFillBlanks = aiAvailable && !localOnly && blankBands !== null;
+  const canFillBlanks = aiAvailable && blankBands !== null;
 
   const discardAiResult = () => {
     setAiResult(null);
@@ -472,14 +465,6 @@ export function ImageUploadDialog({
               effTargetWidth,
               effTargetHeight
             ));
-
-      if (localOnly) {
-        // Démo publique : rien à envoyer, le recadrage ci-dessus a déjà
-        // produit le fichier final — c'est directement lui l'« upload ».
-        toast.success(isVideo ? "Vidéo ajoutée" : "Image ajoutée");
-        onUploaded(finalBase64);
-        return;
-      }
 
       const fileBlob = await fetch(finalBase64).then((r) => r.blob());
       const res = await postAsset(fileBlob, {

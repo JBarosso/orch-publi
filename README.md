@@ -1,101 +1,44 @@
 ## orch-publi
 
-Outil interne pour préparer et exporter des contenus marketing **MEA** et **macarons** (HTML + images) pour le site Orchestra.
+Outil interne pour préparer les briefs e-merch hebdomadaires et exporter leurs sections (HTML + images) vers le CMS Salesforce Commerce Cloud d'Orchestra.
 
-L’application permet de :
+- **Briefs** par semaine et par langue, composés de sections : quickaccess (macarons), MEA, slider, global header, fil d'ariane, edito, cat banner, img sous menu, miniature offre, moodboard, sections personnalisées.
+- **Aperçu** de chaque section dans une iframe isolée, avec repère sur les éléments commentés.
+- **Verrou d'édition** : un seul éditeur à la fois par brief, les autres le voient en lecture seule.
+- **Médiathèque** : upload (glisser-déposer, recadrage, complétion des zones vides par IA), URL d'origine des images glissées depuis le web, vignettes vidéo.
+- **Export** : code HTML à coller dans l'asset CMS indiqué, et ZIP d'images aux chemins CMS attendus.
+- **Bibliothèques** réutilisables (global header, edito), **traductions**, **programmation**, **assets CMS** par page.
 
-- **Éditer des briefs** avec plusieurs sections (MEA, macarons, etc.)
-- **Prévisualiser** les rendus dans une iframe sandboxée (sans clics accidentels)
-- **Gérer une médiathèque d’images** (upload, drag & drop, filtres par semaine / année / type)
-- **Exporter** le HTML final et un ZIP d’images (macarons en `70x70` en `.jpg` + `.webp`)
-- Ajouter des **commentaires développeur** (non exportés) sur chaque MEA / macaron
-
----
-
-## Stack technique
-
-- **Next.js 14** (App Router)
-- **TypeScript**
-- **Tailwind CSS**
-- **Drizzle ORM** + **Neon Postgres**
-- **shadcn/ui** (Radix UI)
+Les commentaires développeur ne sont jamais exportés.
 
 ---
 
-## Démarrage du projet
+## Stack
 
-### Prérequis
+- Next.js 16 (App Router) · React 19 · TypeScript
+- Tailwind CSS 4 · shadcn/ui (Base UI)
+- Drizzle ORM · Neon Postgres
+- Vercel (hébergement, Blob pour les fichiers, cron de purge)
+- Vitest
 
-- Node.js (version LTS recommandée)
-- Un compte **Neon** configuré (voir variables d’environnement)
+---
 
-### Installation
+## Démarrage
 
 ```bash
 npm install
+npm run dev        # http://localhost:3010
 ```
 
-### Développement
+Autres scripts : `npm run build`, `npm test`, `npm run lint`, `npm run db:push` (applique `src/lib/schema.ts` à la base — à lancer avant de déployer un changement de schéma), `npm run db:studio`.
 
-```bash
-npm run dev
-```
+### Variables d'environnement (`.env.local`)
 
-L’application est accessible sur `http://localhost:3000`.
+| Variable | Rôle |
+| --- | --- |
+| `DATABASE_URL` | Connexion Neon Postgres |
+| `APP_PASSWORD` | Mot de passe de connexion à l'application |
+| `BLOB_READ_WRITE_TOKEN` | Stockage des images et vidéos (Vercel Blob), obligatoire aussi en local |
+| `CRON_SECRET` | Protège la route du cron de purge (prod) |
 
-### Lint
-
-```bash
-npm run lint
-```
-
----
-
-## Variables d’environnement
-
-Créer un fichier `.env.local` à la racine du projet, par exemple :
-
-```bash
-DATABASE_URL="postgresql://..."
-NEON_DATABASE_URL="postgresql://..."
-```
-
-Les noms exacts peuvent varier selon ta configuration actuelle (voir `.env.local` existant).
-
----
-
-## Fonctionnalités clés
-
-- **Briefs**
-  - Liste triable des briefs
-  - Protection contre les **modifications non sauvegardées** (popin + raccourci `Ctrl+S`)
-
-- **Macarons**
-  - Éditeur sous forme d’**accordéon**
-  - Image en **70x70** dans l’éditeur
-  - Champ **semaine + ID d’image** en premier
-  - Champ **commentaire...** en dernier, avec bordure rouge si rempli
-  - Export HTML + **export ZIP images (.jpg + .webp)** au bon chemin CMS
-
-- **MEA**
-  - Éditeur complet (titre, prix, club, boutons…)
-  - Champ **semaine + ID d’image** en premier
-  - Champ **commentaire...** en dernier, avec bordure rouge si rempli
-  - Icône warning dans l’aperçu si commentaire présent
-
-- **Médiathèque**
-  - Upload par bouton + **drag & drop**
-  - Métadonnées : **label, week, year, type (macaron/mea/other)**
-  - Filtres dynamiques sur **année**, **semaine** et **type**
-  - Pré-filtrage par type en fonction de l’éditeur ouvrant la médiathèque
-
----
-
-## Export
-
-- **HTML** : export des sections MEA / macarons dans le format attendu par le CMS Orchestra.
-- **Images** : route API `GET /api/export/images` qui génère un ZIP :
-  - Dossiers `homepage/{year}/wk{week}/{locale}/`
-  - Fichiers `quickaccess-{imageId}.jpg` et `quickaccess-{imageId}.webp`
-
-Les champs **commentaires** ne sont jamais inclus dans l’export final, ils ne servent qu’aux développeurs.
+La clé OpenAI de la complétion d'image se saisit dans Paramétrage, pas en variable d'environnement.

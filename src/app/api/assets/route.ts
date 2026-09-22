@@ -35,13 +35,6 @@ function toIntOrNull(value: unknown): number | null {
   return Number.isInteger(n) ? n : null;
 }
 
-function hasMissingColumnError(err: unknown) {
-  if (!err || typeof err !== "object") return false;
-  const code = (err as { code?: string }).code;
-  const causeCode = (err as { cause?: { code?: string } }).cause?.code;
-  return code === "42703" || causeCode === "42703";
-}
-
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const search = searchParams.get("search");
@@ -67,41 +60,14 @@ export async function GET(request: NextRequest) {
     conditions.push(eq(assets.type, type));
   }
 
-  let result;
-  try {
-    result = await db
-      .select()
-      .from(assets)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(assets.createdAt))
-      .limit(50);
-  } catch (err) {
-    if (!hasMissingColumnError(err)) {
-      throw err;
-    }
-    // Backward compatibility if DB migration for year/week is not applied yet.
-    result = await db
-      .select({
-        id: assets.id,
-        url: assets.url,
-        label: assets.label,
-        mimeType: assets.mimeType,
-        createdAt: assets.createdAt,
-      })
-      .from(assets)
-      .where(search ? ilike(assets.label, `%${search}%`) : undefined)
-      .orderBy(desc(assets.createdAt))
-      .limit(50);
-  }
+  const result = await db
+    .select()
+    .from(assets)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(assets.createdAt))
+    .limit(50);
 
-  return NextResponse.json(
-    result.map((asset) => ({
-      ...asset,
-      type: "type" in asset ? asset.type ?? "other" : "other",
-      year: "year" in asset ? asset.year : null,
-      week: "week" in asset ? asset.week : null,
-    })),
-  );
+  return NextResponse.json(result);
 }
 
 export async function PUT(request: NextRequest) {
@@ -260,33 +226,18 @@ export async function POST(request: NextRequest) {
     const filename = `${uuidv4()}.${extension}`;
     const url = await putAsset(outputBuffer, filename, mimeType);
 
-    let asset;
-    try {
-      [asset] = await db
-        .insert(assets)
-        .values({
-          url,
-          type: assetType,
-          label: cleanLabel,
-          mimeType,
-          week: toIntOrNull(week),
-          year: toIntOrNull(year),
-          originUrl: typeof originUrl === "string" && originUrl.startsWith("http") ? originUrl : null,
-        })
-        .returning();
-    } catch (err) {
-      if (!hasMissingColumnError(err)) {
-        throw err;
-      }
-      [asset] = await db
-        .insert(assets)
-        .values({
-          url,
-          label: cleanLabel,
-          mimeType,
-        })
-        .returning();
-    }
+    const [asset] = await db
+      .insert(assets)
+      .values({
+        url,
+        type: assetType,
+        label: cleanLabel,
+        mimeType,
+        week: toIntOrNull(week),
+        year: toIntOrNull(year),
+        originUrl: typeof originUrl === "string" && originUrl.startsWith("http") ? originUrl : null,
+      })
+      .returning();
 
     return NextResponse.json(asset, { status: 201 });
   } catch (err) {
@@ -340,29 +291,10 @@ async function handleVideoUpload(
       url = await putAsset(videoBuffer, `${uuidv4()}.mp4`, "video/mp4");
     }
 
-    let asset;
-    try {
-      [asset] = await db
-        .insert(assets)
-        .values({
-          url,
-          type: assetType,
-          label: cleanLabel,
-          mimeType: "video/mp4",
-          week,
-          year,
-          originUrl,
-        })
-        .returning();
-    } catch (err) {
-      if (!hasMissingColumnError(err)) {
-        throw err;
-      }
-      [asset] = await db
-        .insert(assets)
-        .values({ url, label: cleanLabel, mimeType: "video/mp4" })
-        .returning();
-    }
+    const [asset] = await db
+      .insert(assets)
+      .values({ url, type: assetType, label: cleanLabel, mimeType: "video/mp4", week, year, originUrl })
+      .returning();
 
     return NextResponse.json(asset, { status: 201 });
   } catch (err) {

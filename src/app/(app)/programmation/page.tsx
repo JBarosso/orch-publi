@@ -219,10 +219,6 @@ export default function ProgrammationPage() {
   }, []);
 
   useEffect(() => {
-    // Identique au pattern fetchTemplates/fetchBriefs utilisé ailleurs dans
-    // l'app (templates/page.tsx, briefs-list.tsx), qui ne déclenche pas cette
-    // règle sur ces fichiers — faux positif apparent de la règle sur ce fichier.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBlocks();
   }, [fetchBlocks]);
 

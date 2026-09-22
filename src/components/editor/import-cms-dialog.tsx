@@ -53,7 +53,7 @@ export function ImportCmsDialog({ open, onOpenChange, description, onImport }: I
           value={html}
           onChange={(e) => setHtml(e.target.value)}
           rows={14}
-          className="max-h-[400px] overflow-y-auto font-mono text-xs"
+          className="max-h-100 overflow-y-auto font-mono text-xs"
         />
         <DialogFooter className="sm:flex-wrap">
           <Button variant="outline" onClick={() => onOpenChange(false)}>

@@ -17,6 +17,8 @@ import {
 import { toast } from "sonner";
 import type { HeaderColor } from "@/lib/header-colors";
 import type { ScheduledPurgeReport } from "@/lib/retention";
+import { SECTION_TYPE_OPTIONS } from "@/lib/section-types";
+import type { SectionType } from "@/types";
 
 interface PurgePreview {
   cutoff: string;
@@ -69,6 +71,26 @@ export default function SettingsPage() {
   const [savingLock, setSavingLock] = useState(false);
   const lockMinutes = Number(lockValue) * (lockUnit === "hours" ? 60 : 1);
 
+  // Types de section masqués du menu de création d'un brief ; null tant que
+  // non chargé, pour ne pas afficher des cases fausses.
+  const [hiddenTypes, setHiddenTypes] = useState<SectionType[] | null>(null);
+
+  const toggleSectionType = async (type: SectionType, visible: boolean) => {
+    if (!hiddenTypes) return;
+    const previous = hiddenTypes;
+    const next = visible ? hiddenTypes.filter((t) => t !== type) : [...hiddenTypes, type];
+    setHiddenTypes(next);
+    const res = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hiddenSectionTypes: next }),
+    });
+    if (!res.ok) {
+      setHiddenTypes(previous);
+      toast.error("Impossible d'enregistrer les templates proposés");
+    }
+  };
+
   useEffect(() => {
     (async () => {
       const res = await fetch("/api/settings");
@@ -88,6 +110,7 @@ export default function SettingsPage() {
       setLastScheduledPurge(data.lastScheduledPurge ?? null);
       setKeyConfigured(data.openaiKeyConfigured === true);
       setKeyHint(data.openaiKeyHint ?? "");
+      setHiddenTypes(data.hiddenSectionTypes ?? []);
       const minutes: number = data.lockMaxMinutes;
       setSavedLockMinutes(minutes);
       if (minutes % 60 === 0) {
@@ -327,20 +350,198 @@ export default function SettingsPage() {
   const colorsDirty = savedColors !== null && JSON.stringify(colors) !== JSON.stringify(savedColors);
 
   return (
-    <div className="p-6 lg:p-8 max-w-3xl">
+    <div className="p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
           <SettingsIcon className="h-6 w-6 text-primary" />
           Paramétrage
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Rétention des données et maintenance
+          Templates, rétention des données et maintenance
         </p>
       </div>
 
+      <div className="grid gap-6 lg:grid-cols-2 2xl:grid-cols-3">
+      <section className="rounded-lg border border-border/60 bg-card p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-foreground">Templates proposés</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Types de section proposés à la création dans un brief. Décocher un type le retire du
+          menu ; les sections déjà créées restent éditables et exportables.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2">
+          {SECTION_TYPE_OPTIONS.map(({ value, label }) => (
+            <label key={value} className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={hiddenTypes !== null && !hiddenTypes.includes(value)}
+                disabled={hiddenTypes === null}
+                onChange={(e) => toggleSectionType(value, e.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </section>
+
       <section className="rounded-lg border border-border/60 bg-card p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-foreground">
-          Durée de conservation
+          Verrouillage des briefs
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Une personne verrouille un brief pour le modifier ; les autres le voient en lecture
+          seule, sans pouvoir reprendre la main. Le verrou se libère en quittant le brief, et
+          dans tous les cas au bout de cette durée, comptée depuis sa pose — pour qu&apos;un
+          onglet oublié ne bloque pas un brief indéfiniment. On est prévenu 5 minutes avant,
+          avec la possibilité de le prolonger.
+        </p>
+        <div className="mt-4 flex items-end gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="lock-duration">Durée maximale</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="lock-duration"
+                type="number"
+                min={1}
+                value={lockValue}
+                onChange={(e) => setLockValue(e.target.value)}
+                className="w-24"
+              />
+              <select
+                value={lockUnit}
+                onChange={(e) => setLockUnit(e.target.value as "minutes" | "hours")}
+                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm outline-none"
+              >
+                <option value="minutes">minutes</option>
+                <option value="hours">heures</option>
+              </select>
+            </div>
+          </div>
+          <Button
+            onClick={saveLockDuration}
+            disabled={savingLock || savedLockMinutes === null || lockMinutes === savedLockMinutes}
+          >
+            {savingLock ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-1.5 h-4 w-4" />
+            )}
+            Enregistrer
+          </Button>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border/60 bg-card p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-foreground">
+          Couleurs recommandées — Global header
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Proposées en priorité dans l&apos;éditeur de section Global header,
+          en plus du sélecteur de couleur libre.
+        </p>
+        <div className="mt-4 space-y-2">
+          {colors.map((color, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="color"
+                value={color.hex}
+                onChange={(e) => updateColor(i, { hex: e.target.value })}
+                className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
+              />
+              <Input
+                placeholder="Nom (ex: Orchestra)"
+                value={color.name}
+                onChange={(e) => updateColor(i, { name: e.target.value })}
+                className="min-w-0 flex-1"
+              />
+              <Input
+                value={color.hex}
+                onChange={(e) => updateColor(i, { hex: e.target.value })}
+                placeholder="#RRGGBB"
+                className="w-28 shrink-0 font-mono text-xs"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => removeColor(i)}
+                className="h-8 w-8 shrink-0 text-muted-foreground/50 hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+          <div className="flex items-center gap-3 pt-1">
+            <Button variant="outline" size="sm" onClick={addColor}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Ajouter une couleur
+            </Button>
+            <Button onClick={handleSaveColors} disabled={!colorsDirty || savingColors} size="sm">
+              {savingColors ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-1.5 h-4 w-4" />
+              )}
+              Enregistrer
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border/60 bg-card p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-foreground">
+          Complétion IA des images
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Permet de compléter les zones vides laissées par un recadrage dézoomé,
+          directement au moment de l&apos;upload. Nécessite une clé API OpenAI
+          (plateforme facturée à l&apos;usage, de l&apos;ordre de quelques
+          centimes par image). Sans clé, l&apos;option n&apos;apparaît pas dans
+          la fenêtre d&apos;upload.
+        </p>
+        <div className="mt-4 space-y-1.5">
+          <Label htmlFor="openai-key">
+            Clé API OpenAI
+            {keyConfigured && (
+              <span className="ml-2 font-normal text-emerald-600">
+                enregistrée {keyHint}
+              </span>
+            )}
+          </Label>
+          <Input
+            id="openai-key"
+            type="password"
+            autoComplete="off"
+            placeholder={keyConfigured ? "Saisir une nouvelle clé pour la remplacer" : "sk-..."}
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button onClick={() => saveApiKey(apiKey.trim())} disabled={!apiKey.trim() || savingKey}>
+            {savingKey ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-1.5 h-4 w-4" />
+            )}
+            Enregistrer
+          </Button>
+          {keyConfigured && (
+            <Button
+              variant="outline"
+              onClick={() => saveApiKey("")}
+              disabled={savingKey}
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Supprimer
+            </Button>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border/60 bg-card p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-foreground">
+          Conservation des briefs et images
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Les briefs <strong>traités </strong> plus anciens que cette durée, et
@@ -370,34 +571,8 @@ export default function SettingsPage() {
             Enregistrer
           </Button>
         </div>
-      </section>
 
-      <section className="mt-6 rounded-lg border border-border/60 bg-card p-5 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Purge des données expirées
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Lance d&apos;abord l&apos;aperçu (dry-run), vérifie la liste, puis
-              purge si tout est correct.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={fetchPreview}
-            disabled={loadingPreview}
-          >
-            {loadingPreview ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-1.5 h-4 w-4" />
-            )}
-            Aperçu de la purge
-          </Button>
-        </div>
-
-        <div className="mt-4 flex items-start justify-between gap-3 border-t border-border/60 pt-4">
+        <div className="mt-5 flex items-start justify-between gap-3 border-t border-border/60 pt-4">
           <div>
             <Label htmlFor="auto-purge">Purge automatique chaque nuit</Label>
             {!cronConfigured && (
@@ -433,6 +608,21 @@ export default function SettingsPage() {
             disabled={savingAutoPurge || savedMonths === null}
             onCheckedChange={handleAutoPurgeChange}
           />
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-4">
+          <p className="text-xs text-muted-foreground">
+            Lance d&apos;abord l&apos;aperçu (dry-run), vérifie la liste, puis
+            purge si tout est correct.
+          </p>
+          <Button variant="outline" onClick={fetchPreview} disabled={loadingPreview} className="shrink-0">
+            {loadingPreview ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-1.5 h-4 w-4" />
+            )}
+            Aperçu de la purge
+          </Button>
         </div>
 
         {preview && (
@@ -518,16 +708,15 @@ export default function SettingsPage() {
         )}
       </section>
 
-      <section className="mt-6 rounded-lg border border-border/60 bg-card p-5 shadow-sm">
+      <section className="rounded-lg border border-border/60 bg-card p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-foreground">
           Vidéos MEA v2
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Les vidéos uploadées pour la carte focus MEA v2 sont lourdes. Passé
-          cette durée, une vidéo est purgée <strong>automatiquement en tâche
-          de fond</strong> (pas besoin de cliquer sur « Purger ») — sauf si
-          elle est encore utilisée par une section de brief existante, jamais
-          supprimée dans ce cas.
+          Les vidéos de la carte focus MEA v2 sont lourdes. Passé cette durée, une vidéo est purgée
+          <strong> automatiquement chaque nuit</strong> (pas besoin de cliquer
+          sur « Purger ») — sauf si elle est encore utilisée par une section de
+          brief existante, jamais supprimée dans ce cas.
         </p>
         <div className="mt-4 flex items-end gap-3">
           <div className="space-y-1.5">
@@ -561,6 +750,7 @@ export default function SettingsPage() {
             variant="outline"
             onClick={fetchVideoPreview}
             disabled={loadingVideoPreview}
+            className="shrink-0"
           >
             {loadingVideoPreview ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
@@ -626,160 +816,7 @@ export default function SettingsPage() {
         )}
       </section>
 
-      <section className="mt-6 rounded-lg border border-border/60 bg-card p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-foreground">
-          Verrouillage des briefs
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Une personne verrouille un brief pour le modifier ; les autres le voient en lecture
-          seule, sans pouvoir reprendre la main. Le verrou se libère en quittant le brief, et
-          dans tous les cas au bout de cette durée, comptée depuis sa pose — pour qu&apos;un
-          onglet oublié ne bloque pas un brief indéfiniment. On est prévenu 5 minutes avant,
-          avec la possibilité de le prolonger.
-        </p>
-        <div className="mt-4 flex items-end gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="lock-duration">Durée maximale</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="lock-duration"
-                type="number"
-                min={1}
-                value={lockValue}
-                onChange={(e) => setLockValue(e.target.value)}
-                className="w-24"
-              />
-              <select
-                value={lockUnit}
-                onChange={(e) => setLockUnit(e.target.value as "minutes" | "hours")}
-                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm outline-none"
-              >
-                <option value="minutes">minutes</option>
-                <option value="hours">heures</option>
-              </select>
-            </div>
-          </div>
-          <Button
-            onClick={saveLockDuration}
-            disabled={savingLock || savedLockMinutes === null || lockMinutes === savedLockMinutes}
-          >
-            {savingLock ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-1.5 h-4 w-4" />
-            )}
-            Enregistrer
-          </Button>
-        </div>
-      </section>
-
-      <section className="mt-6 rounded-lg border border-border/60 bg-card p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-foreground">
-          Complétion IA des images
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Permet de compléter les zones vides laissées par un recadrage dézoomé,
-          directement au moment de l&apos;upload. Nécessite une clé API OpenAI
-          (plateforme facturée à l&apos;usage, de l&apos;ordre de quelques
-          centimes par image). Sans clé, l&apos;option n&apos;apparaît pas dans
-          la fenêtre d&apos;upload.
-        </p>
-        <div className="mt-4 flex items-end gap-3">
-          <div className="flex-1 space-y-1.5">
-            <Label htmlFor="openai-key">
-              Clé API OpenAI
-              {keyConfigured && (
-                <span className="ml-2 font-normal text-emerald-600">
-                  enregistrée {keyHint}
-                </span>
-              )}
-            </Label>
-            <Input
-              id="openai-key"
-              type="password"
-              autoComplete="off"
-              placeholder={keyConfigured ? "Saisir une nouvelle clé pour la remplacer" : "sk-..."}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
-          </div>
-          <Button onClick={() => saveApiKey(apiKey.trim())} disabled={!apiKey.trim() || savingKey}>
-            {savingKey ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-1.5 h-4 w-4" />
-            )}
-            Enregistrer
-          </Button>
-          {keyConfigured && (
-            <Button
-              variant="outline"
-              onClick={() => saveApiKey("")}
-              disabled={savingKey}
-              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-            >
-              <Trash2 className="mr-1.5 h-4 w-4" />
-              Supprimer
-            </Button>
-          )}
-        </div>
-      </section>
-
-      <section className="mt-6 rounded-lg border border-border/60 bg-card p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-foreground">
-          Couleurs recommandées — Global header
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Proposées en priorité dans l&apos;éditeur de section Global header,
-          en plus du sélecteur de couleur libre.
-        </p>
-        <div className="mt-4 space-y-2">
-          {colors.map((color, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                type="color"
-                value={color.hex}
-                onChange={(e) => updateColor(i, { hex: e.target.value })}
-                className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
-              />
-              <Input
-                placeholder="Nom (ex: Orchestra)"
-                value={color.name}
-                onChange={(e) => updateColor(i, { name: e.target.value })}
-                className="w-48"
-              />
-              <Input
-                value={color.hex}
-                onChange={(e) => updateColor(i, { hex: e.target.value })}
-                placeholder="#RRGGBB"
-                className="w-28 font-mono text-xs"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => removeColor(i)}
-                className="h-8 w-8 shrink-0 text-muted-foreground/50 hover:text-destructive"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          ))}
-          <div className="flex items-center gap-3 pt-1">
-            <Button variant="outline" size="sm" onClick={addColor}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Ajouter une couleur
-            </Button>
-            <Button onClick={handleSaveColors} disabled={!colorsDirty || savingColors} size="sm">
-              {savingColors ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-1.5 h-4 w-4" />
-              )}
-              Enregistrer
-            </Button>
-          </div>
-        </div>
-      </section>
+      </div>
     </div>
   );
 }

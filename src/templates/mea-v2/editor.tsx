@@ -22,8 +22,6 @@ interface MeaV2EditorProps {
   onOpenMediaLibrary: (target: string) => void;
   onDropFile?: (target: string, file: File) => void;
   onOpenVideoUpload: () => void;
-  /** Démo publique : sans import CMS, réglages de chemin CMS ni vidéo. */
-  minimal?: boolean;
 }
 
 export function MeaV2Editor({
@@ -35,7 +33,6 @@ export function MeaV2Editor({
   onOpenMediaLibrary,
   onDropFile,
   onOpenVideoUpload,
-  minimal = false,
 }: MeaV2EditorProps) {
   const [importOpen, setImportOpen] = useState(false);
   const cards = content.cards ?? [];
@@ -80,32 +77,26 @@ export function MeaV2Editor({
           <h3 className="text-sm font-medium text-muted-foreground">
             MEA v2 (4 cartes + 1 carte focus)
           </h3>
-          {!minimal && (
-            <Input
-              placeholder="Chemin custom de la section (ex: landing-pages/fille/campagne)"
-              value={sectionCustomPath}
-              onChange={(e) => onChange({ ...content, customPath: e.target.value })}
-              className="h-7 flex-1 text-xs"
-              title="Remplace homepage/{année}/wk{semaine} pour les cartes dont le toggle « Chemin custom » est actif"
-            />
-          )}
+          <Input
+            placeholder="Chemin custom de la section (ex: landing-pages/fille/campagne)"
+            value={sectionCustomPath}
+            onChange={(e) => onChange({ ...content, customPath: e.target.value })}
+            className="h-7 flex-1 text-xs"
+            title="Remplace homepage/{année}/wk{semaine} pour les cartes dont le toggle « Chemin custom » est actif"
+          />
         </div>
-        {!minimal && (
-          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-            <Upload className="mr-1 h-3 w-3" />
-            Importer du CMS
-          </Button>
-        )}
+        <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+          <Upload className="mr-1 h-3 w-3" />
+          Importer du CMS
+        </Button>
       </div>
 
-      {!minimal && (
-        <ImportCmsDialog
-          open={importOpen}
-          onOpenChange={setImportOpen}
-          description="Colle le code HTML d'une section MEA v2 déjà exportée vers le CMS : les cartes sont reconstruites automatiquement, les champs non reconnus sont signalés dans leur commentaire."
-          onImport={handleImport}
-        />
-      )}
+      <ImportCmsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        description="Colle le code HTML d'une section MEA v2 déjà exportée vers le CMS : les cartes sont reconstruites automatiquement, les champs non reconnus sont signalés dans leur commentaire."
+        onImport={handleImport}
+      />
 
       <div className="space-y-2">
         {cards.map((card, i) => (
@@ -122,7 +113,6 @@ export function MeaV2Editor({
             sectionCustomPath={sectionCustomPath}
             briefYear={briefYear}
             briefLocale={briefLocale}
-            minimal={minimal}
           />
         ))}
       </div>
@@ -138,7 +128,6 @@ export function MeaV2Editor({
           sectionCustomPath={sectionCustomPath}
           briefYear={briefYear}
           briefLocale={briefLocale}
-          minimal={minimal}
         />
       )}
     </div>

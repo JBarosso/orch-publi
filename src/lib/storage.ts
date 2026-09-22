@@ -1,62 +1,38 @@
-import { writeFile, unlink, readFile } from "fs/promises";
-import { join } from "path";
 import { copy, del, list, put } from "@vercel/blob";
 
-// Sur Vercel, public/ est immuable au runtime (servi par le CDN depuis le
-// build) : impossible d'y écrire des uploads utilisateur et de les voir
-// remonter en prod (ça marche en local sur disque, jamais en prod — cause du
-// bug "images qui ne remontent pas"). Vercel Blob prend le relai dès que le
-// token est configuré ; sans token (dev local sans setup), on retombe sur le
-// disque local comme avant.
-const BLOB_ENABLED = !!process.env.BLOB_READ_WRITE_TOKEN;
+// Tous les fichiers vivent sur Vercel Blob, en local comme en prod : sur
+// Vercel, public/ est en lecture seule au runtime.
 
 export async function putAsset(
   buffer: Buffer,
   filename: string,
   contentType: string,
 ): Promise<string> {
-  if (BLOB_ENABLED) {
-    const blob = await put(filename, buffer, {
-      access: "public",
-      contentType,
-      addRandomSuffix: true,
-    });
-    return blob.url;
-  }
-  // process.env.VERCEL est posé sur tous les déploiements Vercel (prod,
-  // preview, vercel dev) : public/ y est en lecture seule, écrire sur disque
-  // échouerait de toute façon avec un EROFS cryptique — autant échouer avec
-  // un message clair pointant directement la cause (token Blob manquant).
-  if (process.env.VERCEL) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error(
-      "BLOB_READ_WRITE_TOKEN absent sur ce déploiement Vercel — le disque local n'est pas accessible en écriture ici. " +
-        "Vérifie Settings > Environment Variables (coché pour Production) puis redéploie.",
+      "BLOB_READ_WRITE_TOKEN absent : ajoute-le à .env.local (en local) ou dans Settings > Environment Variables (sur Vercel).",
     );
   }
-  const filepath = join(process.cwd(), "public", "uploads", filename);
-  await writeFile(filepath, buffer);
-  return `/uploads/${filename}`;
+  const blob = await put(filename, buffer, {
+    access: "public",
+    contentType,
+    addRandomSuffix: true,
+  });
+  return blob.url;
 }
 
 export async function deleteAsset(url: string): Promise<void> {
   try {
-    if (url.startsWith("http")) {
-      await del(url);
-    } else {
-      await unlink(join(process.cwd(), "public", url));
-    }
+    await del(url);
   } catch {
     // fichier déjà absent : on ignore, l'appelant supprime la ligne en base
   }
 }
 
 export async function readAsset(url: string): Promise<Buffer> {
-  if (url.startsWith("http")) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Impossible de lire l'asset distant : ${url}`);
-    return Buffer.from(await res.arrayBuffer());
-  }
-  return readFile(join(process.cwd(), "public", url));
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Impossible de lire l'asset : ${url}`);
+  return Buffer.from(await res.arrayBuffer());
 }
 
 // --- Upload direct navigateur → Vercel Blob ---
@@ -106,7 +82,7 @@ export async function promoteTempUpload(
  * (dialogue fermé en cours de route). Au-delà de 24 h, plus rien ne les attend.
  */
 export async function purgeStaleTempUploads(): Promise<number> {
-  if (!BLOB_ENABLED) return 0;
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return 0;
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   let deleted = 0;
   let cursor: string | undefined;

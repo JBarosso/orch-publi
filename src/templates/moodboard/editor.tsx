@@ -344,7 +344,7 @@ export function MoodboardEditor({ content, onChange, onOpenMedia, onDropFile }: 
       <div
         className={cn(
           "overflow-auto rounded-lg border border-border/60 bg-muted/20",
-          "max-h-[480px]",
+          "max-h-120",
         )}
       >
         <MoodboardCanvas

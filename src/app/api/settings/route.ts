@@ -16,6 +16,8 @@ import { getHeaderColors, setHeaderColors, type HeaderColor } from "@/lib/header
 import { getOpenAiApiKey, maskApiKey, setOpenAiApiKey } from "@/lib/openai-key";
 import { getLockMaxMinutes, setLockMaxMinutes } from "@/lib/brief-lock-server";
 import { MAX_LOCK_MAX_MINUTES, MIN_LOCK_MAX_MINUTES, clampLockMaxMinutes } from "@/lib/brief-lock";
+import { getHiddenSectionTypes, setHiddenSectionTypes } from "@/lib/hidden-section-types";
+import { sanitizeHiddenSectionTypes } from "@/lib/section-types";
 
 export async function GET() {
   const [
@@ -26,6 +28,7 @@ export async function GET() {
     lastScheduledPurge,
     openaiApiKey,
     lockMaxMinutes,
+    hiddenSectionTypes,
   ] = await Promise.all([
     getRetentionMonths(),
     getVideoRetentionDays(),
@@ -34,6 +37,7 @@ export async function GET() {
     getLastScheduledPurge(),
     getOpenAiApiKey(),
     getLockMaxMinutes(),
+    getHiddenSectionTypes(),
   ]);
   return NextResponse.json({
     retentionMonths,
@@ -42,6 +46,7 @@ export async function GET() {
     autoPurgeEnabled,
     lastScheduledPurge,
     lockMaxMinutes,
+    hiddenSectionTypes,
     // Jamais la clé elle-même : seulement de quoi afficher qu'elle est en
     // place et laquelle, sans qu'elle transite vers le navigateur.
     openaiKeyConfigured: openaiApiKey !== "",
@@ -133,6 +138,15 @@ export async function PUT(request: NextRequest) {
     }
     await setLockMaxMinutes(minutes);
     return NextResponse.json({ lockMaxMinutes: minutes });
+  }
+
+  if (body.hiddenSectionTypes !== undefined) {
+    if (!Array.isArray(body.hiddenSectionTypes)) {
+      return NextResponse.json({ error: "hiddenSectionTypes doit être une liste" }, { status: 400 });
+    }
+    const hiddenSectionTypes = sanitizeHiddenSectionTypes(body.hiddenSectionTypes);
+    await setHiddenSectionTypes(hiddenSectionTypes);
+    return NextResponse.json({ hiddenSectionTypes });
   }
 
   if (body.openaiApiKey !== undefined) {

@@ -45,7 +45,8 @@ import {
   Separator as PanelResizeHandle,
   useGroupRef,
 } from "react-resizable-panels";
-import type { BriefSection, BriefStatus, CmsPage, CustomTemplate } from "@/types";
+import type { BriefSection, BriefStatus, CmsPage, CustomTemplate, SectionType } from "@/types";
+import { DEFAULT_HIDDEN_SECTION_TYPES, SECTION_TYPE_OPTIONS } from "@/lib/section-types";
 import { SectionCmsAssetRow } from "@/components/briefs/section-cms-asset-row";
 import { BriefLockButton } from "@/components/briefs/brief-lock-button";
 import { useBriefLockContext } from "./brief-lock-context";
@@ -293,9 +294,19 @@ export default function BriefEditorPage({
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [previewSections, setPreviewSections] = useState<Record<string, boolean>>({});
   const [createOpen, setCreateOpen] = useState(false);
-  // "macarons" | "mea" | "custom" (vierge) | "tpl:<id>" (depuis un template publié)
+  // Un type de section, ou "tpl:<id>" (depuis un template publié)
   const [newSectionType, setNewSectionType] = useState<string>("macarons_v2");
   const [publishedTemplates, setPublishedTemplates] = useState<CustomTemplate[]>([]);
+  // Types masqués dans Paramétrage : retirés du menu de création.
+  const [hiddenSectionTypes, setHiddenSectionTypes] = useState<SectionType[]>(DEFAULT_HIDDEN_SECTION_TYPES);
+  const sectionTypeOptions = [
+    ...SECTION_TYPE_OPTIONS.filter((o) => !hiddenSectionTypes.includes(o.value)),
+    ...publishedTemplates.map((template) => ({ value: `tpl:${template.id}`, label: `Template : ${template.name}` })),
+  ];
+  // Type retenu devenu masqué : on retombe sur le premier proposé.
+  const selectedSectionType = sectionTypeOptions.some((o) => o.value === newSectionType)
+    ? newSectionType
+    : (sectionTypeOptions[0]?.value ?? "");
   const [pendingDeleteSectionId, setPendingDeleteSectionId] = useState<string | null>(null);
   const panelGroupContainerRef = useRef<HTMLDivElement | null>(null);
   const previewGroupRef = useGroupRef();
@@ -400,28 +411,36 @@ export default function BriefEditorPage({
     })();
   }, []);
 
-  // Templates publiés proposés dans le dialogue de création de section
+  // Templates publiés et types masqués, relus à chaque ouverture du dialogue
+  // de création de section.
   useEffect(() => {
     if (!createOpen) return;
     (async () => {
-      const res = await fetch("/api/templates?status=published");
-      if (res.ok) {
-        const templates: CustomTemplate[] = await res.json();
+      const [templatesRes, settingsRes] = await Promise.all([
+        fetch("/api/templates?status=published"),
+        fetch("/api/settings"),
+      ]);
+      if (templatesRes.ok) {
+        const templates: CustomTemplate[] = await templatesRes.json();
         setPublishedTemplates(templates.sort((a, b) => a.name.localeCompare(b.name)));
+      }
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
+        if (Array.isArray(data.hiddenSectionTypes)) setHiddenSectionTypes(data.hiddenSectionTypes);
       }
     })();
   }, [createOpen]);
 
   const createSection = () => {
-    if (!brief) return;
+    if (!brief || !selectedSectionType) return;
     setCreateOpen(false);
     runGuarded("créer une section", async () => {
       const payload: Record<string, unknown> = { briefId: brief.id };
-      if (newSectionType.startsWith("tpl:")) {
+      if (selectedSectionType.startsWith("tpl:")) {
         payload.type = "custom";
-        payload.templateId = newSectionType.slice(4);
+        payload.templateId = selectedSectionType.slice(4);
       } else {
-        payload.type = newSectionType;
+        payload.type = selectedSectionType;
       }
       const res = await fetch("/api/sections", {
         method: "POST",
@@ -613,48 +632,17 @@ export default function BriefEditorPage({
             </DialogDescription>
           </DialogHeader>
           <Select
-            value={newSectionType}
-            items={[
-              { value: "cat_banner", label: "Cat banner" },
-              { value: "edito", label: "Edito" },
-              { value: "ariane", label: "Fil d'ariane" },
-              { value: "global_header", label: "Global header" },
-              { value: "img_sous_menu", label: "Img sous menu" },
-              { value: "macarons", label: "Macaron (old)" },
-              { value: "macarons_v2", label: "Macaron" },
-              { value: "mea", label: "MEA (old)" },
-              { value: "mea_v2", label: "MEA" },
-              { value: "miniature_offre", label: "Miniature offre" },
-              { value: "moodboard", label: "Moodboard" },
-              { value: "custom", label: "Section custom" },
-              { value: "carousel", label: "Slider" },
-              ...publishedTemplates.map((template) => ({
-                value: `tpl:${template.id}`,
-                label: `Template : ${template.name}`,
-              })),
-            ]}
+            value={selectedSectionType}
+            items={sectionTypeOptions}
             onValueChange={(v) => v && setNewSectionType(v)}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="w-fit min-w-(--anchor-width)">
-              <SelectItem value="cat_banner">Cat banner</SelectItem>
-              <SelectItem value="edito">Edito</SelectItem>
-              <SelectItem value="ariane">Fil d&apos;ariane</SelectItem>
-              <SelectItem value="global_header">Global header</SelectItem>
-              <SelectItem value="img_sous_menu">Img sous menu</SelectItem>
-              <SelectItem value="macarons">Macaron (old)</SelectItem>
-              <SelectItem value="macarons_v2">Macaron</SelectItem>
-              <SelectItem value="mea">MEA (old)</SelectItem>
-              <SelectItem value="mea_v2">MEA</SelectItem>
-              <SelectItem value="miniature_offre">Miniature offre</SelectItem>
-              <SelectItem value="moodboard">Moodboard</SelectItem>
-              <SelectItem value="custom">Section custom</SelectItem>
-              <SelectItem value="carousel">Slider</SelectItem>
-              {publishedTemplates.map((template) => (
-                <SelectItem key={template.id} value={`tpl:${template.id}`}>
-                  Template : {template.name}
+              {sectionTypeOptions.map(({ value, label }) => (
+                <SelectItem key={value} value={value}>
+                  {label}
                 </SelectItem>
               ))}
             </SelectContent>

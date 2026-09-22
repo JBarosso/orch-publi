@@ -21,7 +21,6 @@ export default function MediaPage() {
   const [weekOptions, setWeekOptions] = useState<number[]>([]);
   const [typeOptions, setTypeOptions] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [backfilling, setBackfilling] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | undefined>(undefined);
   const [dragging, setDragging] = useState(false);
@@ -135,28 +134,6 @@ export default function MediaPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            disabled={backfilling}
-            onClick={async () => {
-              setBackfilling(true);
-              try {
-                const res = await fetch("/api/assets/backfill", { method: "POST" });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) {
-                  toast.error(data.error || "Backfill impossible");
-                  return;
-                }
-                toast.success(`${data.updated ?? 0} image(s) mises à jour`);
-                fetchAssets();
-                fetchFilterOptions();
-              } finally {
-                setBackfilling(false);
-              }
-            }}
-          >
-            {backfilling ? "Synchronisation..." : "Synchroniser year/week"}
-          </Button>
           <Button
             onClick={() => setShowUpload(true)}
             className="shadow-sm shadow-primary/20"
