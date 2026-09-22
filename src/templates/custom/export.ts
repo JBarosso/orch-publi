@@ -1,6 +1,7 @@
 import type { CustomBlock, CustomContent } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
+import { richTextToHtml } from "@/lib/rich-text";
 
 export { CMS_CSS_URL };
 
@@ -56,6 +57,13 @@ const cssStyle = `
       margin: 0 0 12px;
       font-size: 14px;
       line-height: 1.5;
+   }
+   .custom-section__text a {
+      color: inherit;
+      text-decoration: underline;
+   }
+   .custom-section__text a:hover {
+      text-decoration: none;
    }
    .custom-section__button {
       display: inline-block;
@@ -132,7 +140,7 @@ function renderBlock(
       case "title":
          return `      <h2 class="custom-section__title">${esc(block.text).replace(/\n/g, "<br>")}</h2>`;
       case "text":
-         return `      <p class="custom-section__text">${esc(block.text).replace(/\n/g, "<br>")}</p>`;
+         return `      <p class="custom-section__text">${richTextToHtml(block.text, { preview: !ctx })}</p>`;
       case "button": {
          // Seul ce template accepte un lien vraiment testable en preview
          // (url libre, pas seulement cgid/cid) — les autres neutralisent tout

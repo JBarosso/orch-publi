@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { LinkFields } from "@/components/editor/link-fields";
 import { ImageRemoveButton } from "@/components/editor/image-remove-button";
+import { RichTextField } from "@/components/editor/rich-text-field";
 import { cn } from "@/lib/utils";
 import type { CustomBlock, CustomBlockType, CustomContent, CustomLayout } from "@/types";
 import { CUSTOM_BLOCK_LABELS, CUSTOM_LAYOUTS } from "@/types";
@@ -273,12 +274,10 @@ function CustomBlockEditor({
         )}
 
         {block.type === "text" && (
-          <Textarea
+          <RichTextField
             placeholder="Texte (Enter = saut de ligne)"
             value={block.text}
-            onChange={(e) => onUpdate({ text: e.target.value })}
-            rows={3}
-            className="min-h-16 resize-none text-sm"
+            onChange={(text) => onUpdate({ text })}
           />
         )}
 
