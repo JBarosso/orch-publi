@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { postAsset } from "@/lib/post-asset";
+import { dropOriginOf, postAsset, rememberDropOrigin } from "@/lib/post-asset";
 import { validateSourceFile } from "@/lib/upload-specs";
 import type { MoodboardContent, MoodboardElement } from "@/types";
 import {
@@ -77,6 +77,8 @@ export function MoodboardEditor({ content, onChange, onOpenMedia, onDropFile }: 
       ?.getAsFile();
     if (!file) return;
     e.preventDefault();
+    // Lu avant tout await : le presse-papiers n'est plus lisible ensuite.
+    rememberDropOrigin(file, e.clipboardData);
 
     const error = validateSourceFile(file);
     if (error) {
@@ -95,6 +97,7 @@ export function MoodboardEditor({ content, onChange, onOpenMedia, onDropFile }: 
         week: null,
         year: null,
         type: "moodboard",
+        originUrl: dropOriginOf(file),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);

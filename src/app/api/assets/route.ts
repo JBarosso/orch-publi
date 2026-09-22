@@ -48,8 +48,12 @@ export async function GET(request: NextRequest) {
   const week = searchParams.get("week");
   const year = searchParams.get("year");
   const type = searchParams.get("type");
+  const url = searchParams.get("url");
 
   const conditions = [];
+  if (url) {
+    conditions.push(eq(assets.url, url));
+  }
   if (search) {
     conditions.push(ilike(assets.label, `%${search}%`));
   }

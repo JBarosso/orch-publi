@@ -19,6 +19,7 @@ import { ButtonsEditor } from "@/components/editor/buttons-editor";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
+import { ImageRemoveButton } from "@/components/editor/image-remove-button";
 import { LibraryPicker } from "@/components/editor/library-picker";
 import type { EditoCard, EditoLibraryItem, Locale, MeaButton } from "@/types";
 import { EDITO_THEMES } from "@/types";
@@ -142,7 +143,8 @@ export function EditoCardEditor({
         </button>
 
         <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
-          <div className="flex w-37.5 shrink-0 flex-col items-center gap-1.5">
+          <div className="group/slot relative flex w-37.5 shrink-0 flex-col items-center gap-1.5">
+            {item.imageUrl && <ImageRemoveButton onRemove={() => onUpdate({ imageUrl: "" })} />}
             <button
               type="button"
               onClick={onOpenMediaLibrary}

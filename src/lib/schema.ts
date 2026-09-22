@@ -63,6 +63,8 @@ export const cmsPages = pgTable("cms_pages", {
   name: varchar("name", { length: 128 }).notNull(),
   // { [type de section]: identifiant d'asset }
   assets: jsonb("assets").notNull().default({}),
+  // Page des sections qui n'en ont pas choisi (cf. defaultCmsPage).
+  isDefault: boolean("is_default").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

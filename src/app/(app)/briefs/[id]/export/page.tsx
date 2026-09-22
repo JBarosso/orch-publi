@@ -328,6 +328,9 @@ export default function ExportPage({
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">
                         {item.label || "Sans nom"}
+                        {item.pageId?.trim() && (
+                          <span className="ml-2 font-normal">· page : {item.pageId.trim()}</span>
+                        )}
                       </span>
                       <CopyCodeButton
                         text={generateCatBannerItemHTML(item, {

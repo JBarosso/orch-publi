@@ -78,6 +78,9 @@ export interface AssetSpec {
   // Accepte aussi le SVG, stocké tel quel (logo marque). Réservé aux types
   // sans recadrage ni dimensions imposées : un vectoriel n'a rien à y gagner.
   allowSvg?: boolean;
+  // Upload libre avec recadrage à main levée (bords déplaçables), sans
+  // proportions imposées. Ignoré pour un SVG, gardé vectoriel tel quel.
+  freeCrop?: boolean;
 }
 
 export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
@@ -142,11 +145,13 @@ export const ASSET_SPECS: Record<AssetType, AssetSpec> = {
   // portent), mais le type sert désormais aussi au logo du slider.
   mea_v2_logo: {
     displayName: "Logo marque",
-    // Upload libre : un logo a ses propres proportions, jamais recadré, et le
-    // format d'origine est conservé pour garder la transparence du PNG.
+    // Upload libre : un logo a ses propres proportions (recadrage à main levée
+    // possible, jamais de ratio imposé), et le format d'origine est conservé
+    // pour garder la transparence du PNG.
     outputFormat: "source",
     requireLabel: false,
     allowSvg: true,
+    freeCrop: true,
   },
   edito: {
     displayName: "Edito",

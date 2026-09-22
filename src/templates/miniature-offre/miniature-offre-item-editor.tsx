@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { WeekField } from "@/components/editor/week-field";
+import { CommentField } from "@/components/editor/comment-field";
+import { ImageRemoveButton } from "@/components/editor/image-remove-button";
 import type { MiniatureOffreItem } from "@/types";
 import { cn } from "@/lib/utils";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -68,12 +70,13 @@ export function MiniatureOffreItemEditor({
         </button>
 
         <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+          <div className="group/slot relative shrink-0">
           <button
             type="button"
             onClick={onOpenMediaLibrary}
             {...dropHandlers}
             className={cn(
-              "shrink-0 flex h-20 w-20 items-center justify-center overflow-hidden rounded border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
+              "flex h-20 w-20 items-center justify-center overflow-hidden rounded border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
               isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
             )}
             title="301×301 px"
@@ -89,6 +92,8 @@ export function MiniatureOffreItemEditor({
               <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
             )}
           </button>
+          {item.imageUrl && <ImageRemoveButton onRemove={() => onUpdate({ imageUrl: "" })} />}
+          </div>
 
           <div className="min-w-60 flex-1 space-y-1.5">
             <WeekField
@@ -100,11 +105,13 @@ export function MiniatureOffreItemEditor({
             />
 
             <Input
-              placeholder="Label"
+              placeholder="Label/id"
               value={item.label}
               onChange={(e) => onUpdate({ label: e.target.value })}
               className="h-8 text-sm"
             />
+
+            <CommentField value={item.comment} onChange={(comment) => onUpdate({ comment })} />
           </div>
         </div>
 

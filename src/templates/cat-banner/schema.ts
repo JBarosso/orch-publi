@@ -20,6 +20,8 @@ export function createEmptyCatBannerItem(id: string): CatBannerItem {
     id,
     label: "",
     url: "",
+    pageId: "",
+    comment: "",
     desktopImageUrl: "",
     desktopImageId: uuidv4().slice(0, 8),
     mobileImageUrl: "",

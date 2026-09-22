@@ -15,6 +15,7 @@ import { ButtonsEditor } from "@/components/editor/buttons-editor";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
 import { BrandLogoField } from "@/components/editor/brand-logo-field";
+import { ImageRemoveButton, INLINE_REMOVE } from "@/components/editor/image-remove-button";
 import type { CarouselProductCallout, CarouselSlide } from "@/types";
 import { cn } from "@/lib/utils";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -74,6 +75,7 @@ export function CarouselSlideEditor({
               <SelectItem value="video">Vidéo</SelectItem>
             </SelectContent>
           </Select>
+          <div className="group/slot relative">
           <button
             type="button"
             onClick={onOpenMediaLibrary}
@@ -92,6 +94,8 @@ export function CarouselSlideEditor({
               <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
             )}
           </button>
+          {slide.imageUrl && <ImageRemoveButton onRemove={() => onUpdate({ imageUrl: "" })} />}
+          </div>
           <span className="text-[9px] text-muted-foreground/60">
             {slide.mediaType === "video" ? "Vignette (poster)" : "Fond"}
           </span>
@@ -180,6 +184,9 @@ export function CarouselSlideEditor({
                   "Choisir une image de titre"
                 )}
               </button>
+            )}
+            {slide.titleType !== "text" && slide.titleImageUrl && (
+              <ImageRemoveButton onRemove={() => onUpdate({ titleImageUrl: "" })} className={INLINE_REMOVE} />
             )}
           </div>
 

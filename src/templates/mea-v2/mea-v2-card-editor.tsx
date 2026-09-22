@@ -14,6 +14,7 @@ import {
 import { ButtonsEditor } from "@/components/editor/buttons-editor";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
+import { ImageRemoveButton } from "@/components/editor/image-remove-button";
 import type { MeaV2Card, MeaButton, MeaPricingMode } from "@/types";
 import { cn } from "@/lib/utils";
 import { BrandLogoField } from "@/components/editor/brand-logo-field";
@@ -73,6 +74,7 @@ export function MeaV2CardEditor({
     <div className="flex flex-wrap items-start gap-3 rounded-lg border border-border/60 bg-card p-3 transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20">
       <div className="flex w-37.5 shrink-0 flex-col items-center gap-1.5">
         <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
+        <div className="group/slot relative">
         <button
           type="button"
           onClick={onOpenMediaLibrary}
@@ -90,6 +92,8 @@ export function MeaV2CardEditor({
             <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
           )}
         </button>
+        {card.imageUrl && <ImageRemoveButton onRemove={() => onUpdate({ imageUrl: "" })} />}
+        </div>
       </div>
 
       <div className="min-w-80 flex-1 space-y-2">

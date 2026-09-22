@@ -86,6 +86,8 @@ export interface CmsPage {
   id: string;
   name: string;
   assets: Partial<Record<SectionType, string>>;
+  /** Page des sections qui n'en ont pas choisi (une seule cochée). */
+  isDefault?: boolean;
 }
 
 // --- Programmation : tableau informatif, blocs (nom d'asset + période
@@ -479,6 +481,8 @@ export interface ImgSousMenuItem {
   cgid: string;
   cid: string;
   link: string;
+  // Optionnel : absent des items créés avant l'ajout du commentaire.
+  comment?: string;
 }
 
 export interface ImgSousMenuContent {
@@ -493,6 +497,11 @@ export interface CatBannerItem {
   // (slugifié : sans accents, espaces -> "-").
   label: string;
   url: string;
+  // Page du site où placer la bannière (ex: "puericulture > repas >
+  // biberonnerie") — informatif, rappelé à l'export. Optionnels (comme
+  // comment) : absents des bannières créées avant leur ajout.
+  pageId?: string;
+  comment?: string;
   desktopImageUrl: string;
   desktopImageId: string;
   mobileImageUrl: string;
@@ -514,6 +523,7 @@ export interface MiniatureOffreItem {
   imageId: string;
   imageWeek: number | null;
   exportPosition: number | null;
+  comment?: string;
 }
 
 export interface MiniatureOffreContent {

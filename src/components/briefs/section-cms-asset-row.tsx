@@ -2,7 +2,7 @@
 
 import { Database } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { resolveCmsAsset } from "@/lib/cms-asset";
+import { defaultCmsPage, resolveCmsAsset } from "@/lib/cms-asset";
 import type { BriefSection, CmsPage } from "@/types";
 
 interface SectionCmsAssetRowProps {
@@ -17,6 +17,7 @@ interface SectionCmsAssetRowProps {
  * remplace la déduction pour cette section seulement.
  */
 export function SectionCmsAssetRow({ section, pages, onChange }: SectionCmsAssetRowProps) {
+  const fallback = defaultCmsPage(pages);
   const resolved = resolveCmsAsset(
     { type: section.type, cmsPageId: section.cmsPageId ?? null, cmsAssetId: "" },
     pages,
@@ -36,7 +37,7 @@ export function SectionCmsAssetRow({ section, pages, onChange }: SectionCmsAsset
         onChange={(e) => onChange({ cmsPageId: e.target.value || null })}
         className="h-7 rounded-md border border-input bg-background px-2 text-xs outline-none"
       >
-        <option value="">— aucune —</option>
+        <option value="">{fallback ? `— par défaut : ${fallback.name} —` : "— aucune —"}</option>
         {pages.map((page) => (
           <option key={page.id} value={page.id}>
             {page.name}

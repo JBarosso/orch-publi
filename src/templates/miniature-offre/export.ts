@@ -1,5 +1,6 @@
 import type { MiniatureOffreItem } from "@/types";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
+import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 
 // Pas de HTML réel à exporter pour ce template (comme img-sous-menu) : seuls
 // les fichiers image comptent (cf. section-images.ts). Ce fichier ne fournit
@@ -35,7 +36,9 @@ export function generatePreviewHTML(items: MiniatureOffreItem[], frameId = ""): 
   const itemsHTML = items
     .map((item) => {
       const label = (item.label ?? "").trim();
-      return `    <div class="miniature-offre__item">
+      const hasComment = !!(item.comment ?? "").trim();
+      return `    <div class="miniature-offre__item${hasComment ? " preview-has-comment" : ""}">
+      ${getPreviewCommentHtml(item.comment)}
       <img src="${esc(item.imageUrl || "")}" alt="" class="miniature-offre__img">
       ${label ? `<p class="miniature-offre__label">${esc(label)}</p>` : ""}
     </div>`;
@@ -51,6 +54,7 @@ export function generatePreviewHTML(items: MiniatureOffreItem[], frameId = ""): 
 <style>
 ${PREVIEW_ROOT_VARS}
 ${cssStyle}
+${previewCommentStyles}
 body { margin: 0; background: #fff; cursor: default; }
 </style>
 </head>

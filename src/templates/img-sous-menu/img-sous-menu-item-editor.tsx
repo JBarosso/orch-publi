@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
+import { CommentField } from "@/components/editor/comment-field";
+import { ImageRemoveButton } from "@/components/editor/image-remove-button";
 import type { ImgSousMenuItem } from "@/types";
 import { cn } from "@/lib/utils";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -69,12 +71,13 @@ export function ImgSousMenuItemEditor({
         </button>
 
         <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+          <div className="group/slot relative shrink-0">
           <button
             type="button"
             onClick={onOpenMediaLibrary}
             {...dropHandlers}
             className={cn(
-              "shrink-0 flex h-16 w-70 items-center justify-center overflow-hidden rounded border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
+              "flex h-16 w-70 items-center justify-center overflow-hidden rounded border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
               isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
             )}
             title="563×125 px"
@@ -90,6 +93,8 @@ export function ImgSousMenuItemEditor({
               <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
             )}
           </button>
+          {item.imageUrl && <ImageRemoveButton onRemove={() => onUpdate({ imageUrl: "" })} />}
+          </div>
 
           <div className="min-w-75 flex-1 space-y-1.5">
             <WeekField
@@ -120,6 +125,8 @@ export function ImgSousMenuItemEditor({
                 inputClassName="h-8 text-sm"
               />
             </div>
+
+            <CommentField value={item.comment} onChange={(comment) => onUpdate({ comment })} />
           </div>
         </div>
 

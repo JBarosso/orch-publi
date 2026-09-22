@@ -18,6 +18,7 @@ import {
 import { ButtonsEditor } from "@/components/editor/buttons-editor";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { WeekField } from "@/components/editor/week-field";
+import { ImageRemoveButton } from "@/components/editor/image-remove-button";
 import type { MeaItem, MeaOverlayType, MeaPricingMode, MeaButton } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "./schema";
@@ -85,7 +86,8 @@ export function MeaItemEditor({
         </button>
 
         <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
-          <div className="flex w-37.5 shrink-0 flex-col items-center gap-1.5">
+          <div className="group/slot relative flex w-37.5 shrink-0 flex-col items-center gap-1.5">
+            {item.imageUrl && <ImageRemoveButton onRemove={() => onUpdate({ imageUrl: "" })} />}
             <button
               type="button"
               onClick={onOpenMediaLibrary}

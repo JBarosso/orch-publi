@@ -1,6 +1,7 @@
 import type { CatBannerItem } from "@/types";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 import { slugify } from "./schema";
+import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 
 interface ExportContext {
   year: number;
@@ -33,8 +34,10 @@ export function generateCatBannerHTML(items: CatBannerItem[], ctx: ExportContext
 export function generatePreviewHTML(items: CatBannerItem[], frameId = ""): string {
   const itemsHTML = items
     .map((item) => {
-      const label = (item.label ?? "").trim();
-      return `    <div class="cat-banner__item">
+      const label = [item.label, item.pageId].map((s) => (s ?? "").trim()).filter(Boolean).join(" · ");
+      const hasComment = !!(item.comment ?? "").trim();
+      return `    <div class="cat-banner__item${hasComment ? " preview-has-comment" : ""}">
+      ${getPreviewCommentHtml(item.comment)}
       ${label ? `<p class="cat-banner__label">${esc(label)}</p>` : ""}
       <div class="cat-banner__row">
         <div class="cat-banner__slot">
@@ -66,6 +69,7 @@ body { margin: 0; background: #fff; cursor: default; font-family: sans-serif; }
 .cat-banner__slot--mobile { max-width: 160px; flex: none; }
 .cat-banner__tag { display: block; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; color: #999; }
 .cat-banner__img { display: block; width: 100%; height: auto; background: #f3f3f3; }
+${previewCommentStyles}
 </style>
 </head>
 <body>

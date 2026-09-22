@@ -9,6 +9,7 @@ export function createEmptyMiniatureOffreItem(id: string): MiniatureOffreItem {
     imageId: uuidv4().slice(0, 8),
     imageWeek: null,
     exportPosition: null,
+    comment: "",
   };
 }
 

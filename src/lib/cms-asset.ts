@@ -41,11 +41,22 @@ export function hasCmsAsset(type: SectionType): boolean {
   return CMS_ASSET_SECTION_TYPES.includes(type);
 }
 
+const HOMEPAGE_NAME = /^(hp|home|homepage|home page|page d'accueil|accueil)$/i;
+
+/**
+ * Page utilisée par une section qui n'en a pas choisi : celle cochée « par
+ * défaut » dans l'onglet Assets CMS, sinon celle qui s'appelle comme la page
+ * d'accueil (HP, Homepage, Accueil...) — pas « HP cat ... ».
+ */
+export function defaultCmsPage(pages: CmsPage[]): CmsPage | null {
+  return pages.find((p) => p.isDefault) ?? pages.find((p) => HOMEPAGE_NAME.test(p.name.trim())) ?? null;
+}
+
 export interface ResolvedCmsAsset {
   assetId: string;
   /** "manual" = saisi sur la section, "page" = déduit de la page, "none" = rien trouvé. */
   origin: "manual" | "page" | "none";
-  /** Page choisie sur la section, si elle existe toujours. */
+  /** Page choisie sur la section (si elle existe toujours), sinon la page par défaut. */
   page: CmsPage | null;
 }
 
@@ -53,7 +64,7 @@ export function resolveCmsAsset(
   section: { type: SectionType; cmsPageId: string | null; cmsAssetId: string },
   pages: CmsPage[],
 ): ResolvedCmsAsset {
-  const page = pages.find((p) => p.id === section.cmsPageId) ?? null;
+  const page = pages.find((p) => p.id === section.cmsPageId) ?? defaultCmsPage(pages);
   const manual = (section.cmsAssetId ?? "").trim();
   if (manual) return { assetId: manual, origin: "manual", page };
   const deduced = (page?.assets?.[section.type] ?? "").trim();

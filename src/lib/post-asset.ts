@@ -61,9 +61,23 @@ export async function postAsset(file: Blob, fields: AssetFields): Promise<Respon
   });
 }
 
-/** Extrait l'URL d'origine depuis un DataTransfer de drag (applis web uniquement,
- * ex: SharePoint). Retourne null pour les drags depuis le disque local. */
-export function extractDragOriginUrl(dt: DataTransfer): string | null {
+// URL d'origine d'un fichier glissé (ou collé) depuis une page web, ex:
+// SharePoint. Rangée à côté du File lui-même plutôt que passée de prop en
+// prop : le même objet File traverse tous les chemins jusqu'à l'upload
+// (vignette de section, médiathèque, popin de recadrage).
+const dropOrigins = new WeakMap<File, string>();
+
+export function rememberDropOrigin(file: File, dt: DataTransfer | null): void {
+  const url = dt ? extractDragOriginUrl(dt) : null;
+  if (url) dropOrigins.set(file, url);
+}
+
+export function dropOriginOf(file: File | null | undefined): string | null {
+  return (file && dropOrigins.get(file)) ?? null;
+}
+
+/** Null pour un fichier venu du disque local : aucune URL à retenir. */
+function extractDragOriginUrl(dt: DataTransfer): string | null {
   try {
     const uriList = dt.getData("text/uri-list");
     if (uriList) {

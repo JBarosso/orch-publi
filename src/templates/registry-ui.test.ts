@@ -1,5 +1,27 @@
 import { describe, it, expect } from "vitest";
-import { TEMPLATE_UI, mergeQuickaccessImport } from "@/templates/registry-ui";
+import { TEMPLATE_UI, currentImageUrl, mergeQuickaccessImport } from "@/templates/registry-ui";
+
+describe("currentImageUrl", () => {
+  it("retrouve l'image de l'emplacement visé, quelle que soit la forme du contenu", () => {
+    const items = { items: [{ id: "a", imageUrl: "img-a" }, { id: "b", imageUrl: "img-b" }] };
+    expect(currentImageUrl("macarons_v2", items, "b")).toBe("img-b");
+
+    const banner = { items: [{ id: "x", desktopImageUrl: "desk", mobileImageUrl: "mob" }] };
+    expect(currentImageUrl("cat_banner", banner, "x:mobile")).toBe("mob");
+
+    const slides = {
+      slides: [{ imageUrl: "fond", titleImageUrl: "titre", productCallout: { brandLogoUrl: "logo" } }],
+    };
+    expect(currentImageUrl("carousel", slides, "title-0")).toBe("titre");
+    expect(currentImageUrl("carousel", slides, "logo-0")).toBe("logo");
+  });
+
+  it("chaîne vide si l'emplacement est vide ou le type sans image", () => {
+    expect(currentImageUrl("macarons_v2", { items: [{ id: "a", imageUrl: "" }] }, "a")).toBe("");
+    expect(currentImageUrl("macarons_v2", { items: [{ id: "a" }] }, "a")).toBe("");
+    expect(currentImageUrl("ariane", { links: [] }, "x")).toBe("");
+  });
+});
 
 const URL = "https://example.test/new.jpg";
 

@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { WeekField } from "@/components/editor/week-field";
+import { CommentField } from "@/components/editor/comment-field";
+import { ImageRemoveButton } from "@/components/editor/image-remove-button";
 import type { CatBannerItem } from "@/types";
 import { cn } from "@/lib/utils";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -27,15 +29,18 @@ function ImageSlot({
   imageUrl,
   onOpenMediaLibrary,
   onDropFile,
+  onRemove,
 }: {
   label: string;
   imageUrl: string;
   onOpenMediaLibrary: () => void;
   onDropFile?: (file: File) => void;
+  onRemove: () => void;
 }) {
   const { isDraggingOver, dropHandlers } = useFileDrop((file) => onDropFile?.(file));
   return (
-    <div className="flex w-32 shrink-0 flex-col items-center gap-1">
+    <div className="group/slot relative flex w-32 shrink-0 flex-col items-center gap-1">
+      {imageUrl && <ImageRemoveButton onRemove={onRemove} />}
       <button
         type="button"
         onClick={onOpenMediaLibrary}
@@ -103,12 +108,14 @@ export function CatBannerItemEditor({
               imageUrl={item.desktopImageUrl}
               onOpenMediaLibrary={() => onOpenMediaLibrary("desktop")}
               onDropFile={onDropFile ? (file) => onDropFile("desktop", file) : undefined}
+              onRemove={() => onUpdate({ desktopImageUrl: "" })}
             />
             <ImageSlot
               label="Mobile"
               imageUrl={item.mobileImageUrl}
               onOpenMediaLibrary={() => onOpenMediaLibrary("mobile")}
               onDropFile={onDropFile ? (file) => onDropFile("mobile", file) : undefined}
+              onRemove={() => onUpdate({ mobileImageUrl: "" })}
             />
           </div>
 
@@ -134,6 +141,16 @@ export function CatBannerItemEditor({
               onChange={(e) => onUpdate({ url: e.target.value })}
               className="h-8 text-sm"
             />
+
+            <Input
+              placeholder="puericulture > repas > biberonnerie"
+              title="Id : page où placer la bannière"
+              value={item.pageId ?? ""}
+              onChange={(e) => onUpdate({ pageId: e.target.value })}
+              className="h-8 text-sm"
+            />
+
+            <CommentField value={item.comment} onChange={(comment) => onUpdate({ comment })} />
           </div>
         </div>
 

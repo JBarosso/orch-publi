@@ -13,6 +13,7 @@ export function createEmptyImgSousMenuItem(id: string): ImgSousMenuItem {
     cgid: "",
     cid: "",
     link: "",
+    comment: "",
   };
 }
 

@@ -60,7 +60,10 @@ export function parseQuickaccessV2HTML(html: string, briefWeek: number): ImportQ
   let issueCount = 0;
 
   const items: MacaronItem[] = nodes.map((node, index) => {
-    const label = textOf(node.querySelector(selectorFor("__label")));
+    const labelEl = node.querySelector(selectorFor("__label"));
+    // Un <br> du libellé redevient le saut de ligne saisi dans l'éditeur.
+    labelEl?.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+    const label = textOf(labelEl);
     const link = parseCmsLink(node.getAttribute("href"));
     const imagePath = parseCmsImagePath(node.querySelector("img")?.getAttribute("src"));
     const listPosition = index + 1;

@@ -246,6 +246,7 @@ export default function TemplateEditorPage({
           onSelect={handleImageSelected}
           onClose={() => setMediaBlockId(null)}
           initialType="other"
+          currentUrl={content.blocks.find((b) => b.id === mediaBlockId)?.imageUrl}
           onUploadNew={(file) => {
             setDroppedFile(file);
             setShowUpload(true);

@@ -4,6 +4,7 @@ import { Image as ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useFileDrop } from "@/lib/use-file-drop";
+import { ImageRemoveButton, INLINE_REMOVE } from "@/components/editor/image-remove-button";
 import { DEFAULT_BRAND_LOGO_WIDTH, type BrandLogoFields } from "@/lib/brand-logo";
 
 interface BrandLogoFieldProps {
@@ -50,6 +51,7 @@ export function BrandLogoField({
         </button>
       ))}
       {source === "image" ? (
+        <>
         <button
           type="button"
           onClick={onOpenLibrary}
@@ -72,6 +74,10 @@ export function BrandLogoField({
             </>
           )}
         </button>
+        {logo.brandLogoUrl && (
+          <ImageRemoveButton onRemove={() => onChange({ brandLogoUrl: "" })} className={INLINE_REMOVE} />
+        )}
+        </>
       ) : (
         <Input
           placeholder={pathPlaceholder}

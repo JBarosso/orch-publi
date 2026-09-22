@@ -9,17 +9,20 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Upload, Search, Video, Pencil, Check, X, ExternalLink } from "lucide-react";
+import { Upload, Search, Pencil, Check, X, ExternalLink } from "lucide-react";
+import { AssetThumbnail } from "@/components/media/asset-thumbnail";
 import { cn } from "@/lib/utils";
 import { looksLikeMp4 } from "@/lib/upload-specs";
-import { extractDragOriginUrl } from "@/lib/post-asset";
+import { rememberDropOrigin } from "@/lib/post-asset";
 import type { Asset, AssetType } from "@/types";
 
 interface MediaLibraryDialogProps {
   onSelect: (url: string) => void;
   onClose: () => void;
-  onUploadNew: (file?: File, type?: AssetType, originUrl?: string | null) => void;
+  onUploadNew: (file?: File, type?: AssetType) => void;
   initialType?: AssetType;
+  /** Image déjà en place dans l'emplacement cliqué : son URL d'origine est rappelée en tête. */
+  currentUrl?: string;
 }
 
 export function MediaLibraryDialog({
@@ -27,7 +30,17 @@ export function MediaLibraryDialog({
   onClose,
   onUploadNew,
   initialType = "other",
+  currentUrl = "",
 }: MediaLibraryDialogProps) {
+  // undefined = pas encore chargé (ou image hors médiathèque) : rien affiché.
+  const [current, setCurrent] = useState<Asset | undefined>(undefined);
+  useEffect(() => {
+    if (!currentUrl) return;
+    fetch(`/api/assets?url=${encodeURIComponent(currentUrl)}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows: Asset[]) => setCurrent(rows[0]))
+      .catch(() => {});
+  }, [currentUrl]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [search, setSearch] = useState("");
   const [filterWeek, setFilterWeek] = useState("");
@@ -127,9 +140,8 @@ export function MediaLibraryDialog({
       dragCounterRef.current = 0;
       const file = e.dataTransfer.files?.[0];
       if (file && (file.type.startsWith("image/") || file.type.startsWith("video/") || looksLikeMp4(file))) {
-        let originUrl: string | null = null;
-        try { originUrl = extractDragOriginUrl(e.dataTransfer); } catch { /* OS file drag */ }
-        onUploadNew(file, filterType || initialType, originUrl);
+        rememberDropOrigin(file, e.dataTransfer);
+        onUploadNew(file, filterType || initialType);
       }
     },
     [onUploadNew, filterType, initialType],
@@ -147,6 +159,30 @@ export function MediaLibraryDialog({
         <DialogHeader>
           <DialogTitle>Médiathèque</DialogTitle>
         </DialogHeader>
+
+        {current && (
+          <div className="flex min-w-0 items-center gap-2 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={current.url} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
+            <span className="shrink-0 text-muted-foreground">Image actuelle — origine :</span>
+            {current.originUrl ? (
+              <a
+                href={current.originUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={current.originUrl}
+                className="flex min-w-0 items-center gap-1 text-primary hover:underline"
+              >
+                <ExternalLink className="h-3 w-3 shrink-0" />
+                <span className="truncate">{current.originUrl}</span>
+              </a>
+            ) : (
+              <span className="text-muted-foreground/70">
+                aucune URL enregistrée (image importée depuis l&apos;ordinateur, ou avant cette fonctionnalité)
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -240,21 +276,7 @@ export function MediaLibraryDialog({
                   className="group relative overflow-hidden rounded-lg border transition-all hover:ring-2 hover:ring-primary"
                 >
                   <button type="button" onClick={() => onSelect(asset.url)} className="block w-full">
-                    {asset.mimeType?.startsWith("video/") ? (
-                      <div className="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-muted p-2">
-                        <Video className="h-6 w-6 text-muted-foreground/60" />
-                        <span className="truncate text-[10px] text-muted-foreground/60">
-                          {asset.label || "Vidéo"}
-                        </span>
-                      </div>
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={asset.url}
-                        alt={asset.label}
-                        className="aspect-square w-full object-cover"
-                      />
-                    )}
+                    <AssetThumbnail asset={asset} />
                   </button>
 
                   {asset.originUrl && (

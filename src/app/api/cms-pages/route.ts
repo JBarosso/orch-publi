@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   }
   const [created] = await db
     .insert(cmsPages)
-    .values({ name, assets: cleanAssets(body.assets) })
+    .values({ name, assets: cleanAssets(body.assets), isDefault: body.isDefault === true })
     .returning();
   return NextResponse.json(created, { status: 201 });
 }
@@ -46,7 +46,7 @@ export async function PUT(request: NextRequest) {
   }
   const [updated] = await db
     .update(cmsPages)
-    .set({ name, assets: cleanAssets(body.assets) })
+    .set({ name, assets: cleanAssets(body.assets), isDefault: body.isDefault === true })
     .where(eq(cmsPages.id, body.id))
     .returning();
   if (!updated) {

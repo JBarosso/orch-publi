@@ -1,5 +1,6 @@
 import type { ImgSousMenuItem } from "@/types";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
+import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 
 // Pas de HTML réel à exporter pour ce template : seuls les fichiers image
 // comptent (cf. section-images.ts / export/images route) — l'intégration
@@ -34,7 +35,9 @@ export function generatePreviewHTML(items: ImgSousMenuItem[], frameId = ""): str
   const itemsHTML = items
     .map((item) => {
       const label = (item.label ?? "").trim();
-      return `    <div>
+      const hasComment = !!(item.comment ?? "").trim();
+      return `    <div${hasComment ? ` class="preview-has-comment"` : ""}>
+      ${getPreviewCommentHtml(item.comment)}
       ${label ? `<p class="img-sous-menu__label">${esc(label)}</p>` : ""}
       <img src="${esc(item.imageUrl || "")}" alt="" class="img-sous-menu__img">
     </div>`;
@@ -50,6 +53,7 @@ export function generatePreviewHTML(items: ImgSousMenuItem[], frameId = ""): str
 <style>
 ${PREVIEW_ROOT_VARS}
 ${cssStyle}
+${previewCommentStyles}
 body { margin: 0; background: #fff; cursor: default; }
 </style>
 </head>

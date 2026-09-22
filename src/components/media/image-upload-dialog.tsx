@@ -35,7 +35,9 @@ import {
   validateSourceFile,
   validateSourceVideoFile,
 } from "@/lib/upload-specs";
-import { postAsset, uploadToTemp, extractDragOriginUrl } from "@/lib/post-asset";
+import { dropOriginOf, postAsset, rememberDropOrigin, uploadToTemp } from "@/lib/post-asset";
+import { FULL_RECT, isFullRect, type CropRect } from "@/lib/free-crop";
+import { FreeCropBox } from "@/components/media/free-crop-box";
 
 interface ImageUploadDialogProps {
   defaultLabel?: string;
@@ -58,8 +60,6 @@ interface ImageUploadDialogProps {
    * on saute juste l'envoi vers /api/assets — `onUploaded` reçoit directement
    * la data URL recadrée, jamais persistée nulle part. */
   localOnly?: boolean;
-  /** URL d'origine si l'image a été glissée depuis une appli web (ex: SharePoint) */
-  initialOriginUrl?: string | null;
 }
 
 // Crop client-side (WYSIWYG) : pixelCrop est exprimé dans le repère de
@@ -135,6 +135,28 @@ async function downscaleForUpload(imageSrc: string, maxDimension: number): Promi
   return canvas.toDataURL("image/png");
 }
 
+// Recadrage libre (logo marque) : découpe la zone choisie à la résolution
+// d'origine, en PNG pour garder la transparence.
+async function cropToRect(imageSrc: string, rect: CropRect): Promise<string> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = imageSrc;
+  });
+  const sx = Math.round(rect.x * image.naturalWidth);
+  const sy = Math.round(rect.y * image.naturalHeight);
+  const sw = Math.max(1, Math.round(rect.w * image.naturalWidth));
+  const sh = Math.max(1, Math.round(rect.h * image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = sw;
+  canvas.height = sh;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No 2d context");
+  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+  return canvas.toDataURL("image/png");
+}
+
 export function ImageUploadDialog({
   defaultLabel,
   defaultWeek,
@@ -150,7 +172,6 @@ export function ImageUploadDialog({
   onUploaded,
   onClose,
   localOnly = false,
-  initialOriginUrl = null,
 }: ImageUploadDialogProps) {
   const [selectedType, setSelectedType] = useState<AssetType>(assetType);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -171,7 +192,8 @@ export function ImageUploadDialog({
   // image standard sur cette requête.
   const sourceWasTiffRef = useRef(false);
 
-  const [originUrl, setOriginUrl] = useState<string | null>(initialOriginUrl ?? null);
+  const [originUrl, setOriginUrl] = useState(() => dropOriginOf(initialFile));
+  const [freeRect, setFreeRect] = useState<CropRect>(FULL_RECT);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiAvailable, setAiAvailable] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -194,6 +216,10 @@ export function ImageUploadDialog({
   const isVideo = spec.kind === "video";
   // Recadrage à sauter dans les deux cas : upload libre ou vidéo (jamais de crop vidéo)
   const skipCrop = isFreeUpload || isVideo;
+  // Recadrage à main levée (logo marque) : jamais sur un SVG, gardé vectoriel.
+  const isSvgSource = !!imageSrc?.startsWith(`data:${SVG_MIME_TYPE}`);
+  const showFreeCrop = isFreeUpload && !isVideo && spec.freeCrop === true && !isSvgSource;
+  const applyFreeCrop = showFreeCrop && !isFullRect(freeRect);
 
   // Autorise le dézoom sous la taille du cadre : l'image peut être plus
   // petite que la zone de crop (complétée en blanc à l'upload)
@@ -251,6 +277,7 @@ export function ImageUploadDialog({
           // le crop (fond blanc) puis le serveur (fit "contain" + fond blanc)
           // gèrent déjà ce cas.
           setSourceDims({ width: img.width, height: img.height });
+          setFreeRect(FULL_RECT);
           setImageSrc(src);
         };
         img.onerror = () => toast.error("Impossible de lire cette image.");
@@ -411,6 +438,7 @@ export function ImageUploadDialog({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setOriginUrl(null);
     loadFile(file);
   };
 
@@ -433,7 +461,9 @@ export function ImageUploadDialog({
       const finalBase64 =
         aiResult ??
         (skipCrop
-          ? sourceWasTiffRef.current
+          ? applyFreeCrop
+            ? await cropToRect(imageSrc, freeRect)
+            : sourceWasTiffRef.current
             ? await downscaleForUpload(imageSrc, MAX_SOURCE_DIMENSION)
             : imageSrc
           : await getCroppedImg(
@@ -482,7 +512,8 @@ export function ImageUploadDialog({
       e.preventDefault();
       const file = e.dataTransfer.files?.[0];
       if (!file) return;
-      try { setOriginUrl(extractDragOriginUrl(e.dataTransfer)); } catch { /* OS file drag */ }
+      rememberDropOrigin(file, e.dataTransfer);
+      setOriginUrl(dropOriginOf(file));
       loadFile(file);
     },
     [loadFile]
@@ -514,7 +545,7 @@ export function ImageUploadDialog({
           <DialogTitle>Uploader une image</DialogTitle>
         </DialogHeader>
 
-        {allowTypeSelect && !imageSrc && (
+        {allowTypeSelect && !aiResult && (
           <div className="space-y-1.5">
             <Label htmlFor="asset-type">Type d&apos;image</Label>
             <select
@@ -523,7 +554,17 @@ export function ImageUploadDialog({
               onChange={(e) => setSelectedType(e.target.value as AssetType)}
               className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none"
             >
-              {(Object.keys(ASSET_SPECS) as AssetType[]).map((type) => (
+              {/* Fichier déjà chargé (glissé sur la médiathèque) : seuls les
+                  types compatibles restent proposés — même nature
+                  image/vidéo, et SVG seulement là où il est accepté. */}
+              {(Object.keys(ASSET_SPECS) as AssetType[])
+                .filter(
+                  (type) =>
+                    !imageSrc ||
+                    ((ASSET_SPECS[type].kind === "video") === isVideo &&
+                      (!imageSrc.startsWith(`data:${SVG_MIME_TYPE}`) || ASSET_SPECS[type].allowSvg)),
+                )
+                .map((type) => (
                 <option key={type} value={type}>
                   {ASSET_SPECS[type].displayName}
                 </option>
@@ -620,6 +661,18 @@ export function ImageUploadDialog({
                   className="max-h-80 w-auto max-w-full"
                 />
               </div>
+            ) : showFreeCrop ? (
+              <div className="space-y-1.5">
+                <FreeCropBox src={imageSrc} rect={freeRect} onChange={setFreeRect} />
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>Tirez les bords ou les coins du cadre pour recadrer le logo.</span>
+                  {!isFullRect(freeRect) && (
+                    <button type="button" onClick={() => setFreeRect(FULL_RECT)} className="shrink-0 text-primary hover:underline">
+                      Réinitialiser
+                    </button>
+                  )}
+                </div>
+              </div>
             ) : isFreeUpload ? (
               <div className="relative max-h-80 w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -659,8 +712,12 @@ export function ImageUploadDialog({
             <p className="text-xs text-muted-foreground/60">
               {isVideo
                 ? "Sortie : vidéo MP4 d'origine conservée telle quelle"
+                : applyFreeCrop && sourceDims
+                ? `Sortie : zone recadrée (${Math.round(freeRect.w * sourceDims.width)}×${Math.round(freeRect.h * sourceDims.height)} px) · PNG, transparence conservée`
                 : isFreeUpload
-                ? `Sortie : image d'origine conservée${sourceDims ? ` (${sourceDims.width}×${sourceDims.height} px)` : ""} · format d'origine, poids optimisé`
+                ? `Sortie : image d'origine conservée${sourceDims ? ` (${sourceDims.width}×${sourceDims.height} px)` : ""} · format d'origine, poids optimisé${
+                    spec.freeCrop && isSvgSource ? " · SVG gardé vectoriel, sans recadrage" : ""
+                  }`
                 : `Sortie : ${
                     effTargetWidth && effTargetHeight
                       ? `${effTargetWidth}×${effTargetHeight} px`

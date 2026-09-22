@@ -171,7 +171,7 @@ export function generateQuickaccessV2HTML(
         `quickaccess-${item.exportPosition ?? index + 1}`,
         sectionCustomPath,
       );
-      const plainLabel = esc(item.label.replace(/\n/g, " "));
+      const htmlLabel = esc(item.label).replace(/\n/g, "<br>");
 
       return `    <li>
       <a href="${getHref(item)}" class="${cls.item}">
@@ -187,7 +187,7 @@ export function generateQuickaccessV2HTML(
             aria-hidden="true"
           />
         </picture>
-        <h3 class="${cls.item}__label">${plainLabel}</h3>
+        <h3 class="${cls.item}__label">${htmlLabel}</h3>
       </a>
     </li>`;
     })
@@ -211,7 +211,7 @@ export function generatePreviewHTML(items: MacaronItem[], frameId = ""): string 
 
   const itemsHTML = visibleItems
     .map((item) => {
-      const plainLabel = esc(item.label.replace(/\n/g, " "));
+      const htmlLabel = esc(item.label).replace(/\n/g, "<br>");
       const imgSrc = item.imageUrl || "";
       const comment = (item.comment ?? "").trim();
       const hasComment = !!comment;
@@ -223,7 +223,7 @@ export function generatePreviewHTML(items: MacaronItem[], frameId = ""): string 
         <picture class="quickaccess-v2-item__picture">
           <img src="${esc(imgSrc)}" alt="" class="quickaccess-v2-item__img" aria-hidden="true" />
         </picture>
-        <h3 class="quickaccess-v2-item__label">${plainLabel}</h3>
+        <h3 class="quickaccess-v2-item__label">${htmlLabel}</h3>
       </a>
     </li>`;
     })

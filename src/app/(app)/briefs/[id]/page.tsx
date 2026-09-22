@@ -50,7 +50,8 @@ import { SectionCmsAssetRow } from "@/components/briefs/section-cms-asset-row";
 import { BriefLockButton } from "@/components/briefs/brief-lock-button";
 import { useBriefLockContext } from "./brief-lock-context";
 import { hasCmsAsset } from "@/lib/cms-asset";
-import { TEMPLATE_UI } from "@/templates/registry-ui";
+import { TEMPLATE_UI, currentImageUrl } from "@/templates/registry-ui";
+import { SectionErrorBoundary } from "@/components/editor/section-error-boundary";
 import { useBriefSections } from "./use-brief-sections";
 import { StatusActions } from "@/components/editor/status-actions";
 import { StatusBadge } from "@/components/briefs/status-badge";
@@ -269,7 +270,6 @@ export default function BriefEditorPage({
   } | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | undefined>(undefined);
-  const [droppedOriginUrl, setDroppedOriginUrl] = useState<string | null>(null);
   // Drop direct sur un bouton d'image (saute la médiathèque) : distingue ce
   // cas du clic normal (ouvre la médiathèque) pour qu'annuler le popin de
   // recadrage ne fasse pas apparaître une médiathèque jamais demandée.
@@ -526,18 +526,20 @@ export default function BriefEditorPage({
       );
     }
     return (
-      <Editor
-        content={section.content}
-        brief={briefCtx}
-        onChange={(content) => updateSection(section.id, { content })}
-        onOpenMedia={(target, type) =>
-          setMediaTarget({ sectionId: section.id, itemId: target, type })
-        }
-        onDropFile={(target, type, file) =>
-          handleDirectDrop({ sectionId: section.id, itemId: target, type }, file)
-        }
-        onOpenVideoUpload={(target) => setVideoTarget({ sectionId: section.id, target })}
-      />
+      <SectionErrorBoundary label={section.title || "Section"}>
+        <Editor
+          content={section.content}
+          brief={briefCtx}
+          onChange={(content) => updateSection(section.id, { content })}
+          onOpenMedia={(target, type) =>
+            setMediaTarget({ sectionId: section.id, itemId: target, type })
+          }
+          onDropFile={(target, type, file) =>
+            handleDirectDrop({ sectionId: section.id, itemId: target, type }, file)
+          }
+          onOpenVideoUpload={(target) => setVideoTarget({ sectionId: section.id, target })}
+        />
+      </SectionErrorBoundary>
     );
   };
 
@@ -549,7 +551,9 @@ export default function BriefEditorPage({
         <p className="text-[11px] font-medium text-muted-foreground/80">
           {section.title || "Section"}
         </p>
-        <Preview content={section.content} />
+        <SectionErrorBoundary label={section.title || "Section"} resetKey={section.content}>
+          <Preview content={section.content} />
+        </SectionErrorBoundary>
       </div>
     );
   };
@@ -953,9 +957,12 @@ export default function BriefEditorPage({
           onSelect={handleImageSelected}
           onClose={() => setMediaTarget(null)}
           initialType={mediaTarget.type}
-          onUploadNew={(file, type, originUrl) => {
+          currentUrl={(() => {
+            const section = sections.find((s) => s.id === mediaTarget.sectionId);
+            return section ? currentImageUrl(section.type, section.content, mediaTarget.itemId) : "";
+          })()}
+          onUploadNew={(file, type) => {
             setDroppedFile(file);
-            setDroppedOriginUrl(originUrl ?? null);
             setUploadAssetType(type ?? mediaTarget.type);
             setShowUpload(true);
           }}
@@ -980,19 +987,16 @@ export default function BriefEditorPage({
             defaultWeek={brief.week}
             defaultYear={brief.year}
             initialFile={droppedFile}
-            initialOriginUrl={droppedOriginUrl}
             assetType={uploadAssetType}
             onUploaded={(url) => {
               handleImageSelected(url);
               setShowUpload(false);
               setDroppedFile(undefined);
-              setDroppedOriginUrl(null);
               setDirectDropUpload(false);
             }}
             onClose={() => {
               setShowUpload(false);
               setDroppedFile(undefined);
-              setDroppedOriginUrl(null);
               // Drop direct annulé : ne pas laisser apparaître une
               // médiathèque jamais ouverte par l'utilisateur.
               if (directDropUpload) setMediaTarget(null);

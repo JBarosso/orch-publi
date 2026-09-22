@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LinkFields } from "@/components/editor/link-fields";
+import { ImageRemoveButton } from "@/components/editor/image-remove-button";
 import { cn } from "@/lib/utils";
 import type { CustomBlock, CustomBlockType, CustomContent, CustomLayout } from "@/types";
 import { CUSTOM_BLOCK_LABELS, CUSTOM_LAYOUTS } from "@/types";
@@ -283,12 +284,13 @@ function CustomBlockEditor({
 
         {block.type === "image" && (
           <div className="flex flex-wrap items-start gap-3">
+            <div className="group/slot relative shrink-0">
             <button
               type="button"
               onClick={onOpenMediaLibrary}
               {...dropHandlers}
               className={cn(
-                "shrink-0 flex h-20 w-32 items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
+                "flex h-20 w-32 items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-muted-foreground/20 bg-muted transition-all hover:border-primary/40 hover:bg-primary/5",
                 isDraggingOver && "border-primary bg-primary/10 ring-2 ring-primary/30",
               )}
             >
@@ -303,6 +305,8 @@ function CustomBlockEditor({
                 <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
               )}
             </button>
+            {block.imageUrl && <ImageRemoveButton onRemove={() => onUpdate({ imageUrl: "" })} />}
+            </div>
             <div className="min-w-55 flex-1 space-y-1.5">
               <Input
                 placeholder="Texte alternatif (optionnel)"

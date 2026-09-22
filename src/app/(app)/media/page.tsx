@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { rememberDropOrigin } from "@/lib/post-asset";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Upload, Trash2, ImageOff, Pencil, Check, X, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import type { Asset, AssetType } from "@/types";
 import { ImageUploadDialog } from "@/components/media/image-upload-dialog";
+import { AssetThumbnail } from "@/components/media/asset-thumbnail";
 import { deleteConfirmationMessage, type AssetUsage } from "@/lib/asset-usage";
 
 export default function MediaPage() {
@@ -21,7 +23,48 @@ export default function MediaPage() {
   const [loading, setLoading] = useState(true);
   const [backfilling, setBackfilling] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [droppedFile, setDroppedFile] = useState<File | undefined>(undefined);
+  const [dragging, setDragging] = useState(false);
+  // Les enfants déclenchent aussi dragenter/dragleave : on compte.
+  const dragDepth = useRef(0);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Glisser une image n'importe où sur la page ouvre directement le popin
+  // d'upload avec ce fichier. Ignoré pendant que le popin est ouvert : le
+  // dépôt dans sa propre zone remonterait jusqu'ici par le portail React.
+  const isFileDrag = (e: React.DragEvent) => !showUpload && e.dataTransfer.types.includes("Files");
+  const dropHandlers = {
+    onDragEnter: (e: React.DragEvent) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      dragDepth.current += 1;
+      setDragging(true);
+    },
+    onDragOver: (e: React.DragEvent) => {
+      if (isFileDrag(e)) e.preventDefault();
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      if (!isFileDrag(e)) return;
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (dragDepth.current === 0) setDragging(false);
+    },
+    onDrop: (e: React.DragEvent) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      dragDepth.current = 0;
+      setDragging(false);
+      const file = e.dataTransfer.files?.[0];
+      if (!file) return;
+      rememberDropOrigin(file, e.dataTransfer);
+      setDroppedFile(file);
+      setShowUpload(true);
+    },
+  };
+
+  const closeUpload = () => {
+    setShowUpload(false);
+    setDroppedFile(undefined);
+  };
   const [editValue, setEditValue] = useState("");
 
   const saveLabel = async (id: string) => {
@@ -75,7 +118,13 @@ export default function MediaPage() {
   }, []);
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="min-h-full p-6 lg:p-8" {...dropHandlers}>
+      {dragging && (
+        <div className="pointer-events-none fixed inset-4 z-50 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-primary bg-primary/5 backdrop-blur-sm">
+          <Upload className="mb-2 h-8 w-8 text-primary" />
+          <p className="text-sm font-medium text-primary">Déposez l&apos;image pour l&apos;uploader</p>
+        </div>
+      )}
       <div className="mb-8 flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -189,12 +238,7 @@ export default function MediaPage() {
               key={asset.id}
               className="group relative overflow-hidden rounded-lg border border-border/60 bg-card shadow-sm transition-shadow hover:shadow-md"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={asset.url}
-                alt={asset.label}
-                className="aspect-square w-full object-cover"
-              />
+              <AssetThumbnail asset={asset} />
               <div className="p-2.5">
                 {editingId === asset.id ? (
                   <div className="flex items-center gap-1">
@@ -298,12 +342,13 @@ export default function MediaPage() {
         <ImageUploadDialog
           assetType={filterType || "other"}
           allowTypeSelect
+          initialFile={droppedFile}
           onUploaded={() => {
-            setShowUpload(false);
+            closeUpload();
             fetchAssets();
             fetchFilterOptions();
           }}
-          onClose={() => setShowUpload(false)}
+          onClose={closeUpload}
         />
       )}
     </div>

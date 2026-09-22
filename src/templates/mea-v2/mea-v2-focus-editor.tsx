@@ -14,6 +14,7 @@ import {
 import { ButtonsEditor } from "@/components/editor/buttons-editor";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
+import { ImageRemoveButton } from "@/components/editor/image-remove-button";
 import type { MeaV2FocusCard, MeaButton } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "./schema";
@@ -77,6 +78,7 @@ export function MeaV2FocusEditor({
           </Select>
         )}
 
+        <div className="group/slot relative">
         <button
           type="button"
           onClick={onOpenMediaLibrary}
@@ -95,6 +97,8 @@ export function MeaV2FocusEditor({
             <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
           )}
         </button>
+        {focus.imageUrl && <ImageRemoveButton onRemove={() => onUpdate({ imageUrl: "" })} />}
+        </div>
         <span className="text-[9px] text-muted-foreground/60">
           {focus.mediaType === "video" ? "Vignette (poster)" : "Image"}
         </span>

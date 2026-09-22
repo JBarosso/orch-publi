@@ -5,7 +5,7 @@ import { Database, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CMS_ASSET_SECTION_TYPES, cmsAssetColumnLabel } from "@/lib/cms-asset";
+import { CMS_ASSET_SECTION_TYPES, cmsAssetColumnLabel, defaultCmsPage } from "@/lib/cms-asset";
 import type { CmsPage, SectionType } from "@/types";
 
 interface EditableRow {
@@ -13,6 +13,7 @@ interface EditableRow {
   id: string | null;
   name: string;
   assets: Partial<Record<SectionType, string>>;
+  isDefault: boolean;
   dirty: boolean;
 }
 
@@ -31,7 +32,9 @@ export default function CmsAssetsPage() {
       return;
     }
     const data: CmsPage[] = await res.json();
-    setRows(data.map((p) => ({ id: p.id, name: p.name, assets: p.assets ?? {}, dirty: false })));
+    setRows(
+      data.map((p) => ({ id: p.id, name: p.name, assets: p.assets ?? {}, isDefault: p.isDefault ?? false, dirty: false })),
+    );
     setLoading(false);
   }, []);
 
@@ -51,7 +54,20 @@ export default function CmsAssetsPage() {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch, dirty: true } : r)));
   };
 
-  const addRow = () => setRows((prev) => [...prev, { id: null, name: "", assets: {}, dirty: true }]);
+  const addRow = () =>
+    setRows((prev) => [...prev, { id: null, name: "", assets: {}, isDefault: false, dirty: true }]);
+
+  // Une seule page par défaut : cocher l'une décoche les autres.
+  const setDefaultRow = (index: number) =>
+    setRows((prev) =>
+      prev.map((r, i) => (i === index || r.isDefault ? { ...r, isDefault: i === index, dirty: true } : r)),
+    );
+  // Page par défaut effective, y compris celle reconnue à son nom tant
+  // qu'aucune n'est cochée explicitement (même règle que dans les briefs).
+  const defaultIndex = Number(
+    defaultCmsPage(rows.map((r, i) => ({ id: String(i), name: r.name, assets: r.assets, isDefault: r.isDefault })))
+      ?.id ?? -1,
+  );
 
   const deleteRow = async (index: number) => {
     const row = rows[index];
@@ -86,7 +102,7 @@ export default function CmsAssetsPage() {
           fetch("/api/cms-pages", {
             method: row.id ? "PUT" : "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: row.id, name: row.name, assets: row.assets }),
+            body: JSON.stringify({ id: row.id, name: row.name, assets: row.assets, isDefault: row.isDefault }),
           }),
         ),
       );
@@ -171,6 +187,12 @@ export default function CmsAssetsPage() {
                 <th className="sticky left-0 z-10 min-w-48 bg-muted/40 px-3 py-2.5 text-xs font-semibold text-muted-foreground">
                   Page
                 </th>
+                <th
+                  className="px-2 py-2.5 text-xs font-semibold text-muted-foreground"
+                  title="Page utilisée par les sections d'un brief qui n'en ont pas choisi"
+                >
+                  Défaut
+                </th>
                 {CMS_ASSET_SECTION_TYPES.map((type) => (
                   <th key={type} className="min-w-40 px-3 py-2.5 text-xs font-semibold text-muted-foreground">
                     {cmsAssetColumnLabel(type)}
@@ -188,6 +210,16 @@ export default function CmsAssetsPage() {
                       value={row.name}
                       onChange={(e) => updateRow(index, { name: e.target.value })}
                       className="h-8 text-sm font-medium"
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 text-center">
+                    <input
+                      type="radio"
+                      name="default-cms-page"
+                      checked={index === defaultIndex}
+                      onChange={() => setDefaultRow(index)}
+                      aria-label={`Page par défaut : ${row.name || "sans nom"}`}
+                      className="h-4 w-4 accent-primary"
                     />
                   </td>
                   {CMS_ASSET_SECTION_TYPES.map((type) => (

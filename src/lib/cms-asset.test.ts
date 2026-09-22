@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { CmsPage } from "@/types";
-import { cmsAssetColumnLabel, hasCmsAsset, resolveCmsAsset } from "./cms-asset";
+import { cmsAssetColumnLabel, defaultCmsPage, hasCmsAsset, resolveCmsAsset } from "./cms-asset";
 
 const PAGES: CmsPage[] = [
   { id: "hp", name: "HP", assets: { mea_v2: "hp-mea-v2", macarons_v2: "hp-quickaccess" } },
@@ -21,25 +21,44 @@ describe("resolveCmsAsset", () => {
     expect(res).toMatchObject({ assetId: "exception-42", origin: "manual" });
   });
 
-  it("ne renvoie rien sans page, ou quand la page n'a rien pour ce type", () => {
-    expect(resolveCmsAsset({ type: "mea_v2", cmsPageId: null, cmsAssetId: "" }, PAGES)).toMatchObject({
-      assetId: "",
-      origin: "none",
-      page: null,
-    });
+  it("ne renvoie rien quand la page n'a rien pour ce type", () => {
     // Page renseignée, mais pas de quickaccess défini sur la HP cat bébé.
     expect(
       resolveCmsAsset({ type: "macarons_v2", cmsPageId: "bebe", cmsAssetId: "" }, PAGES),
     ).toMatchObject({ assetId: "", origin: "none", page: { name: "HP cat bébé" } });
   });
 
-  // Page supprimée de l'onglet : la base remet la référence à null, mais une
-  // section chargée avant la suppression peut encore porter l'ancien id.
-  it("tolère une page qui n'existe plus", () => {
-    expect(resolveCmsAsset({ type: "mea_v2", cmsPageId: "disparue", cmsAssetId: "" }, PAGES)).toMatchObject({
+  it("sans page choisie, se rabat sur la page par défaut", () => {
+    expect(resolveCmsAsset({ type: "mea_v2", cmsPageId: null, cmsAssetId: "" }, PAGES)).toMatchObject({
+      assetId: "hp-mea-v2",
+      origin: "page",
+      page: { id: "hp" },
+    });
+    // Aucune page par défaut identifiable : rien.
+    const others = PAGES.filter((p) => p.id !== "hp");
+    expect(resolveCmsAsset({ type: "mea_v2", cmsPageId: null, cmsAssetId: "" }, others)).toMatchObject({
       origin: "none",
       page: null,
     });
+  });
+
+  // Page supprimée de l'onglet : la base remet la référence à null, mais une
+  // section chargée avant la suppression peut encore porter l'ancien id.
+  it("traite une page qui n'existe plus comme une page non choisie", () => {
+    expect(resolveCmsAsset({ type: "mea_v2", cmsPageId: "disparue", cmsAssetId: "" }, PAGES)).toMatchObject({
+      origin: "page",
+      page: { id: "hp" },
+    });
+  });
+});
+
+describe("defaultCmsPage", () => {
+  it("préfère la page cochée par défaut, sinon celle nommée comme la page d'accueil", () => {
+    expect(defaultCmsPage(PAGES)?.id).toBe("hp");
+    expect(defaultCmsPage([...PAGES, { id: "x", name: "Autre", assets: {}, isDefault: true }])?.id).toBe("x");
+    expect(defaultCmsPage([{ id: "h", name: " Homepage ", assets: {} }])?.id).toBe("h");
+    // Une page catégorie ne passe jamais pour la page d'accueil.
+    expect(defaultCmsPage([{ id: "c", name: "HP cat - auto", assets: {} }])).toBeNull();
   });
 });
 
