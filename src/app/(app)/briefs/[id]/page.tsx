@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, ClipboardCopy, ClipboardPaste, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X, GripVertical, Lock } from "lucide-react";
+import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, Plus, Copy, ClipboardCopy, ClipboardPaste, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X, GripVertical, Lock } from "lucide-react";
 import { clearCopiedSection, useCopiedSection, writeCopiedSection } from "@/lib/section-clipboard";
 import { ClipboardChip } from "@/components/editor/clipboard-chip";
 import { PasteProvider, useTranslateConfirm } from "@/components/editor/paste-context";
@@ -358,9 +358,11 @@ export default function BriefEditorPage({
     label: string;
     run: () => void | Promise<void>;
   } | null>(null);
-  // Sections dépliées et aperçus visibles par défaut : ces maps ne retiennent
-  // que les choix explicites de l'utilisateur, d'où le `?? true` à la lecture.
+  // Sections repliées par défaut, aperçus visibles par défaut : ces maps ne
+  // retiennent que les choix explicites de l'utilisateur (d'où `?? false` /
+  // `?? true` à la lecture).
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const allSectionsOpen = sections.length > 0 && sections.every((s) => openSections[s.id] ?? false);
   const [previewSections, setPreviewSections] = useState<Record<string, boolean>>({});
   const [createOpen, setCreateOpen] = useState(false);
   // Un type de section, ou "tpl:<id>" (depuis un template publié)
@@ -911,9 +913,25 @@ export default function BriefEditorPage({
         <Panel id="editor" defaultSize={50} minSize={25}>
           <div className="h-full overflow-y-auto p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-                Éditeur
-              </h2>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground/70 hover:text-foreground"
+                  onClick={() =>
+                    setOpenSections(
+                      Object.fromEntries(sections.map((s) => [s.id, !allSectionsOpen])),
+                    )
+                  }
+                  disabled={sections.length === 0}
+                  title={allSectionsOpen ? "Replier toutes les sections" : "Déplier toutes les sections"}
+                >
+                  {allSectionsOpen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+                </Button>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  Éditeur
+                </h2>
+              </div>
               <div className="flex min-w-0 items-center gap-2">
                 {copiedSection && (
                   <ClipboardChip
@@ -995,10 +1013,10 @@ export default function BriefEditorPage({
                     <SortableSectionCard
                       key={section.id}
                       section={section}
-                      isOpen={openSections[section.id] ?? true}
+                      isOpen={openSections[section.id] ?? false}
                       isPreviewVisible={previewSections[section.id] ?? true}
                       onToggleOpen={() =>
-                        setOpenSections((prev) => ({ ...prev, [section.id]: !(prev[section.id] ?? true) }))
+                        setOpenSections((prev) => ({ ...prev, [section.id]: !(prev[section.id] ?? false) }))
                       }
                       onTogglePreview={() =>
                         setPreviewSections((prev) => ({ ...prev, [section.id]: !(prev[section.id] ?? true) }))
