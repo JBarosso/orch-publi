@@ -48,8 +48,8 @@ export const STATUS_CONFIG: Record<
   { label: string; color: string; dot: string }
 > = {
   draft: { label: "Brouillon", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
-  published: { label: "Publié", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400" },
-  treated: { label: "Traité", color: "bg-sky-50 text-sky-700 border-sky-200", dot: "bg-sky-400" },
+  published: { label: "Publié", color: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
+  treated: { label: "Traité", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400" },
 };
 
 export interface Brief {

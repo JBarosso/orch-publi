@@ -17,7 +17,7 @@ export function StatusActions({ status, onChange }: StatusActionsProps) {
           variant="outline"
           size="sm"
           onClick={() => onChange("published")}
-          className="rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+          className="rounded-lg border-blue-200 text-blue-700 hover:bg-blue-50"
         >
           <Send className="mr-1.5 h-3.5 w-3.5" />
           Publier
@@ -29,7 +29,7 @@ export function StatusActions({ status, onChange }: StatusActionsProps) {
             variant="outline"
             size="sm"
             onClick={() => onChange("treated")}
-            className="rounded-lg border-sky-200 text-sky-700 hover:bg-sky-50"
+            className="rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50"
           >
             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
             Marquer traité
