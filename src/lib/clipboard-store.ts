@@ -1,5 +1,17 @@
 import { useMemo, useSyncExternalStore } from "react";
 
+/** Âge d'une copie, en clair (« à l'instant », « il y a 5 minutes », « hier »…). */
+export function formatCopyAge(copiedAt: string | undefined, now = Date.now()): string {
+  const minutes = copiedAt ? Math.floor((now - Date.parse(copiedAt)) / 60000) : NaN;
+  if (!Number.isFinite(minutes)) return "";
+  if (minutes < 1) return "à l'instant";
+  const rtf = new Intl.RelativeTimeFormat("fr", { numeric: "auto" });
+  if (minutes < 60) return rtf.format(-minutes, "minute");
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return rtf.format(-hours, "hour");
+  return rtf.format(-Math.floor(hours / 24), "day");
+}
+
 // Presse-papiers applicatif : un seul emplacement par clé, rangé dans le
 // navigateur (localStorage) pour survivre au passage d'un brief à l'autre et
 // être vu par les autres onglets. Chaque copie remplace la précédente.
@@ -38,6 +50,14 @@ export function createClipboard<T>(key: string) {
         return true;
       } catch {
         return false;
+      }
+    },
+    clear(): void {
+      try {
+        localStorage.removeItem(key);
+        window.dispatchEvent(new Event(changeEvent));
+      } catch {
+        // stockage indisponible : il n'y avait rien à vider
       }
     },
     /** Dernière valeur copiée, ou null (toujours null au rendu serveur). */

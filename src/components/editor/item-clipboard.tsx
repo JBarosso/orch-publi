@@ -8,6 +8,7 @@ import { createClipboard } from "@/lib/clipboard-store";
 import { ITEM_SECTIONS, type ItemSectionType } from "@/lib/section-items";
 import type { TranslateStats } from "@/lib/translate-content";
 import { usePasteContext } from "@/components/editor/paste-context";
+import { ClipboardChip } from "@/components/editor/clipboard-chip";
 
 // Copier/coller d'un item de section, d'un brief à l'autre. Un seul item à la
 // fois : la dernière copie remplace la précédente. La section d'origine entière
@@ -20,6 +21,8 @@ interface CopiedItem {
   sourceContent: unknown;
   sourceWeek: number;
   sourceLocale: string;
+  /** Absent des copies faites avant l'ajout du repère « copié il y a… ». */
+  copiedAt?: string;
 }
 
 const clipboard = createClipboard<CopiedItem>("orch-publi:item-clipboard");
@@ -54,6 +57,7 @@ export function useCopyItem(sectionType: ItemSectionType, sourceContent: unknown
       sourceContent,
       sourceWeek: ctx.week,
       sourceLocale: ctx.locale,
+      copiedAt: new Date().toISOString(),
     });
     if (ok) toast.success(`« ${label} » copié — « Coller » l'ajoute à une section du même type`);
     else toast.error("Copie impossible : le navigateur refuse le stockage local");
@@ -132,16 +136,25 @@ export function PasteItemButton<T>({
   };
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={paste}
-      disabled={disabled || busy}
-      title={`Coller « ${copied.label} »`}
-    >
-      {busy ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <ClipboardPaste className="mr-1 h-3 w-3" />}
-      Coller
-    </Button>
+    <>
+      <ClipboardChip
+        label={copied.label}
+        locale={copied.sourceLocale}
+        week={copied.sourceWeek}
+        copiedAt={copied.copiedAt}
+        onClear={clipboard.clear}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={paste}
+        disabled={disabled || busy}
+        title={`Coller « ${copied.label} »`}
+      >
+        {busy ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <ClipboardPaste className="mr-1 h-3 w-3" />}
+        Coller
+      </Button>
+    </>
   );
 }

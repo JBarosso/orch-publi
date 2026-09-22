@@ -13,9 +13,12 @@ export interface CopiedSection {
   /** Semaine et langue du brief d'origine : le collage fige les images et détache les bibliothèques si besoin. */
   sourceWeek: number;
   sourceLocale: string;
+  /** Absent des copies faites avant l'ajout du repère « copié il y a… ». */
+  copiedAt?: string;
 }
 
 const clipboard = createClipboard<CopiedSection>("orch-publi:section-clipboard");
 
 export const writeCopiedSection = clipboard.write;
+export const clearCopiedSection = clipboard.clear;
 export const useCopiedSection = clipboard.useValue;

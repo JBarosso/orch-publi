@@ -20,7 +20,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowLeft, Save, FileCode, Loader2, ChevronDown, Eye, EyeOff, Plus, Copy, ClipboardCopy, ClipboardPaste, LayoutTemplate, Trash2, Monitor, Smartphone, Pencil, Check, X, GripVertical, Lock } from "lucide-react";
-import { useCopiedSection, writeCopiedSection } from "@/lib/section-clipboard";
+import { clearCopiedSection, useCopiedSection, writeCopiedSection } from "@/lib/section-clipboard";
+import { ClipboardChip } from "@/components/editor/clipboard-chip";
 import { PasteProvider, useTranslateConfirm } from "@/components/editor/paste-context";
 import { pasteSuccessMessage } from "@/components/editor/item-clipboard";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,46 @@ interface SortableSectionCardProps {
   onDuplicate: () => void;
   onCopy: () => void;
   onDelete: () => void;
+  /** Sans le verrou : tout est bloqué sauf copier, l'aperçu et le repli. */
+  readOnly: boolean;
+  onBlocked: () => void;
   children: ReactNode;
+}
+
+// En lecture seule, rend sa zone inerte (ni clic, ni saisie, ni glisser) et
+// explique pourquoi au clic : un clic sur un élément inerte retombe sur cette
+// enveloppe — qui l'arrête — au lieu de replier la section en dessous.
+function ReadOnlyZone({
+  readOnly,
+  onBlocked,
+  className,
+  as: Tag = "span",
+  children,
+}: {
+  readOnly: boolean;
+  onBlocked: () => void;
+  className?: string;
+  /** "div" pour envelopper du contenu en bloc (span dans l'en-tête, qui est un bouton). */
+  as?: "span" | "div";
+  children: ReactNode;
+}) {
+  return (
+    <Tag
+      className={cn(className, readOnly && "cursor-not-allowed opacity-60")}
+      onClick={
+        readOnly
+          ? (e: React.MouseEvent) => {
+              e.stopPropagation();
+              onBlocked();
+            }
+          : undefined
+      }
+    >
+      <Tag inert={readOnly} className="contents">
+        {children}
+      </Tag>
+    </Tag>
+  );
 }
 
 // Composant à part (plutôt qu'inline dans le .map() de la page) : useSortable
@@ -94,6 +134,8 @@ function SortableSectionCard({
   onDuplicate,
   onCopy,
   onDelete,
+  readOnly,
+  onBlocked,
   children,
 }: SortableSectionCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -112,27 +154,32 @@ function SortableSectionCard({
       )}
     >
       <div className="flex items-center gap-1 pl-1.5">
-        <button
-          type="button"
-          className="shrink-0 cursor-grab touch-none rounded p-1.5 text-muted-foreground/40 transition-colors hover:text-muted-foreground"
-          title="Déplacer la section"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+        <ReadOnlyZone readOnly={readOnly} onBlocked={onBlocked} className="flex shrink-0">
+          <button
+            type="button"
+            className="shrink-0 cursor-grab touch-none rounded p-1.5 text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+            title="Déplacer la section"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        </ReadOnlyZone>
         <button
           type="button"
           onClick={onToggleOpen}
           className="flex flex-1 items-center justify-between gap-3 py-3 pr-4 text-sm font-semibold transition-colors hover:bg-muted/50"
         >
-          <Input
-            value={section.title || section.type}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => onTitleChange(e.target.value)}
-            className="h-8 w-full max-w-80"
-          />
+          <ReadOnlyZone readOnly={readOnly} onBlocked={onBlocked} className="flex w-full max-w-80">
+            <Input
+              value={section.title || section.type}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => onTitleChange(e.target.value)}
+              className="h-8 w-full"
+            />
+          </ReadOnlyZone>
           <div className="flex items-center gap-1">
+            <ReadOnlyZone readOnly={readOnly} onBlocked={onBlocked} className="flex items-center gap-1">
             {section.type !== "moodboard" && (
               <span
                 onClick={(e) => e.stopPropagation()}
@@ -171,6 +218,7 @@ function SortableSectionCard({
             >
               <Copy className="h-3.5 w-3.5" />
             </span>
+            </ReadOnlyZone>
             <span
               onClick={(e) => {
                 e.stopPropagation();
@@ -181,16 +229,18 @@ function SortableSectionCard({
             >
               <ClipboardCopy className="h-3.5 w-3.5" />
             </span>
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
-              title="Supprimer la section"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </span>
+            <ReadOnlyZone readOnly={readOnly} onBlocked={onBlocked} className="flex">
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="inline-flex rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                title="Supprimer la section"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </span>
+            </ReadOnlyZone>
             <span
               onClick={(e) => {
                 e.stopPropagation();
@@ -207,7 +257,11 @@ function SortableSectionCard({
           </div>
         </button>
       </div>
-      {isOpen && <div className="border-t border-border/60 px-4 py-4">{children}</div>}
+      {isOpen && (
+        <ReadOnlyZone as="div" readOnly={readOnly} onBlocked={onBlocked} className="block border-t border-border/60 px-4 py-4">
+          {children}
+        </ReadOnlyZone>
+      )}
     </div>
   );
 }
@@ -522,6 +576,7 @@ export default function BriefEditorPage({
       cmsAssetId: section.cmsAssetId ?? "",
       sourceWeek: brief.week,
       sourceLocale: brief.locale,
+      copiedAt: new Date().toISOString(),
     });
     if (ok) toast.success(`« ${section.title || section.type} » copiée — « Coller » l'ajoute à n'importe quel brief`);
     else toast.error("Copie impossible : le navigateur refuse le stockage local");
@@ -859,7 +914,16 @@ export default function BriefEditorPage({
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
                 Éditeur
               </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                {copiedSection && (
+                  <ClipboardChip
+                    label={copiedSection.title || copiedSection.type}
+                    locale={copiedSection.sourceLocale}
+                    week={copiedSection.sourceWeek}
+                    copiedAt={copiedSection.copiedAt}
+                    onClear={clearCopiedSection}
+                  />
+                )}
                 {copiedSection && (
                   <Button
                     size="sm"
@@ -909,22 +973,12 @@ export default function BriefEditorPage({
                 )}
               </div>
             )}
-            {/* Le conteneur extérieur n'est pas inert : un clic sur le
-                contenu inerte (qui n'est plus cliquable) retombe sur lui, ce
-                qui permet d'expliquer pourquoi rien ne se passe au lieu de
-                laisser l'utilisateur cliquer dans le vide. */}
-            <div
-              className={cn(!canEdit && briefLock.status && "cursor-not-allowed")}
-              onClick={canEdit || !briefLock.status ? undefined : signalReadOnly}
-            >
-            {/* inert : tant qu'on ne tient pas le verrou, plus aucune
-                interaction dans l'éditeur (saisie, glisser-déposer, collage,
-                boutons) — en un seul attribut, sans toucher à chaque template.
+            {/* Sans le verrou, chaque section bloque elle-même ses zones
+                modifiables (inert, cf. ReadOnlyZone) et explique pourquoi au
+                clic ; copier la section, l'aperçu et le repli restent
+                utilisables, pour pouvoir copier depuis un brief en lecture seule.
                 L'aperçu, lui, reste consultable. */}
-            <div
-              className={cn("space-y-3 transition-opacity", !canEdit && "opacity-60")}
-              inert={!canEdit}
-            >
+            <div className="space-y-3">
               {sections.length === 0 && (
                 <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
                   Aucune section. Cliquez sur « Créer une section » pour commencer.
@@ -956,6 +1010,8 @@ export default function BriefEditorPage({
                       }
                       onDuplicate={() => duplicateSection(section.id)}
                       onCopy={() => copySection(section)}
+                      readOnly={!canEdit}
+                      onBlocked={signalReadOnly}
                       onDelete={() => setPendingDeleteSectionId(section.id)}
                     >
                       {hasCmsAsset(section.type) && (
@@ -971,7 +1027,6 @@ export default function BriefEditorPage({
                 </SortableContext>
               </DndContext>
               </PasteProvider>
-            </div>
             </div>
           </div>
         </Panel>
