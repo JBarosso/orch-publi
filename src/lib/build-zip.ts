@@ -3,17 +3,11 @@ import archiver from "archiver";
 import { PassThrough, Readable } from "stream";
 import { readAsset } from "@/lib/storage";
 import type { ImageEntry } from "@/lib/section-images";
-import { cmsLocalePath } from "@/lib/utils";
 import { looksLikeSvgBuffer } from "@/lib/upload-specs";
+import { MISSING_IMAGES_FILE, missingImagesReport, zipFolderFor, type ZipPathContext } from "@/lib/export-paths";
 
-export interface ZipGroup {
-  // "" pour l'export simple (comportement historique) — un chemin type
-  // "macaron/Rentrée scolaire" pour l'export groupé multi-briefs.
-  folderPrefix: string;
+export interface ZipGroup extends ZipPathContext {
   images: ImageEntry[];
-  year: number;
-  week: number;
-  locale: string;
 }
 
 // Nombre d'images préparées en parallèle. sharp travaille dans un threadpool
@@ -26,26 +20,6 @@ interface ZipEntry {
   buffer: Buffer;
   /** true = pas de compression deflate (déjà compressé, cf. vidéos). */
   store?: boolean;
-}
-
-/** Chemin CMS du fichier, sans le nom : doit matcher resolveCmsFolder côté export HTML. */
-function subFolderFor(img: ImageEntry, group: ZipGroup): string {
-  const prefix = group.folderPrefix ? `${group.folderPrefix}/` : "";
-
-  // Chemin personnalisé : il remplace tout, langue comprise — seul le nom du
-  // fichier lui est ajouté (doit matcher buildCmsImagePath côté export HTML).
-  if (img.customFolder) return `${prefix}${img.customFolder}`;
-
-  const imgWk = String(img.imageWeek ?? group.week).padStart(2, "0");
-  // Locale en minuscule, "be" pour BEFR/BENL (doit matcher le <img src>
-  // exporté). Racine "homepage" par défaut, surchargeable par template
-  // (ex: "banner" pour cat-banner) via img.folder.
-  const folder = img.folder ?? "homepage";
-  const localeSegment = img.noLocale ? "" : `/${cmsLocalePath(group.locale)}`;
-  // Plusieurs sections du même type dans le brief : la 2e et les suivantes ont
-  // leur propre dossier, sinon leurs fichiers homonymes s'écrasent.
-  const sectionSegment = img.sectionFolder ? `/${img.sectionFolder}` : "";
-  return `${prefix}${folder}/${group.year}/wk${imgWk}${localeSegment}${sectionSegment}`;
 }
 
 interface PreparedImage {
@@ -61,7 +35,7 @@ interface PreparedImage {
  * finirait intégré au CMS sans que personne ne le remarque.
  */
 async function prepareImage(img: ImageEntry, group: ZipGroup): Promise<PreparedImage> {
-  const subFolder = subFolderFor(img, group);
+  const subFolder = zipFolderFor(img, group);
   try {
     const buffer = await readAsset(img.imageUrl);
 
@@ -170,14 +144,7 @@ export function streamZip({ entries, failed }: PreparedZip): ReadableStream<Uint
   // Un fichier de rapport dans l'archive : c'est le seul endroit que
   // l'utilisateur ouvrira forcément s'il manque des visuels.
   if (failed.length > 0) {
-    const rapport = [
-      "Images absentes de cet export (asset illisible au moment de la génération) :",
-      "",
-      ...failed.map((f) => `  - ${f}`),
-      "",
-      "Vérifiez ces visuels dans la médiathèque, puis relancez l'export.",
-    ].join("\n");
-    archive.append(Buffer.from(rapport, "utf-8"), { name: "_IMAGES-MANQUANTES.txt" });
+    archive.append(Buffer.from(missingImagesReport(failed), "utf-8"), { name: MISSING_IMAGES_FILE });
   }
 
   // Ne pas attendre : la promesse ne se résout qu'une fois tout drainé, et

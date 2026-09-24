@@ -6,6 +6,10 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, ImageDown, AlertTriangle, CheckCircle2, Info, Video } from "lucide-react";
 import { hasCmsAsset, resolveCmsAsset } from "@/lib/cms-asset";
 import type { VideoEntry } from "@/lib/section-videos";
+import { useLocalMode } from "@/lib/local-mode";
+import { contentHasLocalImages } from "@/lib/local-images";
+import { collectBriefImages } from "@/lib/brief-images";
+import { buildZipInBrowser, downloadBlob, zipFileName } from "@/lib/client-zip";
 import { Button } from "@/components/ui/button";
 import { CopyCodeButton } from "@/components/editor/copy-code-button";
 import { toast } from "sonner";
@@ -168,6 +172,7 @@ export default function ExportPage({
     }[]
   >([]);
   const [downloadingImages, setDownloadingImages] = useState<string | null>(null);
+  const localMode = useLocalMode();
   const [skippedCount, setSkippedCount] = useState(0);
   const [cmsPages, setCmsPages] = useState<CmsPage[]>([]);
 
@@ -226,8 +231,48 @@ export default function ExportPage({
     load();
   }, [id, router]);
 
+  // Mode local, ou brief qui contient des images locales : le serveur ne peut
+  // pas les lire, c'est donc le navigateur qui fabrique le ZIP — mêmes
+  // fichiers, mêmes chemins (cf. client-zip.ts).
+  const exportInBrowser =
+    localMode || (brief?.sections ?? []).some((s) => contentHasLocalImages(s.content));
+
+  const downloadImagesInBrowser = async (key: string) => {
+    if (!brief) return;
+    const images = collectBriefImages(brief.sections, key === "all" ? undefined : key);
+    if (images.length === 0) {
+      toast.error("Aucun fichier à exporter");
+      return;
+    }
+    setDownloadingImages(key);
+    const toastId = toast.loading(`Préparation des images… 0/${images.length}`);
+    try {
+      const { blob, failed } = await buildZipInBrowser(
+        images,
+        { folderPrefix: "", year: brief.year, week: brief.week, locale: brief.locale },
+        (done, total) => toast.loading(`Préparation des images… ${done}/${total}`, { id: toastId }),
+      );
+      if (failed.length === images.length) {
+        toast.error("Aucune image n'a pu être lue : rien n'a été téléchargé.", { id: toastId });
+        return;
+      }
+      downloadBlob(blob, zipFileName(brief));
+      toast.success(
+        failed.length > 0
+          ? `Fichiers téléchargés — ${failed.length} image(s) manquante(s), détail dans _IMAGES-MANQUANTES.txt`
+          : "Fichiers téléchargés",
+        { id: toastId, duration: failed.length > 0 ? 10000 : 4000 },
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la préparation des fichiers", { id: toastId });
+    } finally {
+      setDownloadingImages(null);
+    }
+  };
+
   // key = sectionId ou "all" (pilote le spinner du bouton correspondant)
   const handleDownloadImages = async (key: string, query: string, fallbackName: string) => {
+    if (exportInBrowser) return downloadImagesInBrowser(key);
     setDownloadingImages(key);
     try {
       const res = await fetch(`/api/export/images?${query}`);

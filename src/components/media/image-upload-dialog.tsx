@@ -35,6 +35,7 @@ import {
   validateSourceFile,
 } from "@/lib/upload-specs";
 import { dropOriginOf, postAsset, rememberDropOrigin, uploadToTemp } from "@/lib/post-asset";
+import { isLocalModeEnabled, useLocalMode } from "@/lib/local-mode";
 import { FULL_RECT, isFullRect, type CropRect } from "@/lib/free-crop";
 import { FreeCropBox } from "@/components/media/free-crop-box";
 
@@ -186,6 +187,7 @@ export function ImageUploadDialog({
   const [freeRect, setFreeRect] = useState<CropRect>(FULL_RECT);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiAvailable, setAiAvailable] = useState(false);
+  const localMode = useLocalMode();
   const [aiBusy, setAiBusy] = useState(false);
   const [aiElapsed, setAiElapsed] = useState(0);
   // Résultat généré, en attente de validation : tant qu'il est là, c'est lui
@@ -253,6 +255,14 @@ export function ImageUploadDialog({
       };
 
       if (looksLikeTiff(file)) {
+        // Les navigateurs ne savent pas lire le TIFF : sa conversion passe par
+        // le serveur, ce que le mode local exclut par principe.
+        if (isLocalModeEnabled()) {
+          toast.error("Mode local : les TIFF ne peuvent pas être lus sans le serveur. Enregistrez l'image en JPG ou PNG.", {
+            duration: 8000,
+          });
+          return;
+        }
         sourceWasTiffRef.current = true;
         // Un TIFF peut peser plusieurs centaines de Mo : jamais de
         // FileReader/base64/JSON, qui multiplieraient la mémoire nécessaire
@@ -343,12 +353,14 @@ export function ImageUploadDialog({
   }, []);
 
   // L'option n'a de sens que si une clé API est enregistrée (cf. Paramétrage).
+  // Jamais en mode local : la génération passe par le serveur.
   useEffect(() => {
+    if (localMode) return;
     fetch("/api/settings")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setAiAvailable(data?.openaiKeyConfigured === true))
       .catch(() => setAiAvailable(false));
-  }, []);
+  }, [localMode]);
 
   const blankBands = useMemo(() => {
     if (skipCrop || !croppedAreaPixels || !sourceDims) return null;
@@ -362,7 +374,7 @@ export function ImageUploadDialog({
     return hasFillableBlanks(bands) ? bands : null;
   }, [skipCrop, croppedAreaPixels, sourceDims, effTargetWidth, effTargetHeight]);
 
-  const canFillBlanks = aiAvailable && blankBands !== null;
+  const canFillBlanks = aiAvailable && !localMode && blankBands !== null;
 
   const discardAiResult = () => {
     setAiResult(null);

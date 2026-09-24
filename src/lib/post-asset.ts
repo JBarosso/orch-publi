@@ -1,5 +1,10 @@
 import { upload } from "@vercel/blob/client";
+import { v4 as uuidv4 } from "uuid";
 import type { AssetType } from "@/types";
+import { ASSET_SPECS, normalizeAssetLabel, resolveAssetType } from "@/lib/upload-specs";
+import { isLocalModeEnabled } from "@/lib/local-mode";
+import { processUpload } from "@/lib/image-pipeline";
+import { localImageUrl, saveLocalImage, toAsset, type LocalImageRecord } from "@/lib/local-images";
 
 // Envoi d'un fichier vers la médiathèque, partagé par la fenêtre d'upload et
 // le collage d'une capture dans le moodboard.
@@ -45,11 +50,49 @@ export interface AssetFields {
 }
 
 /**
+ * Mode local : l'image est traitée dans le navigateur, avec les mêmes règles
+ * que le serveur (cf. image-pipeline.ts), puis rangée sur ce poste. Réponse
+ * de même forme que /api/assets, pour que les appelants n'aient rien à savoir.
+ */
+async function postLocalAsset(file: Blob, fields: AssetFields): Promise<Response> {
+  const json = (body: unknown, status: number) =>
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  const type = resolveAssetType(fields.type);
+  const spec = ASSET_SPECS[type];
+  if (spec.kind === "video") {
+    return json({ error: "Les vidéos ne sont pas hébergées : renseignez leur adresse dans la section." }, 400);
+  }
+  try {
+    const processed = await processUpload(file, spec);
+    const id = uuidv4();
+    const record: LocalImageRecord = {
+      id,
+      url: localImageUrl(id, processed.ext),
+      blob: processed.blob,
+      mimeType: processed.mimeType,
+      label: normalizeAssetLabel(fields.label),
+      type,
+      week: fields.week,
+      year: fields.year,
+      originUrl: fields.originUrl ?? null,
+      createdAt: Date.now(),
+    };
+    await saveLocalImage(record);
+    return json(toAsset(record), 201);
+  } catch (err) {
+    console.error("Traitement local de l'image impossible :", err);
+    const message = err instanceof Error && err.message.includes("navigateur") ? err.message : null;
+    return json({ error: message ?? "Impossible de traiter cette image dans le navigateur" }, 500);
+  }
+}
+
+/**
  * Crée l'asset et renvoie la réponse brute de /api/assets : l'appelant garde
  * la main sur l'affichage de l'erreur. Seule l'URL du fichier transite par la
  * route quand l'upload direct est disponible, quel que soit son poids.
  */
 export async function postAsset(file: Blob, fields: AssetFields): Promise<Response> {
+  if (isLocalModeEnabled()) return postLocalAsset(file, fields);
   const sourceUrl = await uploadToTemp(file, file.type);
   return fetch("/api/assets", {
     method: "POST",

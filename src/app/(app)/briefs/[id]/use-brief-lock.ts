@@ -92,13 +92,20 @@ export function useBriefLock(briefId: string) {
   // ferait perdre le verrou en 2 min à qui a des modifications à l'écran, et
   // il s'arrête de toute façon seul à la durée maximale du verrou.
   useEffect(() => {
-    if (mine || !awake) return;
+    if (mine) return;
     let cancelled = false;
     const load = async () => {
       const res = await fetch(url).catch(() => null);
       if (res?.ok && !cancelled) setStatus(await res.json());
     };
+    // Toujours un premier chargement, même onglet caché : un brief ouvert en
+    // arrière-plan doit connaître son verrou, sinon le bouton reste en attente.
     load();
+    if (!awake) {
+      return () => {
+        cancelled = true;
+      };
+    }
     const timer = setInterval(load, POLL_INTERVAL_MS);
     return () => {
       cancelled = true;

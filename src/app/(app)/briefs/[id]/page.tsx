@@ -55,7 +55,8 @@ import { SectionCmsAssetRow } from "@/components/briefs/section-cms-asset-row";
 import { BriefLockButton } from "@/components/briefs/brief-lock-button";
 import { useBriefLockContext } from "./brief-lock-context";
 import { hasCmsAsset } from "@/lib/cms-asset";
-import { TEMPLATE_UI, currentImageUrl } from "@/templates/registry-ui";
+import { TEMPLATE_UI, currentImageUrl, type TemplateUi } from "@/templates/registry-ui";
+import { useLocalPreviewContent } from "@/lib/use-local-preview-content";
 import { SectionErrorBoundary } from "@/components/editor/section-error-boundary";
 import { useBriefSections } from "./use-brief-sections";
 import { StatusActions } from "@/components/editor/status-actions";
@@ -87,6 +88,22 @@ interface SortableSectionCardProps {
 // En lecture seule, rend sa zone inerte (ni clic, ni saisie, ni glisser) et
 // explique pourquoi au clic : un clic sur un élément inerte retombe sur cette
 // enveloppe — qui l'arrête — au lieu de replier la section en dessous.
+/**
+ * Aperçu d'une section : ses images locales y sont converties en data:, seule
+ * forme que les iframes isolées des aperçus acceptent (cf. useLocalPreviewContent).
+ */
+function SectionPreview({
+  Preview,
+  content,
+  sectionId,
+}: {
+  Preview: NonNullable<TemplateUi["Preview"]>;
+  content: unknown;
+  sectionId: string;
+}) {
+  return <Preview content={useLocalPreviewContent(content)} sectionId={sectionId} />;
+}
+
 function ReadOnlyZone({
   readOnly,
   onBlocked,
@@ -701,7 +718,7 @@ export default function BriefEditorPage({
           {Controls && <Controls content={section.content} sectionId={section.id} />}
         </div>
         <SectionErrorBoundary label={section.title || "Section"} resetKey={section.content}>
-          <Preview content={section.content} sectionId={section.id} />
+          <SectionPreview Preview={Preview} content={section.content} sectionId={section.id} />
         </SectionErrorBoundary>
       </div>
     );

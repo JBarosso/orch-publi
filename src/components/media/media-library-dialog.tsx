@@ -14,6 +14,8 @@ import { AssetThumbnail } from "@/components/media/asset-thumbnail";
 import { cn } from "@/lib/utils";
 import { looksLikeMp4 } from "@/lib/upload-specs";
 import { rememberDropOrigin } from "@/lib/post-asset";
+import { useLocalMode } from "@/lib/local-mode";
+import { assetFilterOptions, findAssetByUrl, renameAsset, searchAssets } from "@/lib/asset-source";
 import type { Asset, AssetType } from "@/types";
 
 interface MediaLibraryDialogProps {
@@ -32,13 +34,15 @@ export function MediaLibraryDialog({
   initialType = "other",
   currentUrl = "",
 }: MediaLibraryDialogProps) {
+  // En mode local, la médiathèque est celle de ce poste : aucune requête ne
+  // part vers le serveur (cf. asset-source.ts).
+  const localMode = useLocalMode();
   // undefined = pas encore chargé (ou image hors médiathèque) : rien affiché.
   const [current, setCurrent] = useState<Asset | undefined>(undefined);
   useEffect(() => {
     if (!currentUrl) return;
-    fetch(`/api/assets?url=${encodeURIComponent(currentUrl)}`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((rows: Asset[]) => setCurrent(rows[0]))
+    findAssetByUrl(currentUrl)
+      .then(setCurrent)
       .catch(() => {});
   }, [currentUrl]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -61,14 +65,10 @@ export function MediaLibraryDialog({
   const [editValue, setEditValue] = useState("");
 
   const saveLabel = async (id: string) => {
-    const res = await fetch("/api/assets", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, label: editValue }),
-    });
-    if (res.ok) {
-      const updated = await res.json();
-      setAssets((prev) => prev.map((a) => (a.id === id ? { ...a, label: updated.label } : a)));
+    const asset = assets.find((a) => a.id === id);
+    const label = asset ? await renameAsset(asset, editValue).catch(() => null) : null;
+    if (label !== null) {
+      setAssets((prev) => prev.map((a) => (a.id === id ? { ...a, label } : a)));
     }
     setEditingId(null);
   };
@@ -76,18 +76,15 @@ export function MediaLibraryDialog({
   useEffect(() => {
     const fetchAssets = async () => {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (filterWeek) params.set("week", filterWeek);
-      if (filterYear) params.set("year", filterYear);
-      if (filterType) params.set("type", filterType);
-      const res = await fetch(`/api/assets?${params}`);
-      if (!res.ok) {
+      const data = await searchAssets(
+        { search, week: filterWeek, year: filterYear, type: filterType },
+        localMode,
+      ).catch(() => null);
+      if (!data) {
         setLoading(false);
         setAssets([]);
         return;
       }
-      const data = await res.json();
       // Le dialogue s'ouvre pré-filtré sur le type de l'emplacement visé, ce
       // qui tombe à vide pour un type récent dont aucune image n'a encore été
       // taguée : on affichait alors une médiathèque vide alors que la
@@ -103,19 +100,18 @@ export function MediaLibraryDialog({
 
     const timer = setTimeout(fetchAssets, 300);
     return () => clearTimeout(timer);
-  }, [search, filterWeek, filterYear, filterType]);
+  }, [search, filterWeek, filterYear, filterType, localMode]);
 
   useEffect(() => {
     const fetchFilterOptions = async () => {
-      const res = await fetch("/api/assets/filters");
-      if (!res.ok) return;
-      const data = await res.json();
+      const data = await assetFilterOptions(localMode).catch(() => null);
+      if (!data) return;
       setYearOptions(data.years ?? []);
       setWeekOptions(data.weeks ?? []);
-      setTypeOptions(data.types ?? []);
+      setTypeOptions((data.types ?? []) as AssetType[]);
     };
     fetchFilterOptions();
-  }, []);
+  }, [localMode]);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -157,8 +153,13 @@ export function MediaLibraryDialog({
         onDrop={handleDrop}
       >
         <DialogHeader>
-          <DialogTitle>Médiathèque</DialogTitle>
+          <DialogTitle>{localMode ? "Médiathèque de ce poste" : "Médiathèque"}</DialogTitle>
         </DialogHeader>
+        {localMode && (
+          <p className="-mt-2 text-xs text-amber-700">
+            Mode local : seules les images ajoutées dans ce navigateur sont proposées.
+          </p>
+        )}
 
         {current && (
           <div className="flex min-w-0 items-center gap-2 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs">

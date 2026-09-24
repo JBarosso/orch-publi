@@ -16,9 +16,11 @@ import {
   Code2,
   CalendarRange,
   Database,
+  HardDrive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDevMode, setDevMode } from "@/lib/dev-mode";
+import { useLocalMode, setLocalMode } from "@/lib/local-mode";
 import { Switch } from "@/components/ui/switch";
 
 const NAV_ITEMS = [
@@ -51,6 +53,7 @@ export function Sidebar() {
     () => false,
   );
   const devMode = useDevMode();
+  const localMode = useLocalMode();
 
   const toggle = () => {
     localStorage.setItem(STORAGE_KEY, String(!collapsed));
@@ -140,6 +143,34 @@ export function Sidebar() {
       </nav>
 
       <div className={cn("border-t border-sidebar-border", collapsed ? "p-2" : "p-3")}>
+        {/* Mode local : au-dessus du mode dev. Les images restent dans ce
+            navigateur (cf. src/lib/local-mode.ts). */}
+        {collapsed ? (
+          <button
+            onClick={() => setLocalMode(!localMode)}
+            title={`Mode local${localMode ? " (actif)" : ""}`}
+            className={cn(
+              "mb-1 flex w-full items-center justify-center rounded-lg py-2 text-[13px] font-medium transition-colors hover:bg-sidebar-accent/50",
+              localMode ? "text-amber-600" : "text-muted-foreground/60 hover:text-sidebar-foreground",
+            )}
+          >
+            <HardDrive className="h-4 w-4 shrink-0" />
+          </button>
+        ) : (
+          <div className="mb-1 flex items-center justify-between gap-2 rounded-lg px-2.5">
+            <span
+              className={cn(
+                "flex items-center gap-2.5 text-[13px] font-medium",
+                localMode ? "text-amber-600" : "text-sidebar-foreground/60",
+              )}
+              title="Les images restent dans ce navigateur : rien n'est envoyé au serveur"
+            >
+              <HardDrive className="h-4 w-4 shrink-0" />
+              Mode local
+            </span>
+            <Switch checked={localMode} onCheckedChange={setLocalMode} className="scale-75" />
+          </div>
+        )}
         {collapsed ? (
           <button
             onClick={() => setDevMode(!devMode)}

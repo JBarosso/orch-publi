@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/sidebar";
+import { LocalModeBanner } from "@/components/local-mode-banner";
 
 export default function AppLayout({
   children,
@@ -8,7 +9,10 @@ export default function AppLayout({
   return (
     <>
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main className="flex-1 overflow-y-auto">
+        <LocalModeBanner />
+        {children}
+      </main>
     </>
   );
 }
