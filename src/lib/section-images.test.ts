@@ -115,14 +115,16 @@ describe("MEA v2", () => {
     expect(getSectionImages("mea_v2", content).map((e) => e.baseName)).toEqual(["mea-1", "mea-3", "mea-5"]);
   });
 
-  it("ajoute la vidéo de la carte focus sous le même nom que sa vignette", () => {
+  // Les vidéos ne sont plus hébergées : seule la vignette part dans le ZIP,
+  // l'intégrateur récupère la vidéo à son adresse (cf. getSectionVideos).
+  it("n'embarque que la vignette d'une carte focus en vidéo", () => {
     const content = createEmptyMeaV2Content();
     content.focus.imageUrl = IMG;
     content.focus.mediaType = "video";
     content.focus.videoUrl = "https://example.test/video.mp4";
     const entries = getSectionImages("mea_v2", content);
-    expect(entries.map((e) => e.baseName)).toEqual(["mea-5", "mea-5"]);
-    expect(entries.filter((e) => e.isVideo)).toHaveLength(1);
+    expect(entries.map((e) => e.baseName)).toEqual(["mea-5"]);
+    expect(entries.some((e) => e.isVideo)).toBe(false);
   });
 });
 

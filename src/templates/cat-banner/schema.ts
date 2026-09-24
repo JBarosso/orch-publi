@@ -19,7 +19,11 @@ export function createEmptyCatBannerItem(id: string): CatBannerItem {
   return {
     id,
     label: "",
+    // Une bannière pointe le plus souvent vers une adresse complète.
+    linkType: "url",
     url: "",
+    cgid: "",
+    cid: "",
     pageId: "",
     comment: "",
     desktopImageUrl: "",

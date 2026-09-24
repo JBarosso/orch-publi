@@ -4,23 +4,19 @@ import { assets } from "@/lib/schema";
 import { and, desc, eq, ilike } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import sharp from "sharp";
-import { head } from "@vercel/blob";
 import {
   putAsset,
   deleteAsset,
   readAsset,
   isTempUploadUrl,
-  promoteTempUpload,
 } from "@/lib/storage";
 import {
   ACCEPTED_FORMATS_LABEL,
   ACCEPTED_SHARP_FORMATS,
-  ACCEPTED_VIDEO_MIME_TYPES,
   ASSET_SPECS,
   MAX_SOURCE_BYTES,
   MAX_SOURCE_DIMENSION,
   MAX_TIFF_SOURCE_BYTES,
-  MAX_VIDEO_SOURCE_BYTES,
   SVG_MIME_TYPE,
   formatBytes,
   looksLikeSvgBuffer,
@@ -118,15 +114,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Vidéo (carte focus MEA v2) : pipeline dédiée, pas de sharp.
+  // Les vidéos ne sont plus hébergées ici : trop lourdes à stocker et à
+  // servir. La section n'en garde que l'adresse, et l'intégrateur va la
+  // chercher lui-même (cf. VideoUrlField et la page Export). Refus côté
+  // serveur, pour que la règle ne tienne pas qu'à l'interface.
   if (spec.kind === "video") {
-    return handleVideoUpload(
-      sourceUrl ? { sourceUrl } : { image },
-      assetType,
-      cleanLabel,
-      toIntOrNull(week),
-      toIntOrNull(year),
-      typeof originUrl === "string" && originUrl.startsWith("http") ? originUrl : null,
+    if (sourceUrl) await deleteAsset(sourceUrl);
+    return NextResponse.json(
+      {
+        error:
+          "Les vidéos ne sont plus hébergées ici. Renseignez l'adresse de la vidéo dans la section : l'intégrateur la récupérera lui-même.",
+      },
+      { status: 400 },
     );
   }
 
@@ -249,60 +248,6 @@ export async function POST(request: NextRequest) {
   } finally {
     // Le fichier déposé n'était qu'un intermédiaire : seul l'asset traité est conservé.
     if (sourceUrl) await deleteAsset(sourceUrl);
-  }
-}
-
-function videoUploadError(mimeType: string, bytes: number): string | null {
-  if (!ACCEPTED_VIDEO_MIME_TYPES.includes(mimeType)) {
-    return "Format non supporté. Formats acceptés : MP4.";
-  }
-  if (bytes > MAX_VIDEO_SOURCE_BYTES) {
-    return `Vidéo trop lourde (${formatBytes(bytes)}). Maximum : ${formatBytes(MAX_VIDEO_SOURCE_BYTES)}.`;
-  }
-  return null;
-}
-
-async function handleVideoUpload(
-  source: { image: string } | { sourceUrl: string },
-  assetType: string,
-  cleanLabel: string,
-  week: number | null,
-  year: number | null,
-  originUrl: string | null = null,
-) {
-  try {
-    let url: string;
-    if ("sourceUrl" in source) {
-      // Upload direct : on vérifie ce que le navigateur a réellement déposé.
-      const { size, contentType } = await head(source.sourceUrl);
-      const error = videoUploadError(contentType, size);
-      if (error) {
-        await deleteAsset(source.sourceUrl);
-        return NextResponse.json({ error }, { status: 400 });
-      }
-      url = await promoteTempUpload(source.sourceUrl, `${uuidv4()}.mp4`, "video/mp4");
-    } else {
-      const mimeType = /^data:(video\/\w+);base64,/.exec(source.image)?.[1] ?? "";
-      const videoBuffer = Buffer.from(source.image.replace(/^data:video\/\w+;base64,/, ""), "base64");
-      const error = videoUploadError(mimeType, videoBuffer.byteLength);
-      if (error) {
-        return NextResponse.json({ error }, { status: 400 });
-      }
-      url = await putAsset(videoBuffer, `${uuidv4()}.mp4`, "video/mp4");
-    }
-
-    const [asset] = await db
-      .insert(assets)
-      .values({ url, type: assetType, label: cleanLabel, mimeType: "video/mp4", week, year, originUrl })
-      .returning();
-
-    return NextResponse.json(asset, { status: 201 });
-  } catch (err) {
-    console.error("Video processing error:", err);
-    return NextResponse.json(
-      { error: "Erreur lors du traitement de la vidéo" },
-      { status: 500 },
-    );
   }
 }
 

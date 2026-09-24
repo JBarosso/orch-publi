@@ -345,11 +345,11 @@ export default function BriefEditorPage({
   // recadrage ne fasse pas apparaître une médiathèque jamais demandée.
   const [directDropUpload, setDirectDropUpload] = useState(false);
   const [uploadAssetType, setUploadAssetType] = useState<AssetType>("other");
-  // Upload vidéo (carte focus MEA v2, diapositive de carousel) : direct, sans
-  // médiathèque, puis enchaîné sur l'upload de la vignette pré-remplie par la
-  // 1ère frame capturée. Le détail par template vit dans TEMPLATE_UI[type].video.
+  // Vignette d'une vidéo (carte focus MEA v2, diapositive de carousel) : la
+  // vidéo n'est plus hébergée, on en extrait juste la 1ère image côté
+  // navigateur. Le détail par template vit dans TEMPLATE_UI[type].video.
   const [videoTarget, setVideoTarget] = useState<{ sectionId: string; target: string } | null>(null);
-  const [capturedPosterFile, setCapturedPosterFile] = useState<File | null>(null);
+  const videoPosterInputRef = useRef<HTMLInputElement>(null);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
   // Action bloquée par des modifications non sauvegardées (supprimer/dupliquer
   // une section, changer le statut...) : on la met de côté plutôt que de
@@ -363,6 +363,11 @@ export default function BriefEditorPage({
   // `?? true` à la lecture).
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const allSectionsOpen = sections.length > 0 && sections.every((s) => openSections[s.id] ?? false);
+  // Ouvre le sélecteur de fichier dès qu'une vignette est demandée. Annuler ne
+  // change pas l'état : un nouveau clic repose une cible et le rouvre.
+  useEffect(() => {
+    if (videoTarget) videoPosterInputRef.current?.click();
+  }, [videoTarget]);
   const [previewSections, setPreviewSections] = useState<Record<string, boolean>>({});
   const [createOpen, setCreateOpen] = useState(false);
   // Un type de section, ou "tpl:<id>" (depuis un template publié)
@@ -684,13 +689,19 @@ export default function BriefEditorPage({
   const renderSectionPreview = (section: BriefSection) => {
     const Preview = TEMPLATE_UI[section.type]?.Preview;
     if (!Preview) return null;
+    // Commandes propres au template, à droite du titre : les indicateurs d'un
+    // carousel, par exemple, sont difficiles à viser dans l'aperçu lui-même.
+    const Controls = TEMPLATE_UI[section.type]?.PreviewControls;
     return (
       <div key={section.id} className="space-y-1.5">
-        <p className="text-[11px] font-medium text-muted-foreground/80">
-          {section.title || "Section"}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-[11px] font-medium text-muted-foreground/80">
+            {section.title || "Section"}
+          </p>
+          {Controls && <Controls content={section.content} sectionId={section.id} />}
+        </div>
         <SectionErrorBoundary label={section.title || "Section"} resetKey={section.content}>
-          <Preview content={section.content} />
+          <Preview content={section.content} sectionId={section.id} />
         </SectionErrorBoundary>
       </div>
     );
@@ -1147,48 +1158,36 @@ export default function BriefEditorPage({
         );
       })()}
 
-      {videoTarget && (() => {
-        const section = sections.find((s) => s.id === videoTarget.sectionId);
-        const video = section ? TEMPLATE_UI[section.type]?.video : undefined;
-        if (!video) return null;
-        const closeVideoUpload = () => {
+      {/* Vignette d'une vidéo : le fichier est lu sur place pour en extraire la
+          première image, et n'est jamais envoyé — les vidéos ne sont plus
+          hébergées, seule leur URL est conservée (cf. VideoUrlField). */}
+      <input
+        ref={videoPosterInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file || !videoTarget) return;
+          const { sectionId, target } = videoTarget;
+          const section = sections.find((s) => s.id === sectionId);
+          const video = section ? TEMPLATE_UI[section.type]?.video : undefined;
           setVideoTarget(null);
-          setCapturedPosterFile(null);
-        };
-        return (
-          <ImageUploadDialog
-            assetType={video.assetType}
-            defaultWeek={brief.week}
-            defaultYear={brief.year}
-            onFileSelected={(file) => {
-              captureVideoFirstFrame(file)
-                .then((dataUrl) => dataUrlToFile(dataUrl, "vignette.jpg"))
-                .then(setCapturedPosterFile)
-                .catch(() => setCapturedPosterFile(null));
-            }}
-            onUploaded={(url) => {
-              const { sectionId, target } = videoTarget;
-              updateSection(sectionId, (s) => ({ content: video.set(s.content, target, url) }));
-              // Enchaîne sur l'upload de la vignette, pré-remplie par la 1ère
-              // frame capturée côté navigateur (l'utilisateur ajuste le cadrage).
-              // Toast explicite pour que ce 2e popin ne soit pas pris pour le
-              // premier resté ouvert.
-              if (capturedPosterFile) {
-                const poster = video.poster(target);
-                toast.success("Vidéo uploadée — ajustez le cadrage de la vignette suggérée", {
-                  duration: 5000,
-                });
-                setMediaTarget({ sectionId, itemId: poster.target, type: poster.assetType });
-                setDroppedFile(capturedPosterFile);
-                setUploadAssetType(poster.assetType);
-                setShowUpload(true);
-              }
-              closeVideoUpload();
-            }}
-            onClose={closeVideoUpload}
-          />
-        );
-      })()}
+          if (!video) return;
+          captureVideoFirstFrame(file)
+            .then((dataUrl) => dataUrlToFile(dataUrl, "vignette.jpg"))
+            .then((poster) => {
+              const slot = video.poster(target);
+              toast.success("Vignette extraite — ajustez le cadrage avant de l'enregistrer", { duration: 5000 });
+              setMediaTarget({ sectionId, itemId: slot.target, type: slot.assetType });
+              setDroppedFile(poster);
+              setUploadAssetType(slot.assetType);
+              setShowUpload(true);
+            })
+            .catch(() => toast.error("Impossible de lire cette vidéo pour en extraire une image"));
+        }}
+      />
     </div>
   );
 }

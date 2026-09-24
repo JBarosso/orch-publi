@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
 import { asc, eq } from "drizzle-orm";
 import { cleanExportedHtml, cmsLocalePath } from "@/lib/utils";
-import { generateSectionHTML } from "@/templates/registry";
+import { generateSectionHTML, getSectionVideos } from "@/templates/registry";
 import { sectionExportFolders } from "@/lib/section-export-folder";
 
 export async function GET(request: NextRequest) {
@@ -66,5 +66,9 @@ export async function GET(request: NextRequest) {
   // une chaîne vide : seuls leurs fichiers image comptent.
   const html = generateSectionHTML(section.type, section.content, ctx);
 
-  return NextResponse.json({ html: cleanExportedHtml(html), type: section.type });
+  // Les vidéos ne sont plus hébergées ni zippées : l'intégrateur les télécharge
+  // à leur adresse et les dépose lui-même au chemin CMS attendu par ce HTML.
+  const videos = getSectionVideos(section.type, section.content, ctx);
+
+  return NextResponse.json({ html: cleanExportedHtml(html), type: section.type, videos });
 }

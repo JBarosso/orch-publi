@@ -336,9 +336,15 @@ function productCalloutHTML(slide: CarouselSlide, preview: boolean, logoSrc: str
           </div>\n`;
 }
 
-function slideHTML(slide: CarouselSlide, slot: number, isFirst: boolean, ctx: ExportContext): string {
+/** Chemin CMS d'une diapositive, sans extension — partagé avec la liste des
+ * vidéos à récupérer (cf. carousel/videos.ts) pour qu'ils ne divergent pas. */
+export function carouselSlidePath(slide: CarouselSlide, slot: number, ctx: ExportContext): string {
   const wk = String(slide.imageWeek ?? ctx.week).padStart(2, "0");
-  const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}${sectionFolderSegment(ctx)}/carousel-${slot}`;
+  return `homepage/${ctx.year}/wk${wk}/${ctx.locale}${sectionFolderSegment(ctx)}/carousel-${slot}`;
+}
+
+function slideHTML(slide: CarouselSlide, slot: number, isFirst: boolean, ctx: ExportContext): string {
+  const imgPath = carouselSlidePath(slide, slot, ctx);
   const titleWk = String(slide.titleImageWeek ?? ctx.week).padStart(2, "0");
   const titleImgPath = `homepage/${ctx.year}/wk${titleWk}/${ctx.locale}${sectionFolderSegment(ctx)}/carousel-${slot}-title`;
   const plainTitle = esc(slide.titleText.replace(/\r?\n/g, " "));
@@ -466,17 +472,25 @@ ${slidesHTML}
   </div>
 </div>
 <script>
-  // Preview uniquement : simule le slide au clic sur les points (le vrai
-  // JS Bootstrap du site gère l'export réel, pas embarqué ici).
-  document.querySelectorAll(".preview-dot").forEach((dot) => {
-    dot.addEventListener("click", () => {
-      const idx = dot.getAttribute("data-slide");
-      document.querySelectorAll(".carousel-item").forEach((item, i) => {
-        item.style.display = String(i) === idx ? "flex" : "none";
-      });
-      document.querySelectorAll(".preview-dot").forEach((d) => d.classList.remove("active"));
-      dot.classList.add("active");
+  // Preview uniquement : simule le slide (le vrai JS Bootstrap du site gère
+  // l'export réel, pas embarqué ici). Déclenché par les points du carousel,
+  // ou par les pastilles posées à côté du titre de l'aperçu, qui envoient un
+  // message — elles sont plus faciles à viser (cf. preview-controls.tsx).
+  const showSlide = (index) => {
+    document.querySelectorAll(".carousel-item").forEach((item, i) => {
+      item.style.display = i === index ? "flex" : "none";
     });
+    document.querySelectorAll(".preview-dot").forEach((dot, i) => {
+      dot.classList.toggle("active", i === index);
+    });
+  };
+
+  document.querySelectorAll(".preview-dot").forEach((dot, index) => {
+    dot.addEventListener("click", () => showSlide(index));
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.data?.type === "goto-slide") showSlide(event.data.index);
   });
 
   document.addEventListener("click", (event) => {

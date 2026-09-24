@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Image as ImageIcon, Video } from "lucide-react";
+import { Image as ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -16,6 +16,7 @@ import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
 import { BrandLogoField } from "@/components/editor/brand-logo-field";
 import { ImageRemoveButton, INLINE_REMOVE } from "@/components/editor/image-remove-button";
+import { VideoUrlField } from "@/components/editor/video-url-field";
 import type { CarouselProductCallout, CarouselSlide } from "@/types";
 import { cn } from "@/lib/utils";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -101,37 +102,11 @@ export function CarouselSlideEditor({
           </span>
 
           {slide.mediaType === "video" && (
-            <div
-              className={cn(
-                "flex w-full flex-col items-center gap-1.5 rounded-md border p-1.5",
-                slide.videoUrl ? "border-emerald-300 bg-emerald-50" : "border-dashed",
-              )}
-            >
-              {slide.videoUrl ? (
-                <>
-                  <div className="flex items-center gap-1 text-[10px] font-medium text-emerald-700">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Vidéo uploadée
-                  </div>
-                  <a
-                    href={slide.videoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[10px] text-primary hover:underline"
-                  >
-                    Voir la vidéo
-                  </a>
-                </>
-              ) : (
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <Video className="h-3 w-3" />
-                  Aucune vidéo
-                </div>
-              )}
-              <button type="button" onClick={onOpenVideoUpload} className="text-[10px] text-primary hover:underline">
-                {slide.videoUrl ? "Remplacer la vidéo" : "Uploader une vidéo"}
-              </button>
-            </div>
+            <VideoUrlField
+              url={slide.videoUrl}
+              onChange={(videoUrl) => onUpdate({ videoUrl })}
+              onPosterFromFile={onOpenVideoUpload}
+            />
           )}
 
           <div className="flex items-center gap-1.5">

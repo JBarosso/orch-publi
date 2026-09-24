@@ -18,16 +18,9 @@ export function getCarouselImages(content: CarouselContent): ImageEntry[] {
         height: 1080,
       });
     }
-    if (slide.mediaType === "video" && slide.videoUrl) {
-      entries.push({
-        imageUrl: slide.videoUrl,
-        imageWeek: slide.imageWeek,
-        baseName: `carousel-${slot}`,
-        width: null,
-        height: null,
-        isVideo: true,
-      });
-    }
+    // La vidéo n'est pas dans le ZIP : elle n'est plus hébergée ici, seule son
+    // adresse est conservée et l'intégrateur la dépose lui-même dans le CMS
+    // (cf. la liste « Vidéos à récupérer » de la page Export).
     if (slide.titleType === "image" && slide.titleImageUrl) {
       entries.push({
         imageUrl: slide.titleImageUrl,

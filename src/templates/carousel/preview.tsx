@@ -7,9 +7,16 @@ import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 interface CarouselPreviewProps {
   content: CarouselContent;
+  /** Sans lui (aperçu hors brief), les pastilles de navigation ne visent rien. */
+  sectionId?: string;
 }
 
-export function CarouselPreview({ content }: CarouselPreviewProps) {
+/** Nom de l'iframe : c'est par lui que les pastilles retrouvent leur aperçu. */
+export function carouselFrameName(sectionId: string): string {
+  return `carousel-preview-${sectionId}`;
+}
+
+export function CarouselPreview({ content, sectionId }: CarouselPreviewProps) {
   const frameId = useId();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(400);
@@ -35,6 +42,7 @@ export function CarouselPreview({ content }: CarouselPreviewProps) {
     <div className="rounded-lg border border-border/60 bg-white shadow-sm overflow-hidden">
       <iframe
         ref={iframeRef}
+        name={sectionId ? carouselFrameName(sectionId) : undefined}
         srcDoc={srcDoc}
         className="w-full border-0"
         style={{ height: iframeHeight }}

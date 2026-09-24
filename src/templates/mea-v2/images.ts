@@ -52,18 +52,9 @@ export function getMeaV2Images(content: MeaV2Content): ImageEntry[] {
       customFolder: focusFolder,
     });
   }
-  if (focus?.mediaType === "video" && focus.videoUrl) {
-    entries.push({
-      imageUrl: focus.videoUrl,
-      imageWeek: focus.imageWeek,
-      baseName: resolveImageBaseName(focus, "mea-5"),
-      width: null,
-      height: null,
-      noLocale: focus.isGlobalImage,
-      customFolder: focusFolder,
-      isVideo: true,
-    });
-  }
+  // La vidéo n'est pas dans le ZIP : elle n'est plus hébergée ici, seule son
+  // adresse est conservée et l'intégrateur la dépose lui-même dans le CMS
+  // (cf. la liste « Vidéos à récupérer » de la page Export).
 
   return entries;
 }

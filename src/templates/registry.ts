@@ -11,6 +11,7 @@
 // ne pas alourdir les bundles.
 
 import type { ImageEntry } from "@/lib/section-images";
+import type { VideoEntry } from "@/lib/section-videos";
 import {
   freezeCarouselContent,
   freezeCustomContent,
@@ -52,8 +53,10 @@ import { getMeaImages } from "@/templates/mea/images";
 import { getCustomImages } from "@/templates/custom/images";
 import { getMacaronsV2Images } from "@/templates/macarons-v2/images";
 import { getMeaV2Images } from "@/templates/mea-v2/images";
+import { getMeaV2Videos } from "@/templates/mea-v2/videos";
 import { getEditoImages } from "@/templates/edito/images";
 import { getCarouselImages } from "@/templates/carousel/images";
+import { getCarouselVideos } from "@/templates/carousel/videos";
 import { getImgSousMenuImages } from "@/templates/img-sous-menu/images";
 import { getCatBannerImages } from "@/templates/cat-banner/images";
 import { getMiniatureOffreImages } from "@/templates/miniature-offre/images";
@@ -90,6 +93,8 @@ export interface TemplateDefinition<TContent> {
   generateHTML?: (content: TContent, ctx: ExportContext) => string;
   /** Fichiers à placer dans le ZIP. Absent = ce template n'a pas d'image. */
   getImages?: (content: TContent) => ImageEntry[];
+  /** Vidéos à récupérer par l'intégrateur : elles ne sont plus hébergées ici. */
+  getVideos?: (content: TContent, ctx: ExportContext) => VideoEntry[];
   /** Gel semaine/position à la duplication vers une autre semaine. */
   freezeWeek?: (content: TContent, originalWeek: number) => TContent;
 }
@@ -135,6 +140,7 @@ export const TEMPLATES: Record<string, TemplateDefinition<unknown>> = {
     normalizeContent: normalizeMeaV2Content,
     generateHTML: generateMeaV2HTML,
     getImages: getMeaV2Images,
+    getVideos: getMeaV2Videos,
     freezeWeek: freezeMeaV2Content,
   }),
 
@@ -157,6 +163,7 @@ export const TEMPLATES: Record<string, TemplateDefinition<unknown>> = {
     createEmptyContent: createEmptyCarouselContent,
     generateHTML: generateCarouselHTML,
     getImages: getCarouselImages,
+    getVideos: getCarouselVideos,
     freezeWeek: freezeCarouselContent,
   }),
 
@@ -238,6 +245,13 @@ export function getSectionImages(
   if (!template?.getImages) return [];
   const images = template.getImages(contentFor(type, content));
   return sectionFolder ? images.map((img) => ({ ...img, sectionFolder })) : images;
+}
+
+/** Vidéos d'une section, avec le chemin CMS où l'intégrateur doit les déposer. */
+export function getSectionVideos(type: string, content: unknown, ctx: ExportContext): VideoEntry[] {
+  const template = TEMPLATES[type];
+  if (!template?.getVideos) return [];
+  return template.getVideos(contentFor(type, content), ctx);
 }
 
 /** Gel semaine/position appliqué à la duplication d'un brief. */

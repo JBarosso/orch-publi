@@ -3,8 +3,9 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, ImageDown, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { ArrowLeft, Loader2, ImageDown, AlertTriangle, CheckCircle2, Info, Video } from "lucide-react";
 import { hasCmsAsset, resolveCmsAsset } from "@/lib/cms-asset";
+import type { VideoEntry } from "@/lib/section-videos";
 import { Button } from "@/components/ui/button";
 import { CopyCodeButton } from "@/components/editor/copy-code-button";
 import { toast } from "sonner";
@@ -75,6 +76,42 @@ interface BriefWithSections extends Brief {
 }
 
 /**
+ * Les vidéos ne sont plus hébergées par l'outil ni placées dans le ZIP :
+ * l'intégrateur les télécharge à leur adresse et les dépose dans le CMS au
+ * chemin attendu par le HTML ci-dessus.
+ */
+function VideosToFetch({ videos }: { videos: VideoEntry[] }) {
+  return (
+    <div className="border-t border-border/60 bg-amber-50/60 px-5 py-4">
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-amber-900">
+        <Video className="h-3.5 w-3.5" />
+        Vidéos à récupérer et à déposer dans le CMS
+      </p>
+      <ul className="space-y-2">
+        {videos.map((video) => (
+          <li key={video.cmsPath} className="text-xs text-amber-900/90">
+            <span className="font-medium">{video.slot}</span>
+            <div className="mt-0.5 break-all">
+              source :{" "}
+              {video.sourceUrl ? (
+                <a href={video.sourceUrl} target="_blank" rel="noreferrer" className="underline">
+                  {video.sourceUrl}
+                </a>
+              ) : (
+                <span className="font-medium text-amber-700">adresse non renseignée dans le brief</span>
+              )}
+            </div>
+            <div className="break-all">
+              à déposer dans : <code className="rounded bg-amber-100 px-1">{video.cmsPath}</code>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
  * Asset Salesforce où coller le code de la section — informatif. Absent pour
  * les sections sans code à coller ; signalé discrètement quand il manque, pour
  * penser à choisir la page de la section (ou compléter l'onglet Assets CMS).
@@ -121,7 +158,14 @@ export default function ExportPage({
   const [brief, setBrief] = useState<BriefWithSections | null>(null);
   const [loading, setLoading] = useState(true);
   const [exports, setExports] = useState<
-    { type: string; title: string; html: string; sectionId: string; content: unknown }[]
+    {
+      type: string;
+      title: string;
+      html: string;
+      sectionId: string;
+      content: unknown;
+      videos: VideoEntry[];
+    }[]
   >([]);
   const [downloadingImages, setDownloadingImages] = useState<string | null>(null);
   const [skippedCount, setSkippedCount] = useState(0);
@@ -172,6 +216,7 @@ export default function ExportPage({
             html: exportData.html,
             sectionId: section.id,
             content: section.content,
+            videos: (exportData.videos ?? []) as VideoEntry[],
           };
         }),
       );
@@ -360,6 +405,8 @@ export default function ExportPage({
                 <code>{exp.html}</code>
               </pre>
             )}
+
+            {exp.videos.length > 0 && <VideosToFetch videos={exp.videos} />}
           </div>
         ))}
 

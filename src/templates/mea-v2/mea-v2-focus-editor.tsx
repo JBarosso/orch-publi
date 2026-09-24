@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Image as ImageIcon, Video } from "lucide-react";
+import { Image as ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -15,6 +15,7 @@ import { ButtonsEditor } from "@/components/editor/buttons-editor";
 import { LinkFields } from "@/components/editor/link-fields";
 import { WeekField } from "@/components/editor/week-field";
 import { ImageRemoveButton } from "@/components/editor/image-remove-button";
+import { VideoUrlField } from "@/components/editor/video-url-field";
 import type { MeaV2FocusCard, MeaButton } from "@/types";
 import { cn } from "@/lib/utils";
 import { createEmptyButton } from "./schema";
@@ -99,43 +100,11 @@ export function MeaV2FocusEditor({
         </span>
 
         {focus.mediaType === "video" && (
-          <div
-            className={cn(
-              "flex w-full flex-col items-center gap-1.5 rounded-md border p-1.5",
-              focus.videoUrl
-                ? "border-emerald-300 bg-emerald-50"
-                : "border-dashed",
-            )}
-          >
-            {focus.videoUrl ? (
-              <>
-                <div className="flex items-center gap-1 text-[10px] font-medium text-emerald-700">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Vidéo uploadée
-                </div>
-                <a
-                  href={focus.videoUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[10px] text-primary hover:underline"
-                >
-                  Voir la vidéo
-                </a>
-              </>
-            ) : (
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <Video className="h-3 w-3" />
-                Aucune vidéo
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={onOpenVideoUpload}
-              className="text-[10px] text-primary hover:underline"
-            >
-              {focus.videoUrl ? "Remplacer la vidéo" : "Uploader une vidéo"}
-            </button>
-          </div>
+          <VideoUrlField
+            url={focus.videoUrl}
+            onChange={(videoUrl) => onUpdate({ videoUrl })}
+            onPosterFromFile={onOpenVideoUpload}
+          />
         )}
       </div>
 

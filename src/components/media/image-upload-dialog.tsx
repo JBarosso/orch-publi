@@ -33,7 +33,6 @@ import {
   looksLikeTiff,
   normalizeAssetLabel,
   validateSourceFile,
-  validateSourceVideoFile,
 } from "@/lib/upload-specs";
 import { dropOriginOf, postAsset, rememberDropOrigin, uploadToTemp } from "@/lib/post-asset";
 import { FULL_RECT, isFullRect, type CropRect } from "@/lib/free-crop";
@@ -51,9 +50,6 @@ interface ImageUploadDialogProps {
   cropAspect?: number;
   targetWidth?: number;
   targetHeight?: number;
-  /** Fichier brut dès sa sélection (mode vidéo) — utile pour un traitement
-   * client-side en parallèle de l'upload (ex: capture de la 1ère frame). */
-  onFileSelected?: (file: File) => void;
   onUploaded: (url: string) => void;
   onClose: () => void;
 }
@@ -164,7 +160,6 @@ export function ImageUploadDialog({
   cropAspect,
   targetWidth,
   targetHeight,
-  onFileSelected,
   onUploaded,
   onClose,
 }: ImageUploadDialogProps) {
@@ -223,41 +218,19 @@ export function ImageUploadDialog({
   const loadFile = useCallback(
     (file: File) => {
       sourceWasTiffRef.current = false;
-      // Sélecteur de type générique (médiathèque) : si le fichier déposé est
-      // une vidéo et qu'aucun type vidéo n'est déjà sélectionné, bascule sur
-      // un type vidéo par défaut — évite d'avoir à choisir le type avant.
-      // Si un type vidéo spécifique était déjà sélectionné (ex: "Slider -
-      // Vidéo"), on le respecte plutôt que d'écraser vers un autre.
+      // Les vidéos ne sont plus hébergées par l'outil : trop lourdes à stocker
+      // et à servir (quota Blob épuisé en septembre 2026). On renvoie vers le
+      // champ URL de la section, qui sert aussi à fabriquer la vignette.
       // Windows ne rapporte pas toujours file.type pour les .mp4 (souvent
       // vide) : on se fie aussi à l'extension via looksLikeMp4.
-      const isVideoFile = file.type.startsWith("video/") || looksLikeMp4(file);
-      if (isVideoFile && allowTypeSelect && spec.kind !== "video") {
-        setSelectedType("mea_v2_video");
-      }
-      const activeSpec =
-        isVideoFile && allowTypeSelect ? (spec.kind === "video" ? spec : ASSET_SPECS.mea_v2_video) : spec;
-
-      if (activeSpec.kind === "video") {
-        const videoError = validateSourceVideoFile(file);
-        if (videoError) {
-          toast.error(videoError);
-          return;
-        }
-        onFileSelected?.(file);
-        const reader = new FileReader();
-        reader.onload = () => {
-          // file.type (donc le préfixe mime de reader.result) peut être vide
-          // ou erroné sur Windows — on force explicitement "video/mp4" plutôt
-          // que de faire confiance au navigateur (sinon le serveur rejette le
-          // préfixe mime au moment du décodage base64).
-          const result = reader.result as string;
-          const base64 = result.slice(result.indexOf(",") + 1);
-          setSourceDims(null);
-          setImageSrc(`data:video/mp4;base64,${base64}`);
-        };
-        reader.readAsDataURL(file);
+      if (file.type.startsWith("video/") || looksLikeMp4(file)) {
+        toast.error(
+          "Les vidéos ne sont plus hébergées ici. Dans la section, collez l'adresse de la vidéo : l'intégrateur la récupérera, et le bouton « Générer la vignette » en extrait l'image d'aperçu.",
+          { duration: 10000 },
+        );
         return;
       }
+      const activeSpec = spec;
 
       const fileError = validateSourceFile(file, activeSpec.allowSvg === true);
       if (fileError) {
@@ -344,7 +317,7 @@ export function ImageUploadDialog({
       reader.onload = () => showImage(reader.result as string);
       reader.readAsDataURL(file);
     },
-    [spec, allowTypeSelect, onFileSelected]
+    [spec]
   );
 
   useEffect(() => {

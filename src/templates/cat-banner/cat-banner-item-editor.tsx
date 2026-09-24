@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { CopyItemButton } from "@/components/editor/item-clipboard";
 import { ConfirmDeleteDialog } from "@/components/editor/confirm-delete-dialog";
 import { WeekField } from "@/components/editor/week-field";
+import { LinkFields } from "@/components/editor/link-fields";
 import { CommentField } from "@/components/editor/comment-field";
 import { ImageRemoveButton } from "@/components/editor/image-remove-button";
 import type { CatBannerItem } from "@/types";
@@ -139,12 +140,24 @@ export function CatBannerItemEditor({
               className="h-8 text-sm"
             />
 
-            <Input
-              placeholder="https://... ou /fr/puericulture/..."
-              value={item.url}
-              onChange={(e) => onUpdate({ url: e.target.value })}
-              className="h-8 text-sm"
-            />
+            <div className="flex items-center gap-1.5">
+              <LinkFields
+                linkType={item.linkType ?? "url"}
+                cgid={item.cgid ?? ""}
+                cid={item.cid ?? ""}
+                link={item.url}
+                onChange={({ linkType, cgid, cid, link }) =>
+                  onUpdate({
+                    ...(linkType !== undefined && { linkType }),
+                    ...(cgid !== undefined && { cgid }),
+                    ...(cid !== undefined && { cid }),
+                    ...(link !== undefined && { url: link }),
+                  })
+                }
+                selectClassName="h-8 w-24 shrink-0 text-sm"
+                inputClassName="h-8 flex-1 text-sm"
+              />
+            </div>
 
             <Input
               placeholder="puericulture > repas > biberonnerie"

@@ -488,6 +488,12 @@ export interface CatBannerItem {
   // (slugifié : sans accents, espaces -> "-").
   label: string;
   url: string;
+  // Destination du lien, comme dans les autres templates. Absents des
+  // bannières créées avant leur ajout : lues comme une URL directe ("url"),
+  // ce qu'elles étaient.
+  linkType?: "url" | "cgid" | "cid";
+  cgid?: string;
+  cid?: string;
   // Page du site où placer la bannière (ex: "puericulture > repas >
   // biberonnerie") — informatif, rappelé à l'export. Optionnels (comme
   // comment) : absents des bannières créées avant leur ajout.

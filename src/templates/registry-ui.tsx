@@ -57,6 +57,7 @@ import { ImgSousMenuPreview } from "@/templates/img-sous-menu/preview";
 import { CatBannerPreview } from "@/templates/cat-banner/preview";
 import { MiniatureOffrePreview } from "@/templates/miniature-offre/preview";
 import { CarouselPreview } from "@/templates/carousel/preview";
+import { CarouselPreviewControls } from "@/templates/carousel/preview-controls";
 import { GlobalHeaderPreview } from "@/templates/global-header/preview";
 import { MoodboardPreview } from "@/templates/moodboard/preview";
 
@@ -72,7 +73,9 @@ export interface TemplateEditorProps {
 
 export interface TemplateUi {
   Editor?: (props: TemplateEditorProps) => ReactNode;
-  Preview?: (props: { content: unknown }) => ReactNode;
+  Preview?: (props: { content: unknown; sectionId?: string }) => ReactNode;
+  /** Commandes posées à droite du titre de l'aperçu (ex: changer de diapositive). */
+  PreviewControls?: (props: { content: unknown; sectionId: string }) => ReactNode;
   /** Range l'URL choisie (médiathèque ou upload) au `target` passé à `onOpenMedia`. */
   setImage?: (content: unknown, target: string, url: string) => unknown;
   /** Upload vidéo direct, enchaîné sur l'upload de sa vignette. */
@@ -406,7 +409,10 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
         onOpenVideoUpload={(slideIndex) => onOpenVideoUpload(String(slideIndex))}
       />
     ),
-    Preview: ({ content }) => <CarouselPreview content={content as CarouselContent} />,
+    Preview: ({ content, sectionId }) => (
+      <CarouselPreview content={content as CarouselContent} sectionId={sectionId} />
+    ),
+    PreviewControls: CarouselPreviewControls,
     // Targets : "slide-<index>", "title-<index>" ou "logo-<index>".
     setImage: (content, target, url) => {
       const c = content as CarouselContent;

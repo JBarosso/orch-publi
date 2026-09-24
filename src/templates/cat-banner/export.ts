@@ -4,6 +4,16 @@ import { slugify } from "./schema";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { sectionFolderSegment, type ExportContext } from "@/lib/cms-image-path";
 
+// Destination du lien, mêmes macros CMS que les autres templates. Les
+// bannières d'avant ce choix n'ont pas de linkType : elles gardent leur URL.
+function getHref(item: CatBannerItem): string {
+  if (item.linkType === "cgid")
+    return `$url('Search-Show','cgid','${esc((item.cgid ?? "").trim().replace(/\s/g, ""))}')$`;
+  if (item.linkType === "cid")
+    return `$httpsUrl('Page-Show','cid','${esc((item.cid ?? "").trim().replace(/\s/g, ""))}')$`;
+  return esc(item.url.trim());
+}
+
 // Un item = un <div> autonome (fond + lien + image desktop/mobile), copié
 // individuellement dans le CMS — cf. generateCatBannerHTML plus bas pour la
 // version "tout collé" (zip/API) qui réutilise ce même générateur.
@@ -12,7 +22,7 @@ export function generateCatBannerItemHTML(item: CatBannerItem, ctx: ExportContex
   const slug = slugify(item.label);
   const path = `banner/${ctx.year}/wk${wk}/${ctx.locale}${sectionFolderSegment(ctx)}`;
   const alt = `${esc(item.label)} - Je découvre`;
-  const href = esc(item.url.trim());
+  const href = getHref(item);
 
   return `<div class="w-100">
     <a href="${href}">
