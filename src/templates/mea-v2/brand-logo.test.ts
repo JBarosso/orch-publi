@@ -34,11 +34,11 @@ describe("source du logo marque", () => {
     expect(brandLogoCmsPath(global, CTX, "mea-1")).toBe("homepage/2026/wk07/promo-ete-logo");
   });
 
-  it("suit le dossier et la langue de la carte", () => {
+  it("suit le dossier de la carte ; un chemin personnalisé remplace tout, langue comprise", () => {
     expect(brandLogoCmsPath(card({}), CTX, "mea-1")).toBe("homepage/2026/wk07/fr/mea-1-logo");
     expect(
       brandLogoCmsPath(card({ useCustomPath: true, customPath: "landing/fille" }), CTX, "mea-2"),
-    ).toBe("landing/fille/fr/mea-2-logo");
+    ).toBe("landing/fille/mea-2-logo");
   });
 });
 

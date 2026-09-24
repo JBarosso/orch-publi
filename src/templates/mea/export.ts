@@ -2,17 +2,12 @@ import type { MeaItem, MeaButton } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 
 import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
+import { sectionFolderSegment, type ExportContext } from "@/lib/cms-image-path";
 
 export { CMS_CSS_URL };
 
 const BRAND_LOGO_STAGING_BASE =
   "https://fr.shop-orchestra.com/on/demandware.static/-/Library-Sites-OrchestraSharedLibrary/default/dw5f0e0dfb/logo-puericulture/";
-
-interface ExportContext {
-  year: number;
-  week: number;
-  locale: string;
-}
 
 function getButtonUrl(btn: MeaButton): string {
   if (btn.linkType === "cgid")
@@ -227,7 +222,7 @@ export function generateMeaHTML(items: MeaItem[], ctx: ExportContext): string {
       const wk = String(item.imageWeek ?? ctx.week).padStart(2, "0");
       // exportPosition fige le numéro pour les items venant d'une autre semaine
       // (déplacer un item réutilisé ne le renumérote plus).
-      const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/mea-${item.exportPosition ?? index + 1}`;
+      const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}${sectionFolderSegment(ctx)}/mea-${item.exportPosition ?? index + 1}`;
 
       const plainTitle = esc(item.title.replace(/\n/g, " "));
       const buttons = item.buttons ?? [

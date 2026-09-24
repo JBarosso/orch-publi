@@ -30,16 +30,22 @@ interface ZipEntry {
 
 /** Chemin CMS du fichier, sans le nom : doit matcher resolveCmsFolder côté export HTML. */
 function subFolderFor(img: ImageEntry, group: ZipGroup): string {
+  const prefix = group.folderPrefix ? `${group.folderPrefix}/` : "";
+
+  // Chemin personnalisé : il remplace tout, langue comprise — seul le nom du
+  // fichier lui est ajouté (doit matcher buildCmsImagePath côté export HTML).
+  if (img.customFolder) return `${prefix}${img.customFolder}`;
+
   const imgWk = String(img.imageWeek ?? group.week).padStart(2, "0");
   // Locale en minuscule, "be" pour BEFR/BENL (doit matcher le <img src>
   // exporté). Racine "homepage" par défaut, surchargeable par template
   // (ex: "banner" pour cat-banner) via img.folder.
   const folder = img.folder ?? "homepage";
   const localeSegment = img.noLocale ? "" : `/${cmsLocalePath(group.locale)}`;
-  // Chemin personnalisé : remplace "{folder}/{année}/wk{semaine}" (la semaine
-  // n'en fait alors plus partie, cf. resolveCmsFolder).
-  const baseFolder = img.customFolder || `${folder}/${group.year}/wk${imgWk}`;
-  return `${group.folderPrefix ? `${group.folderPrefix}/` : ""}${baseFolder}${localeSegment}`;
+  // Plusieurs sections du même type dans le brief : la 2e et les suivantes ont
+  // leur propre dossier, sinon leurs fichiers homonymes s'écrasent.
+  const sectionSegment = img.sectionFolder ? `/${img.sectionFolder}` : "";
+  return `${prefix}${folder}/${group.year}/wk${imgWk}${localeSegment}${sectionSegment}`;
 }
 
 interface PreparedImage {

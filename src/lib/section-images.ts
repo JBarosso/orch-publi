@@ -29,6 +29,10 @@ export interface ImageEntry {
   // "{folder}/{année}/wk{semaine}" — doit matcher resolveCmsFolder côté
   // export HTML. Absent = chemin par défaut.
   customFolder?: string;
+  // Sous-dossier ajouté en bout de chemin quand le brief compte plusieurs
+  // sections du même type (cf. sectionExportFolders) — doit matcher
+  // sectionFolderSegment côté export HTML. Posé par getSectionImages.
+  sectionFolder?: string;
 }
 
 /**

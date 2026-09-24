@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { cleanExportedHtml, cmsLocalePath } from "@/lib/utils";
 import { generateSectionHTML } from "@/templates/registry";
+import { sectionExportFolders } from "@/lib/section-export-folder";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -44,7 +45,22 @@ export async function GET(request: NextRequest) {
   // (homepage/{année}/wk{semaine}/fr/...), alors qu'elle est stockée en
   // majuscule ("FR", "BEFR"...) partout ailleurs dans l'outil — et un seul
   // dossier "be" pour BEFR/BENL (cf. cmsLocalePath).
-  const ctx = { year: brief.year, week: brief.week, locale: cmsLocalePath(brief.locale) };
+  // Plusieurs sections du même type dans le brief : les suivantes exportent
+  // leurs images dans leur propre sous-dossier, sinon les noms de fichiers
+  // (quickaccess-3.jpg...) s'écrasent entre sections. Calculé sur toutes les
+  // sections, dans l'ordre d'affichage, pour donner le même résultat que le ZIP.
+  const siblings = await db
+    .select({ id: briefSections.id, type: briefSections.type, title: briefSections.title })
+    .from(briefSections)
+    .where(eq(briefSections.briefId, section.briefId))
+    .orderBy(asc(briefSections.order));
+
+  const ctx = {
+    year: brief.year,
+    week: brief.week,
+    locale: cmsLocalePath(brief.locale),
+    sectionFolder: sectionExportFolders(siblings).get(section.id) || undefined,
+  };
 
   // Les templates sans generateHTML (img sous menu, miniature offre) rendent
   // une chaîne vide : seuls leurs fichiers image comptent.

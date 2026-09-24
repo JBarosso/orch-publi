@@ -6,6 +6,7 @@ import { brandLogoExtension, brandLogoWidth, usesUploadedBrandLogo } from "@/lib
 import { DEFAULT_BRAND_LOGO_PATH, brandLogoCmsPath } from "./brand-logo";
 import { getPricingHTML, type ClubIconConfig } from "../mea/export";
 import { focusCardHasContent } from "./schema";
+import type { ExportContext } from "@/lib/cms-image-path";
 
 // Même bibliothèque CDN que ico-club (icons/), même bucket de hash -
 // hypothèse raisonnable faute d'URL confirmée ; à corriger si le hash diffère
@@ -16,12 +17,6 @@ const LABEL_CLUB_ICON: ClubIconConfig = {
     "https://fr.shop-orchestra.com/on/demandware.static/-/Library-Sites-OrchestraSharedLibrary/default/dwe6daf39c/icons/label-club.svg",
   alt: "Club",
 };
-
-interface ExportContext {
-  year: number;
-  week: number;
-  locale: string;
-}
 
 // CSS scopé au nouveau design "MEA v2" (v2-html/header.html + v2-html/style.html).
 // Coexiste avec le CSS des MEA v1 (.mea/.mea__*), classes différentes, aucune collision.

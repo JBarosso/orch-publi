@@ -72,11 +72,10 @@ import { createEmptyImgSousMenuContent } from "@/templates/img-sous-menu/schema"
 import { createEmptyMiniatureOffreContent } from "@/templates/miniature-offre/schema";
 import { createEmptyMoodboardContent, normalizeMoodboardContent } from "@/templates/moodboard/schema";
 
-export interface ExportContext {
-  year: number;
-  week: number;
-  locale: string;
-}
+// Défini avec les chemins CMS (cf. cms-image-path), ré-exporté ici : c'est par
+// le registre que les routes d'export le voient.
+import type { ExportContext } from "@/lib/cms-image-path";
+export type { ExportContext };
 
 export interface TemplateDefinition<TContent> {
   /** Contenu d'une section fraîchement créée. */
@@ -229,10 +228,16 @@ export function generateSectionHTML(type: string, content: unknown, ctx: ExportC
  * Fichiers image/vidéo à placer dans le ZIP. Point d'entrée unique de
  * l'export simple, "tous les fichiers" et groupé.
  */
-export function getSectionImages(type: string, content: unknown): ImageEntry[] {
+export function getSectionImages(
+  type: string,
+  content: unknown,
+  /** Sous-dossier de la section, cf. sectionExportFolders — "" pour la première de son type. */
+  sectionFolder = "",
+): ImageEntry[] {
   const template = TEMPLATES[type];
   if (!template?.getImages) return [];
-  return template.getImages(contentFor(type, content));
+  const images = template.getImages(contentFor(type, content));
+  return sectionFolder ? images.map((img) => ({ ...img, sectionFolder })) : images;
 }
 
 /** Gel semaine/position appliqué à la duplication d'un brief. */

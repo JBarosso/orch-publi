@@ -154,11 +154,15 @@ export function sharedCustomPath(
 }
 
 /**
- * Détecte une image "globale" (chemin CMS sans segment locale, cf. le toggle
- * "Global" des templates v2) et le nom de fichier personnalisé le cas
+ * Détecte une image "globale" (chemin CMS par défaut sans segment locale, cf.
+ * le toggle "Global" des templates v2) et le nom de fichier personnalisé le cas
  * échéant. defaultName est le nom qu'aurait généré l'app pour cette position
  * (ex: "quickaccess-4") — s'il correspond exactement, le nom suit juste le
  * nommage automatique et globalFileName reste vide (pas de gel inutile).
+ *
+ * Un chemin personnalisé n'a jamais de segment locale non plus (il remplace
+ * tout le chemin) : l'absence de langue n'y dit donc rien, et une image y est
+ * traitée comme normale.
  */
 export function resolveGlobalImageFields(
   imagePath: ParsedCmsImagePath | null,
@@ -167,8 +171,11 @@ export function resolveGlobalImageFields(
   if (!imagePath || imagePath.locale !== null) {
     return { isGlobalImage: false, globalFileName: "" };
   }
-  return {
-    isGlobalImage: true,
-    globalFileName: imagePath.baseName !== defaultName ? imagePath.baseName : "",
-  };
+  const customName = imagePath.baseName !== defaultName ? imagePath.baseName : "";
+  // Sous chemin personnalisé, seul un nom hors nommage automatique justifie le
+  // toggle : c'est lui qui porte ce nom de fichier.
+  if (imagePath.customPath && !customName) {
+    return { isGlobalImage: false, globalFileName: "" };
+  }
+  return { isGlobalImage: true, globalFileName: customName };
 }

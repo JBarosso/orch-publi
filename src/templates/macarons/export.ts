@@ -1,14 +1,9 @@
 import type { MacaronItem } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
+import { sectionFolderSegment, type ExportContext } from "@/lib/cms-image-path";
 
 export { CMS_CSS_URL };
-
-interface ExportContext {
-   year: number;
-   week: number;
-   locale: string;
-}
 
 const cssStyle = `
    .quickaccess-list {
@@ -42,7 +37,7 @@ export function generateMacaronsHTML(
          // même schéma que MEA. exportPosition fige le numéro pour les items
          // dont l'image vient d'une autre semaine (déplacer ne les renumérote
          // plus) ; sinon la position suit l'index actuel dans la liste.
-         const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/quickaccess-${item.exportPosition ?? index + 1}`;
+         const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}${sectionFolderSegment(ctx)}/quickaccess-${item.exportPosition ?? index + 1}`;
 
          const plainLabel = esc(item.label.replace(/\n/g, " "));
          const htmlLabel = esc(item.label).replace(/\n/g, "<br>");

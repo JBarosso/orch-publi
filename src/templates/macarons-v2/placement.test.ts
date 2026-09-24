@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { MacaronItem } from "@/types";
-import { generateQuickaccessV2HTML } from "./export";
+import { generatePreviewHTML, generateQuickaccessV2HTML } from "./export";
 
 const CTX = { year: 2026, week: 7, locale: "fr" };
 
@@ -53,6 +53,17 @@ describe("emplacement CMS du quickaccess v2", () => {
     expect(html).toContain('class="quickaccess-lvl2-item__label"');
     expect(html).not.toContain("quickaccess-v2");
     expect(html).not.toContain("hp-cat-container");
+  });
+
+  // L'aperçu écrivait toujours les classes de la page d'accueil : changer
+  // l'emplacement ne se voyait nulle part à l'écran, alors que l'export, lui,
+  // changeait bien — d'où l'impression que le réglage ne servait à rien.
+  it("l'aperçu suit le même emplacement que l'export", () => {
+    expect(generatePreviewHTML([item()])).toContain('<nav class="quickaccess-v2 hp-cat-container"');
+    const lvl2 = generatePreviewHTML([item()], "", "cat_lvl2");
+    expect(lvl2).toContain('<nav class="quickaccess-lvl2"');
+    expect(lvl2).toContain('<ul class="quickaccess-lvl2__list hp-cat-lvl2-container"');
+    expect(lvl2).toContain('class="quickaccess-lvl2-item__label"');
   });
 
   it("ne touche qu'aux classes : chemins d'image, liens et libellés inchangés", () => {

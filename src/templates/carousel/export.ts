@@ -2,12 +2,7 @@ import type { CarouselButton, CarouselContent, CarouselSlide } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 import { brandLogoExtension, brandLogoWidth, usesUploadedBrandLogo } from "@/lib/brand-logo";
-
-interface ExportContext {
-  year: number;
-  week: number;
-  locale: string;
-}
+import { sectionFolderSegment, type ExportContext } from "@/lib/cms-image-path";
 
 const BRAND_LOGO_STAGING_BASE =
   "https://fr.shop-orchestra.com/on/demandware.static/-/Library-Sites-OrchestraSharedLibrary/default/dw5f0e0dfb/logo-puericulture/";
@@ -316,7 +311,7 @@ function brandLogoExportSrc(slide: CarouselSlide, slot: number, ctx: ExportConte
   const p = slide.productCallout;
   if (!usesUploadedBrandLogo(p)) return `logo-puericulture/${p.brandLogoPath}?$staticlink$`;
   const wk = String(slide.imageWeek ?? ctx.week).padStart(2, "0");
-  return `homepage/${ctx.year}/wk${wk}/${ctx.locale}/carousel-${slot}-logo.${brandLogoExtension(p)}?$staticlink$`;
+  return `homepage/${ctx.year}/wk${wk}/${ctx.locale}${sectionFolderSegment(ctx)}/carousel-${slot}-logo.${brandLogoExtension(p)}?$staticlink$`;
 }
 
 function brandLogoPreviewSrc(slide: CarouselSlide): string {
@@ -343,9 +338,9 @@ function productCalloutHTML(slide: CarouselSlide, preview: boolean, logoSrc: str
 
 function slideHTML(slide: CarouselSlide, slot: number, isFirst: boolean, ctx: ExportContext): string {
   const wk = String(slide.imageWeek ?? ctx.week).padStart(2, "0");
-  const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/carousel-${slot}`;
+  const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}${sectionFolderSegment(ctx)}/carousel-${slot}`;
   const titleWk = String(slide.titleImageWeek ?? ctx.week).padStart(2, "0");
-  const titleImgPath = `homepage/${ctx.year}/wk${titleWk}/${ctx.locale}/carousel-${slot}-title`;
+  const titleImgPath = `homepage/${ctx.year}/wk${titleWk}/${ctx.locale}${sectionFolderSegment(ctx)}/carousel-${slot}-title`;
   const plainTitle = esc(slide.titleText.replace(/\r?\n/g, " "));
 
   const mediaHTML =

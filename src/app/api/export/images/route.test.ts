@@ -8,8 +8,11 @@ import type { ImageEntry } from "@/lib/section-images";
 const SECTION = { id: "s1", briefId: "b1", type: "macarons_v2", content: {} };
 const BRIEF = { id: "b1", year: 2026, week: 36, locale: "fr" };
 
+// `where()` est tantôt attendu directement, tantôt suivi de `.orderBy()`
+// (lecture des sections sœurs pour le sous-dossier d'export).
 function chain(rows: unknown[]) {
-  return { from: () => ({ where: () => Promise.resolve(rows) }) };
+  const result = Promise.resolve(rows);
+  return { from: () => ({ where: () => Object.assign(result, { orderBy: () => result }) }) };
 }
 
 const select = vi.fn();
@@ -65,7 +68,10 @@ describe("GET /api/export/images", () => {
   });
 
   it("502 sans buffer si toutes les images échouent — décidé avant tout octet envoyé", async () => {
-    select.mockReturnValueOnce(chain([SECTION])).mockReturnValueOnce(chain([BRIEF]));
+    select
+      .mockReturnValueOnce(chain([SECTION]))
+      .mockReturnValueOnce(chain([BRIEF]))
+      .mockReturnValueOnce(chain([SECTION]));
     getSectionImages.mockReturnValue([img()]);
     readAsset.mockRejectedValue(new Error("stockage indisponible"));
 
@@ -75,7 +81,10 @@ describe("GET /api/export/images", () => {
   });
 
   it("succès : corps en flux (pas Content-Length), zip valide, en-tête d'export partiel si besoin", async () => {
-    select.mockReturnValueOnce(chain([SECTION])).mockReturnValueOnce(chain([BRIEF]));
+    select
+      .mockReturnValueOnce(chain([SECTION]))
+      .mockReturnValueOnce(chain([BRIEF]))
+      .mockReturnValueOnce(chain([SECTION]));
     getSectionImages.mockReturnValue([
       img({ baseName: "quickaccess-1" }),
       img({ baseName: "quickaccess-2", imageUrl: "https://example.test/broken.jpg" }),
@@ -100,5 +109,23 @@ describe("GET /api/export/images", () => {
     expect(buffer.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
     expect(buffer.includes("quickaccess-1.jpg")).toBe(true);
     expect(buffer.includes("_IMAGES-MANQUANTES.txt")).toBe(true);
+  });
+
+  // Deux sections du même type : sans sous-dossier, leurs fichiers homonymes
+  // s'écrasent dans l'archive comme dans le CMS.
+  it("range les fichiers d'une section en double dans son sous-dossier", async () => {
+    select
+      .mockReturnValueOnce(chain([SECTION]))
+      .mockReturnValueOnce(chain([BRIEF]))
+      .mockReturnValueOnce(chain([SECTION]));
+    getSectionImages.mockReturnValue([img({ sectionFolder: "promo-puericulture" })]);
+    readAsset.mockResolvedValue(
+      await sharp({ create: { width: 4, height: 4, channels: 3, background: "#c00" } }).png().toBuffer(),
+    );
+
+    const res = await GET(new NextRequest("http://localhost/api/export/images?sectionId=s1"));
+    const buffer = await readAll(res.body as ReadableStream<Uint8Array>);
+
+    expect(buffer.includes("homepage/2026/wk36/fr/promo-puericulture/quickaccess-1.jpg")).toBe(true);
   });
 });

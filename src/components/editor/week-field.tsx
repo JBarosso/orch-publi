@@ -3,7 +3,7 @@
 import { TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { resolveCmsFolder } from "@/lib/cms-image-path";
+import { defaultCmsFolder, resolveCustomFolder } from "@/lib/cms-image-path";
 import { cmsLocalePath } from "@/lib/utils";
 
 interface ImagePathProps {
@@ -59,20 +59,20 @@ export function WeekField({
   // celle du brief). Dans le cas normal la ligne resterait identique pour
   // tous les items : ce serait du bruit. Passe par le même résolveur que
   // l'export, donc ne peut pas diverger de ce qui sera réellement généré.
+  // Un chemin personnalisé, même hérité de la section, remplace tout : la
+  // langue n'en fait alors plus partie (cf. buildCmsImagePath).
+  const customFolder = imagePath ? resolveCustomFolder(imagePath, imagePath.sectionCustomPath) : "";
   const deviates =
     !!imagePath &&
-    (imagePath.isGlobalImage ||
-      imagePath.useCustomPath ||
-      (imageWeek != null && imageWeek !== briefWeek));
+    (imagePath.isGlobalImage || !!customFolder || (imageWeek != null && imageWeek !== briefWeek));
 
   const resolvedFolder = !deviates
     ? ""
-    : `${resolveCmsFolder(
-        imagePath,
-        imagePath.sectionCustomPath,
-        { year: imagePath.briefYear, week: briefWeek },
-        imageWeek,
-      )}${imagePath.isGlobalImage ? "" : `/${cmsLocalePath(imagePath.briefLocale)}`}/`;
+    : customFolder
+      ? `${customFolder}/`
+      : `${defaultCmsFolder({ year: imagePath.briefYear, week: briefWeek }, imageWeek)}${
+          imagePath.isGlobalImage ? "" : `/${cmsLocalePath(imagePath.briefLocale)}`
+        }/`;
 
   return (
     <div className="space-y-1">

@@ -206,7 +206,12 @@ export const TEMPLATE_UI: Record<string, TemplateUi> = {
         onDropFile={(itemId, file) => onDropFile(itemId, "macaron_v2", file)}
       />
     ),
-    Preview: ({ content }) => <MacaronsV2Preview items={(content as MacaronsContent)?.items ?? []} />,
+    Preview: ({ content }) => (
+      <MacaronsV2Preview
+        items={(content as MacaronsContent)?.items ?? []}
+        placement={(content as MacaronsContent)?.placement ?? "homepage"}
+      />
+    ),
     setImage: setItemImage,
     labelFor: itemLabel,
   },

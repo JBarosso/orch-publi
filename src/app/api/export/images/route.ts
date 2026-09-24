@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getSectionImages } from "@/templates/registry";
 import type { ImageEntry } from "@/lib/section-images";
 import { prepareZip, streamZip } from "@/lib/build-zip";
+import { sectionExportFolders } from "@/lib/section-export-folder";
+
+/**
+ * Sous-dossier d'export de chaque section du brief : vide pour la première de
+ * chaque type, propre à la section pour les suivantes (sinon leurs fichiers
+ * portent les mêmes noms et s'écrasent). Même calcul que l'export HTML.
+ */
+async function foldersForBrief(briefId: string) {
+  const sections = await db
+    .select({ id: briefSections.id, type: briefSections.type, title: briefSections.title })
+    .from(briefSections)
+    .where(eq(briefSections.briefId, briefId))
+    .orderBy(asc(briefSections.order));
+  return sectionExportFolders(sections);
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -39,7 +54,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Brief introuvable" }, { status: 404 });
   }
 
-  const images = getSectionImages(section.type, section.content);
+  const folders = await foldersForBrief(section.briefId);
+  const images = getSectionImages(section.type, section.content, folders.get(section.id));
 
   if (images.length === 0) {
     return NextResponse.json({ error: "Aucun fichier à exporter" }, { status: 400 });
@@ -61,12 +77,17 @@ async function exportAllImages(briefId: string) {
   const sections = await db
     .select()
     .from(briefSections)
-    .where(eq(briefSections.briefId, briefId));
+    .where(eq(briefSections.briefId, briefId))
+    .orderBy(asc(briefSections.order));
+
+  // Calculé sur toutes les sections, y compris non exportables : masquer une
+  // section ne doit pas déplacer les fichiers des autres.
+  const folders = sectionExportFolders(sections);
 
   const allImages: ImageEntry[] = [];
   // Les sections marquées non exportables (toggle "Export" off) sont ignorées
   for (const section of sections.filter((s) => s.visible !== false)) {
-    allImages.push(...getSectionImages(section.type, section.content));
+    allImages.push(...getSectionImages(section.type, section.content, folders.get(section.id)));
   }
 
   if (allImages.length === 0) {

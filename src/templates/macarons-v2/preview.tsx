@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useMemo } from "react";
-import type { MacaronItem } from "@/types";
+import type { MacaronItem, QuickaccessPlacement } from "@/types";
 import { generatePreviewHTML } from "./export";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 interface MacaronsV2PreviewProps {
   items: MacaronItem[];
+  /** Même emplacement qu'à l'export : il décide des classes CMS appliquées. */
+  placement?: QuickaccessPlacement;
 }
 
-export function MacaronsV2Preview({ items }: MacaronsV2PreviewProps) {
+export function MacaronsV2Preview({ items, placement = "homepage" }: MacaronsV2PreviewProps) {
   const frameId = useId();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(120);
@@ -22,8 +24,8 @@ export function MacaronsV2Preview({ items }: MacaronsV2PreviewProps) {
   const srcDoc = useMemo(() => {
     const debouncedVisible = debouncedItems.filter((item) => item.visible);
     if (debouncedVisible.length === 0) return "";
-    return generatePreviewHTML(debouncedItems, frameId);
-  }, [debouncedItems, frameId]);
+    return generatePreviewHTML(debouncedItems, frameId, placement);
+  }, [debouncedItems, frameId, placement]);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {

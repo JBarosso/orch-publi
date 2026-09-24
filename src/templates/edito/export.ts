@@ -1,12 +1,7 @@
 import type { EditoCard, MeaButton } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
-
-interface ExportContext {
-  year: number;
-  week: number;
-  locale: string;
-}
+import { sectionFolderSegment, type ExportContext } from "@/lib/cms-image-path";
 
 // CSS scopé à edito (v2-html/edito.html + v2-html/style.html) — sert
 // uniquement à la preview : le CMS a déjà ce CSS, pas de <style> dans l'export.
@@ -217,7 +212,7 @@ export function generateEditoHTML(items: EditoCard[], ctx: ExportContext): strin
   const cardsHTML = items
     .map((item, index) => {
       const wk = String(item.imageWeek ?? ctx.week).padStart(2, "0");
-      const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/edito-${item.exportPosition ?? index + 1}`;
+      const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}${sectionFolderSegment(ctx)}/edito-${item.exportPosition ?? index + 1}`;
       const plainTitle = esc(item.title.replace(/\n/g, " "));
       return cardHTML(item, imgPath, getHref(item), plainTitle);
     })

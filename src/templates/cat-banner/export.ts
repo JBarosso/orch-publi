@@ -2,12 +2,7 @@ import type { CatBannerItem } from "@/types";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 import { slugify } from "./schema";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
-
-interface ExportContext {
-  year: number;
-  week: number;
-  locale: string;
-}
+import { sectionFolderSegment, type ExportContext } from "@/lib/cms-image-path";
 
 // Un item = un <div> autonome (fond + lien + image desktop/mobile), copié
 // individuellement dans le CMS — cf. generateCatBannerHTML plus bas pour la
@@ -15,7 +10,7 @@ interface ExportContext {
 export function generateCatBannerItemHTML(item: CatBannerItem, ctx: ExportContext): string {
   const wk = String(item.imageWeek ?? ctx.week).padStart(2, "0");
   const slug = slugify(item.label);
-  const path = `banner/${ctx.year}/wk${wk}/${ctx.locale}`;
+  const path = `banner/${ctx.year}/wk${wk}/${ctx.locale}${sectionFolderSegment(ctx)}`;
   const alt = `${esc(item.label)} - Je découvre`;
   const href = esc(item.url.trim());
 

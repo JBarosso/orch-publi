@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildCmsImagePath,
   normalizeCustomPath,
-  resolveCmsFolder,
+  defaultCmsFolder,
   resolveCustomFolder,
   resolveImageBaseName,
   type ImagePathFields,
@@ -35,8 +35,14 @@ describe("normalizeCustomPath", () => {
 });
 
 describe("resolveCustomFolder", () => {
-  it("ne rend rien quand le toggle est inactif, même si des chemins existent", () => {
-    expect(resolveCustomFolder(fields({ customPath: "promo" }), "landing")).toBe("");
+  // Le chemin de la section vaut pour tous ses items : le toggle de l'item ne
+  // sert qu'à lui en donner un autre.
+  it("applique le chemin de la section même sans toggle sur l'item", () => {
+    expect(resolveCustomFolder(fields({ customPath: "promo" }), "landing")).toBe("landing");
+  });
+
+  it("ne rend rien sans chemin nulle part", () => {
+    expect(resolveCustomFolder(fields({ customPath: "promo" }), "")).toBe("");
   });
 
   it("préfère le chemin de l'item à celui de la section", () => {
@@ -56,17 +62,13 @@ describe("resolveCustomFolder", () => {
   });
 });
 
-describe("resolveCmsFolder", () => {
+describe("defaultCmsFolder", () => {
   it("compose le dossier par défaut avec la semaine sur deux chiffres", () => {
-    expect(resolveCmsFolder(fields(), "", { year: 2026, week: 7 }, null)).toBe("homepage/2026/wk07");
+    expect(defaultCmsFolder({ year: 2026, week: 7 }, null)).toBe("homepage/2026/wk07");
   });
 
   it("utilise imageWeek plutôt que la semaine du brief quand elle est renseignée", () => {
-    expect(resolveCmsFolder(fields(), "", ctx, 30)).toBe("homepage/2026/wk30");
-  });
-
-  it("retombe sur le défaut quand le toggle est actif sans aucun chemin", () => {
-    expect(resolveCmsFolder(fields({ useCustomPath: true }), "", ctx, null)).toBe("homepage/2026/wk36");
+    expect(defaultCmsFolder(ctx, 30)).toBe("homepage/2026/wk30");
   });
 });
 
@@ -94,10 +96,10 @@ describe("buildCmsImagePath", () => {
     expect(buildCmsImagePath(fields(), ctx, null, "quickaccess-1")).toBe("homepage/2026/wk36/fr/quickaccess-1");
   });
 
-  it("chemin hérité de la section", () => {
+  it("chemin hérité de la section : il remplace tout, langue comprise", () => {
     expect(
-      buildCmsImagePath(fields({ useCustomPath: true }), ctx, null, "quickaccess-2", "landing-pages/fille/campagne"),
-    ).toBe("landing-pages/fille/campagne/fr/quickaccess-2");
+      buildCmsImagePath(fields(), ctx, null, "quickaccess-2", "landing-pages/fille/campagne"),
+    ).toBe("landing-pages/fille/campagne/quickaccess-2");
   });
 
   it("chemin surchargé par l'item", () => {
@@ -109,13 +111,13 @@ describe("buildCmsImagePath", () => {
         "quickaccess-3",
         "landing-pages/fille/campagne",
       ),
-    ).toBe("promo/soldes/fr/quickaccess-3");
+    ).toBe("promo/soldes/quickaccess-3");
   });
 
-  it("chemin hérité + image globale : pas de segment langue", () => {
+  it("chemin hérité + image globale : même chemin, nom par défaut conservé", () => {
     expect(
       buildCmsImagePath(
-        fields({ useCustomPath: true, isGlobalImage: true }),
+        fields({ isGlobalImage: true }),
         ctx,
         null,
         "quickaccess-4",
@@ -127,7 +129,7 @@ describe("buildCmsImagePath", () => {
   it("normalise les slashes du chemin saisi", () => {
     expect(
       buildCmsImagePath(fields({ useCustomPath: true, customPath: "/promo/noel/" }), ctx, null, "quickaccess-5"),
-    ).toBe("promo/noel/fr/quickaccess-5");
+    ).toBe("promo/noel/quickaccess-5");
   });
 
   it("image globale sans chemin custom : semaine conservée, langue retirée", () => {

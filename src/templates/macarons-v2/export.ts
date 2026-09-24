@@ -2,16 +2,11 @@ import type { MacaronItem, QuickaccessPlacement } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 import { buildCmsImagePath } from "@/lib/cms-image-path";
+import type { ExportContext } from "@/lib/cms-image-path";
 
 // CSS scopé au nouveau design "Macaron v2" (v2-html/quickaccess.html +
 // v2-html/style.html). Coexiste avec le CSS des macarons v1 (quickaccess-list),
 // classes différentes, aucune collision.
-interface ExportContext {
-  year: number;
-  week: number;
-  locale: string;
-}
-
 const cssStyle = `
   .hp-cat-container {
     width: calc(100% - 48px);
@@ -206,7 +201,24 @@ ${itemsHTML}
  * frameId identifies this iframe in resize messages (plusieurs previews écoutent
  * sur la même fenêtre parent — sans lui elles s'écrasent la hauteur les unes des autres).
  */
-export function generatePreviewHTML(items: MacaronItem[], frameId = ""): string {
+export function generatePreviewHTML(
+  items: MacaronItem[],
+  frameId = "",
+  placement: QuickaccessPlacement = "homepage",
+): string {
+  // Mêmes classes qu'à l'export : sans ça, choisir « catégorie niveau 2 »
+  // ne changeait rien à l'écran alors que l'export, lui, changeait bien.
+  const cls = PLACEMENT_CLASSES[placement] ?? PLACEMENT_CLASSES.homepage;
+  // Le CSS du CMS proxifié ne contient aucune de ces classes : toute la mise en
+  // forme de l'aperçu vient de cssStyle, écrit pour la page d'accueil. La
+  // structure HTML étant la même des deux côtés, on rejoue ces règles sous les
+  // noms de classes du niveau 2, sinon l'aperçu s'affiche sans aucun style.
+  const placementCss =
+    placement === "cat_lvl2"
+      ? cssStyle
+          .replace(/quickaccess-v2/g, "quickaccess-lvl2")
+          .replace(/hp-cat-container/g, "hp-cat-lvl2-container")
+      : "";
   const visibleItems = items.filter((item) => item.visible);
 
   const itemsHTML = visibleItems
@@ -218,12 +230,12 @@ export function generatePreviewHTML(items: MacaronItem[], frameId = ""): string 
       const commentHtml = getPreviewCommentHtml(item.comment);
 
       return `    <li>
-      <a href="#" class="quickaccess-v2-item${hasComment ? " preview-has-comment" : ""}">
+      <a href="#" class="${cls.item}${hasComment ? " preview-has-comment" : ""}">
         ${commentHtml}
-        <picture class="quickaccess-v2-item__picture">
-          <img src="${esc(imgSrc)}" alt="" class="quickaccess-v2-item__img" aria-hidden="true" />
+        <picture class="${cls.item}__picture">
+          <img src="${esc(imgSrc)}" alt="" class="${cls.item}__img" aria-hidden="true" />
         </picture>
-        <h3 class="quickaccess-v2-item__label">${htmlLabel}</h3>
+        <h3 class="${cls.item}__label">${htmlLabel}</h3>
       </a>
     </li>`;
     })
@@ -238,15 +250,16 @@ export function generatePreviewHTML(items: MacaronItem[], frameId = ""): string 
 <style>
 ${PREVIEW_ROOT_VARS}
 ${cssStyle}
-.quickaccess-v2__list li {max-width: 200px;}
-.quickaccess-v2 {overflow: visible;}
+${placementCss}
+.quickaccess-v2__list li, .quickaccess-lvl2__list li {max-width: 200px;}
+.quickaccess-v2, .quickaccess-lvl2 {overflow: visible;}
 ${previewCommentStyles}
 body { margin: 0; background: #fff; cursor: default; }
 </style>
 </head>
 <body>
-<nav class="quickaccess-v2 hp-cat-container" aria-label="Accès rapide aux catégories">
-  <ul class="quickaccess-v2__list" role="list">
+<nav class="${cls.nav}" aria-label="Accès rapide aux catégories">
+  <ul class="${cls.list}" role="list">
 ${itemsHTML}
   </ul>
 </nav>

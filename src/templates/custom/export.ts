@@ -2,14 +2,9 @@ import type { CustomBlock, CustomContent } from "@/types";
 import { getPreviewCommentHtml, previewCommentStyles } from "@/components/preview-comment-overlay";
 import { CMS_CSS_URL, PREVIEW_CMS_CSS_HREF, PREVIEW_ROOT_VARS } from "@/lib/cms-css";
 import { richTextToHtml } from "@/lib/rich-text";
+import { sectionFolderSegment, type ExportContext } from "@/lib/cms-image-path";
 
 export { CMS_CSS_URL };
-
-interface ExportContext {
-   year: number;
-   week: number;
-   locale: string;
-}
 
 const cssStyle = `
    .custom-section {
@@ -118,7 +113,7 @@ function renderImageBlock(
    let inner: string;
    if (ctx) {
       const wk = String(block.imageWeek ?? ctx.week).padStart(2, "0");
-      const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}/custom-${esc(block.imageId)}`;
+      const imgPath = `homepage/${ctx.year}/wk${wk}/${ctx.locale}${sectionFolderSegment(ctx)}/custom-${esc(block.imageId)}`;
       inner = `<picture>
          <source srcset="${imgPath}.webp?$staticlink$" type="image/webp" />
          <source srcset="${imgPath}.jpg?$staticlink$" type="image/jpeg" />

@@ -79,12 +79,13 @@ describe("exportPosition fige la position", () => {
 });
 
 describe("chemin personnalisé et image globale", () => {
-  it("propage le dossier de la section aux items qui l'activent", () => {
+  // Le chemin de la section vaut pour tous ses items, sans réglage par item.
+  it("propage le dossier de la section à tous ses items", () => {
     const items = macaronsWithGaps(2, [1, 2]);
     items[0].useCustomPath = true;
     const entries = getSectionImages("macarons_v2", { items, customPath: "landing-pages/campagne" });
     expect(entries[0].customFolder).toBe("landing-pages/campagne");
-    expect(entries[1].customFolder).toBeUndefined();
+    expect(entries[1].customFolder).toBe("landing-pages/campagne");
   });
 
   it("le chemin de l'item prime sur celui de la section", () => {

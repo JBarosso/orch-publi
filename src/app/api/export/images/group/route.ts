@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { briefs, briefSections } from "@/lib/schema";
-import { inArray } from "drizzle-orm";
+import { asc, inArray } from "drizzle-orm";
 import { getSectionImages } from "@/templates/registry";
 import { prepareZip, streamZip, type ZipGroup } from "@/lib/build-zip";
 import { normalizeTypeLabel } from "@/lib/section-labels";
+import { sectionExportFolders } from "@/lib/section-export-folder";
 
 // Caractères interdits dans un nom de dossier ZIP sur la plupart des OS.
 function sanitizeFolderName(name: string): string {
@@ -36,12 +37,29 @@ export async function GET(request: NextRequest) {
   const briefRows = await db.select().from(briefs).where(inArray(briefs.id, briefIds));
   const briefById = new Map(briefRows.map((b) => [b.id, b]));
 
+  // Sur toutes les sections des briefs concernés, pas seulement celles
+  // sélectionnées : le sous-dossier d'une section doit être le même quelle que
+  // soit la façon dont on l'exporte.
+  const siblings = await db
+    .select({
+      id: briefSections.id,
+      briefId: briefSections.briefId,
+      type: briefSections.type,
+      title: briefSections.title,
+    })
+    .from(briefSections)
+    .where(inArray(briefSections.briefId, briefIds))
+    .orderBy(asc(briefSections.order));
+  const folders = new Map(
+    briefIds.flatMap((id) => [...sectionExportFolders(siblings.filter((s) => s.briefId === id))]),
+  );
+
   const groups: ZipGroup[] = [];
   for (const section of sections) {
     const brief = briefById.get(section.briefId);
     if (!brief) continue;
 
-    const images = getSectionImages(section.type, section.content);
+    const images = getSectionImages(section.type, section.content, folders.get(section.id));
     if (images.length === 0) continue;
 
     const typeLabel = sanitizeFolderName(normalizeTypeLabel(section.type));
