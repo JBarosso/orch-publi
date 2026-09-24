@@ -93,6 +93,11 @@ async function postLocalAsset(file: Blob, fields: AssetFields): Promise<Response
  */
 export async function postAsset(file: Blob, fields: AssetFields): Promise<Response> {
   if (isLocalModeEnabled()) return postLocalAsset(file, fields);
+  return postServerAsset(file, fields);
+}
+
+/** Envoi au serveur quel que soit le mode (ex: envoi des images locales en quittant le mode local). */
+export async function postServerAsset(file: Blob, fields: AssetFields): Promise<Response> {
   const sourceUrl = await uploadToTemp(file, file.type);
   return fetch("/api/assets", {
     method: "POST",

@@ -11,6 +11,12 @@ const PREFIX = "/local-images/";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+// Page chargée par un rechargement forcé (Ctrl+Maj+R) : le navigateur l'a
+// laissée hors service worker, et ses images locales partiraient vers
+// l'image de remplacement. Elle demande à être reprise en arrivant.
+self.addEventListener("message", (event) => {
+  if (event.data === "claim") event.waitUntil(self.clients.claim());
+});
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);

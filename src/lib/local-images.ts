@@ -26,6 +26,29 @@ export function localImageIdFromUrl(url: string): string {
   return url.slice(LOCAL_IMAGE_PREFIX.length).replace(/\.[^./]+$/, "");
 }
 
+/** Adresse locale bien formée, telle que localImageUrl la produit. */
+export function isWellFormedLocalImageUrl(url: unknown): url is string {
+  return typeof url === "string" && /^\/local-images\/[0-9a-f-]{36}\.(jpg|png|webp|svg)$/.test(url);
+}
+
+/** Remplace des adresses dans un texte (JSON sérialisé) : locale → serveur. */
+export function replaceLocalUrls(text: string, urls: Record<string, string>): string {
+  return Object.entries(urls).reduce((acc, [from, to]) => acc.split(from).join(to), text);
+}
+
+/**
+ * Diffusé quand des images locales viennent d'être envoyées au serveur : les
+ * pages ouvertes remplacent les adresses dans ce qu'elles ont en mémoire
+ * (modifications non enregistrées comprises). `updatedAt` : nouvelle date des
+ * sections réécrites par le serveur, pour que la prochaine sauvegarde ne soit
+ * pas refusée à tort.
+ */
+export const LOCAL_IMAGES_SENT_EVENT = "local-images-sent";
+export interface LocalImagesSent {
+  urls: Record<string, string>;
+  updatedAt: Record<string, string>;
+}
+
 /** Le contenu d'une section désigne-t-il au moins une image locale ? */
 export function contentHasLocalImages(content: unknown): boolean {
   return JSON.stringify(content ?? null).includes(LOCAL_IMAGE_PREFIX);
@@ -95,6 +118,15 @@ export async function renameLocalImage(id: string, label: string): Promise<Local
   const updated = { ...record, label };
   await withStore("readwrite", (store) => store.put(updated));
   return updated;
+}
+
+export async function deleteLocalImages(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await withStore("readwrite", (store) => {
+    let last: IDBRequest<undefined> = store.delete(ids[0]);
+    for (const id of ids.slice(1)) last = store.delete(id);
+    return last;
+  });
 }
 
 export function toAsset(record: LocalImageRecord): Asset {

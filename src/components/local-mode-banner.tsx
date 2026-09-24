@@ -14,7 +14,12 @@ export function LocalModeBanner() {
   const localMode = useLocalMode();
 
   useEffect(() => {
-    navigator.serviceWorker?.register("/local-images-sw.js").catch(() => {});
+    const sw = navigator.serviceWorker;
+    sw?.register("/local-images-sw.js")
+      .then(() => sw.ready)
+      // Rechargement forcé : la page n'est pas prise en charge d'office.
+      .then((registration) => !sw.controller && registration.active?.postMessage("claim"))
+      .catch(() => {});
   }, []);
 
   if (!localMode) return null;

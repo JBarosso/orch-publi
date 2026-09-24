@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { useDevMode, setDevMode } from "@/lib/dev-mode";
 import { useLocalMode, setLocalMode } from "@/lib/local-mode";
 import { Switch } from "@/components/ui/switch";
+import { LocalModeExitDialog } from "@/components/local-mode-exit-dialog";
+import { listLocalImages, type LocalImageRecord } from "@/lib/local-images";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -54,6 +56,15 @@ export function Sidebar() {
   );
   const devMode = useDevMode();
   const localMode = useLocalMode();
+  const [exitRecords, setExitRecords] = useState<LocalImageRecord[] | null>(null);
+
+  // Sortie du mode local : popin seulement s'il reste des images sur le poste.
+  const changeLocalMode = async (next: boolean) => {
+    if (next) return setLocalMode(true);
+    const records = await listLocalImages().catch(() => []);
+    if (records.length === 0) setLocalMode(false);
+    else setExitRecords(records);
+  };
 
   const toggle = () => {
     localStorage.setItem(STORAGE_KEY, String(!collapsed));
@@ -147,7 +158,7 @@ export function Sidebar() {
             navigateur (cf. src/lib/local-mode.ts). */}
         {collapsed ? (
           <button
-            onClick={() => setLocalMode(!localMode)}
+            onClick={() => changeLocalMode(!localMode)}
             title={`Mode local${localMode ? " (actif)" : ""}`}
             className={cn(
               "mb-1 flex w-full items-center justify-center rounded-lg py-2 text-[13px] font-medium transition-colors hover:bg-sidebar-accent/50",
@@ -168,7 +179,7 @@ export function Sidebar() {
               <HardDrive className="h-4 w-4 shrink-0" />
               Mode local
             </span>
-            <Switch checked={localMode} onCheckedChange={setLocalMode} className="scale-75" />
+            <Switch checked={localMode} onCheckedChange={changeLocalMode} className="scale-75" />
           </div>
         )}
         {collapsed ? (
@@ -206,6 +217,7 @@ export function Sidebar() {
           {!collapsed && "Déconnexion"}
         </button>
       </div>
+      <LocalModeExitDialog records={exitRecords} onRecordsChange={setExitRecords} />
     </aside>
   );
 }

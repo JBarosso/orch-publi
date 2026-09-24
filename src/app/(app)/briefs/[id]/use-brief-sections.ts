@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Brief, BriefSection } from "@/types";
+import { LOCAL_IMAGES_SENT_EVENT, replaceLocalUrls, type LocalImagesSent } from "@/lib/local-images";
 
 export interface BriefWithSections extends Brief {
   sections: BriefSection[];
@@ -197,6 +198,26 @@ export function useBriefSections(briefId: string) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [handleSave]);
+
+  // Images locales envoyées au serveur (sortie du mode local) : le serveur a
+  // déjà réécrit les sections enregistrées ; on fait de même avec ce qui est
+  // à l'écran, modifications non enregistrées comprises, et on reprend la
+  // nouvelle date des sections réécrites pour que la sauvegarde passe.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { urls, updatedAt } = (e as CustomEvent<LocalImagesSent>).detail;
+      setSections((prev) =>
+        prev.map((s) => ({
+          ...s,
+          content: JSON.parse(replaceLocalUrls(JSON.stringify(s.content), urls)),
+          updatedAt: s.id in updatedAt ? new Date(updatedAt[s.id]) : s.updatedAt,
+        })),
+      );
+      savedSectionsRef.current = replaceLocalUrls(savedSectionsRef.current, urls);
+    };
+    window.addEventListener(LOCAL_IMAGES_SENT_EVENT, handler);
+    return () => window.removeEventListener(LOCAL_IMAGES_SENT_EVENT, handler);
+  }, []);
 
   // Fermeture d'onglet / rechargement / navigation externe
   useEffect(() => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { LOCAL_IMAGE_PREFIX } from "@/lib/local-images";
+import { LOCAL_IMAGE_PREFIX, getLocalImage, localImageIdFromUrl } from "@/lib/local-images";
 
 // Les aperçus sont des iframes isolées (sandbox, origine opaque) : le service
 // worker ne les couvre pas, et elles ne peuvent charger ni /local-images/…
@@ -23,10 +23,11 @@ function toDataUrl(blob: Blob): Promise<string> {
 
 async function load(url: string): Promise<void> {
   if (cache.has(url)) return;
-  // Servie par le service worker, ou par l'image de remplacement si elle
-  // n'est pas sur ce poste : dans les deux cas, l'aperçu montre quelque chose.
-  const res = await fetch(url);
-  cache.set(url, await toDataUrl(await res.blob()));
+  // Lue directement sur le poste, sans dépendre du service worker ; sinon
+  // l'image de remplacement du serveur : l'aperçu montre toujours quelque chose.
+  const record = await getLocalImage(localImageIdFromUrl(url)).catch(() => undefined);
+  const blob = record?.blob ?? (await (await fetch(url)).blob());
+  cache.set(url, await toDataUrl(blob));
 }
 
 /** Contenu de section prêt pour un aperçu en iframe : images locales en data:. */

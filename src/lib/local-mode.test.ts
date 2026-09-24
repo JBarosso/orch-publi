@@ -8,6 +8,8 @@ import {
   localAssetFilterOptions,
   localImageIdFromUrl,
   localImageUrl,
+  isWellFormedLocalImageUrl,
+  replaceLocalUrls,
   type LocalImageRecord,
 } from "./local-images";
 import { collectBriefImages } from "./brief-images";
@@ -52,6 +54,27 @@ describe("adresses des images locales", () => {
     expect(contentHasLocalImages({ items: [{ imageUrl: "/local-images/a.jpg" }] })).toBe(true);
     expect(contentHasLocalImages({ items: [{ imageUrl: "https://x/a.jpg" }] })).toBe(false);
     expect(contentHasLocalImages(null)).toBe(false);
+  });
+});
+
+describe("envoi au serveur en quittant le mode local", () => {
+  const local = "/local-images/0f8b6c1e-3a2d-4c5b-9e7f-112233445566.jpg";
+
+  it("n'accepte que des adresses locales produites par l'app", () => {
+    expect(isWellFormedLocalImageUrl(local)).toBe(true);
+    expect(isWellFormedLocalImageUrl("/local-images/x.jpg")).toBe(false);
+    expect(isWellFormedLocalImageUrl(`${local}"}`)).toBe(false);
+    expect(isWellFormedLocalImageUrl("https://x/a.jpg")).toBe(false);
+  });
+
+  it("remplace chaque occurrence dans le contenu sérialisé", () => {
+    const content = { items: [{ imageUrl: local }, { imageUrl: local }, { imageUrl: "https://x/b.jpg" }] };
+    const out = JSON.parse(replaceLocalUrls(JSON.stringify(content), { [local]: "https://blob/a.jpg" }));
+    expect(out.items.map((i: { imageUrl: string }) => i.imageUrl)).toEqual([
+      "https://blob/a.jpg",
+      "https://blob/a.jpg",
+      "https://x/b.jpg",
+    ]);
   });
 });
 
