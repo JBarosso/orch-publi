@@ -2,12 +2,48 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { LOCK_HEARTBEAT_INTERVAL_MS, type LockStatus } from "@/lib/brief-lock";
+import { LOCK_HEARTBEAT_INTERVAL_MS, isTabAwake, type LockStatus } from "@/lib/brief-lock";
 
 // Quand on ne tient pas le verrou : fréquence à laquelle on regarde s'il
 // s'est libéré (ou si quelqu'un l'a pris entre-temps).
 const POLL_INTERVAL_MS = 15_000;
 const EXPIRY_WARNING_MS = 5 * 60_000;
+/** Rythme auquel on re-teste l'inactivité (aucun appel réseau). */
+const IDLE_CHECK_INTERVAL_MS = 30_000;
+
+/**
+ * Onglet caché, ou visible mais laissé de côté : plus personne ne le regarde,
+ * ses appels au serveur ne servent à rien et maintiennent la base de données
+ * éveillée. Repasse à `true` dès qu'on revient dessus.
+ */
+function useTabAwake(): boolean {
+  const [awake, setAwake] = useState(true);
+  const lastActivityAt = useRef(0);
+
+  useEffect(() => {
+    const visible = () => document.visibilityState === "visible";
+    const check = () => setAwake(isTabAwake(visible(), lastActivityAt.current, Date.now()));
+    const mark = () => {
+      lastActivityAt.current = Date.now();
+      check();
+    };
+    const onVisibility = () => (visible() ? mark() : setAwake(false));
+
+    mark();
+    const events = ["pointerdown", "keydown", "wheel", "mousemove"] as const;
+    for (const event of events) window.addEventListener(event, mark, { passive: true });
+    document.addEventListener("visibilitychange", onVisibility);
+    const timer = setInterval(check, IDLE_CHECK_INTERVAL_MS);
+
+    return () => {
+      for (const event of events) window.removeEventListener(event, mark);
+      document.removeEventListener("visibilitychange", onVisibility);
+      clearInterval(timer);
+    };
+  }, []);
+
+  return awake;
+}
 
 /**
  * Verrou d'édition du brief ouvert (principe : cf. src/lib/brief-lock.ts).
@@ -19,6 +55,7 @@ export function useBriefLock(briefId: string) {
   const [busy, setBusy] = useState(false);
   const url = `/api/briefs/${briefId}/lock`;
   const mine = status?.state === "mine";
+  const awake = useTabAwake();
 
   const lock = useCallback(async () => {
     setBusy(true);
@@ -49,8 +86,13 @@ export function useBriefLock(briefId: string) {
   }, [url]);
 
   // Sans le verrou : état chargé puis surveillé, pour voir le brief se libérer.
+  // Suspendu quand l'onglet s'endort, et relancé (avec un rafraîchissement
+  // immédiat) dès qu'on y revient : un onglet oublié n'appelle plus rien.
+  // Le signe de vie ci-dessous, lui, continue même onglet caché — l'arrêter
+  // ferait perdre le verrou en 2 min à qui a des modifications à l'écran, et
+  // il s'arrête de toute façon seul à la durée maximale du verrou.
   useEffect(() => {
-    if (mine) return;
+    if (mine || !awake) return;
     let cancelled = false;
     const load = async () => {
       const res = await fetch(url).catch(() => null);
@@ -62,7 +104,7 @@ export function useBriefLock(briefId: string) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [url, mine]);
+  }, [url, mine, awake]);
 
   // Avec le verrou : signe de vie régulier. Un refus signifie qu'il a été
   // perdu (durée maximale atteinte, ou onglet resté trop longtemps muet).

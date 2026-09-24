@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   LOCK_HEARTBEAT_TIMEOUT_MS,
+  TAB_IDLE_AFTER_MS,
   clampLockMaxMinutes,
   computeLockStatus,
+  isTabAwake,
   lockThresholds,
 } from "./brief-lock";
 
@@ -50,6 +52,25 @@ describe("lockThresholds", () => {
     const { staleBefore, expiredBefore } = lockThresholds(at(90), 60);
     expect(staleBefore.getTime()).toBe(at(90).getTime() - LOCK_HEARTBEAT_TIMEOUT_MS);
     expect(expiredBefore).toEqual(at(30));
+  });
+});
+
+describe("isTabAwake", () => {
+  const now = T0.getTime();
+  const since = (ms: number) => now - ms;
+
+  it("éveillé tant que l'onglet est visible et qu'on y touche", () => {
+    expect(isTabAwake(true, since(0), now)).toBe(true);
+    expect(isTabAwake(true, since(TAB_IDLE_AFTER_MS - 1_000), now)).toBe(true);
+  });
+
+  it("endormi dès que l'onglet est caché, même après une interaction récente", () => {
+    expect(isTabAwake(false, since(0), now)).toBe(false);
+  });
+
+  it("endormi après le délai sans interaction", () => {
+    expect(isTabAwake(true, since(TAB_IDLE_AFTER_MS), now)).toBe(false);
+    expect(isTabAwake(true, since(60 * 60_000), now)).toBe(false);
   });
 });
 

@@ -13,6 +13,23 @@
 export const LOCK_HEARTBEAT_INTERVAL_MS = 30_000;
 export const LOCK_HEARTBEAT_TIMEOUT_MS = 2 * 60_000;
 
+/** Sans interaction depuis ce délai, un onglet visible est considéré endormi. */
+export const TAB_IDLE_AFTER_MS = 5 * 60_000;
+
+/**
+ * Faut-il continuer à interroger le serveur depuis cet onglet ? Un onglet
+ * caché ou laissé de côté n'a personne devant lui : ses appels ne servent à
+ * rien et empêchent la base de données de se mettre en veille.
+ */
+export function isTabAwake(
+  visible: boolean,
+  lastActivityAt: number,
+  now: number,
+  idleAfterMs = TAB_IDLE_AFTER_MS,
+): boolean {
+  return visible && now - lastActivityAt < idleAfterMs;
+}
+
 export const DEFAULT_LOCK_MAX_MINUTES = 60;
 export const MIN_LOCK_MAX_MINUTES = 5;
 export const MAX_LOCK_MAX_MINUTES = 24 * 60;
